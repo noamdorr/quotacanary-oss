@@ -1,0 +1,38 @@
+import { toFiniteNumber } from "./shared"
+import type { AdapterResult, ToolAdapter } from "./types"
+
+export const serpapiAdapter: ToolAdapter = {
+  toolId: "serpapi",
+  async readBalance(apiKey: string): Promise<AdapterResult> {
+    let res: Response
+    try {
+      res = await fetch(
+        `https://serpapi.com/account.json?api_key=${encodeURIComponent(apiKey)}`
+      )
+    } catch {
+      return { ok: false, error: "Couldn't reach SerpApi." }
+    }
+    if (res.status === 401)
+      return { ok: false, error: "SerpApi rejected this key." }
+    if (!res.ok) return { ok: false, error: `SerpApi returned ${res.status}.` }
+
+    let data: { total_searches_left?: unknown }
+    try {
+      data = await res.json()
+    } catch {
+      return { ok: false, error: "SerpApi returned an unexpected response." }
+    }
+    return {
+      ok: true,
+      balances: [
+        {
+          creditType: "searches",
+          label: "Searches Left",
+          balance: toFiniteNumber(data.total_searches_left),
+          balanceLimit: null,
+          unit: "credits",
+        },
+      ],
+    }
+  },
+}

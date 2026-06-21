@@ -1,0 +1,40 @@
+# Local development config for the open-source Supabase stack.
+# Self-hosters and contributors use this to run `supabase start` + `supabase db reset`.
+project_id = "quotacanary"
+
+[api]
+enabled = true
+port = 54321
+schemas = ["public"]
+extra_search_path = ["public", "extensions"]
+max_rows = 1000
+
+[db]
+port = 54322
+shadow_port = 54320
+# MUST match supabase/.temp/postgres-version (17.6.1.084).
+major_version = 17
+
+[db.seed]
+enabled = true
+sql_paths = ["./seed.sql"]
+
+[studio]
+enabled = true
+port = 54323
+
+[storage]
+# QuotaCanary uses no Supabase Storage; disabling it keeps the local stack lean
+# and avoids pulling the storage-api image during `supabase start` / `db reset`.
+enabled = false
+
+[auth]
+enabled = true
+site_url = "http://localhost:3000"
+additional_redirect_urls = ["http://localhost:3000"]
+jwt_expiry = 3600
+enable_signup = true
+
+[auth.email]
+enable_signup = true
+enable_confirmations = false
