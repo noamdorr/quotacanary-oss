@@ -3,20 +3,25 @@ import { searchapiAdapter } from "./searchapi"
 afterEach(() => vi.restoreAllMocks())
 describe("searchapi adapter", () => {
   it("returns balance and balanceLimit from account", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(
-        async () =>
-          ({
-            ok: true,
-            status: 200,
-            json: async () => ({
-              account: { remaining_credits: 900, monthly_allowance: 1000 },
-            }),
-          }) as unknown as Response
-      )
+    const fetchMock = vi.fn(
+      async () =>
+        ({
+          ok: true,
+          status: 200,
+          json: async () => ({
+            account: { remaining_credits: 900, monthly_allowance: 1000 },
+          }),
+        }) as unknown as Response
     )
+    vi.stubGlobal("fetch", fetchMock)
     const result = await searchapiAdapter.readBalance("key")
+    // Key rides in the Authorization header, never the URL query string.
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://www.searchapi.io/api/v1/me",
+      {
+        headers: { Authorization: "Bearer key" },
+      }
+    )
     expect(result).toEqual({
       ok: true,
       balances: [

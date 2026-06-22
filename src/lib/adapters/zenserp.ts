@@ -6,9 +6,9 @@ export const zenserpAdapter: ToolAdapter = {
   async readBalance(apiKey: string): Promise<AdapterResult> {
     let res: Response
     try {
-      res = await fetch(
-        `https://app.zenserp.com/api/v2/status?apikey=${encodeURIComponent(apiKey)}`
-      )
+      res = await fetch("https://app.zenserp.com/api/v2/status", {
+        headers: { apikey: apiKey },
+      })
     } catch {
       return { ok: false, error: "Couldn't reach Zenserp." }
     }

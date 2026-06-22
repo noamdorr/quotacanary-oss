@@ -6,9 +6,9 @@ export const searchapiAdapter: ToolAdapter = {
   async readBalance(apiKey: string): Promise<AdapterResult> {
     let res: Response
     try {
-      res = await fetch(
-        `https://www.searchapi.io/api/v1/me?api_key=${encodeURIComponent(apiKey)}`
-      )
+      res = await fetch("https://www.searchapi.io/api/v1/me", {
+        headers: { Authorization: `Bearer ${apiKey}` },
+      })
     } catch {
       return { ok: false, error: "Couldn't reach SearchApi." }
     }

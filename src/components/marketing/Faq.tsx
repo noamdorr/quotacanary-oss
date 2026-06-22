@@ -31,6 +31,25 @@ const FAQS = [
     ),
   },
   {
+    q: "It's open source - can I inspect it and self-host?",
+    a: (
+      <>
+        Yes to both. The full source is{" "}
+        <a
+          href="https://github.com/noamdorr/quotacanary-oss"
+          target="_blank"
+          rel="noreferrer noopener"
+        >
+          on GitHub
+        </a>
+        , so you can read exactly what we do with your API keys instead of
+        taking our word for it. Prefer to run the whole thing yourself? Fork it
+        and self-host - your laptop, your own server, wherever you like. The
+        hosted version stays free either way.
+      </>
+    ),
+  },
+  {
     q: "Why is it free?",
     a: "Polling your balances every 15 minutes costs us almost nothing, so we don't charge for it. If a paid tier ever shows up, it'll be for something genuinely expensive, and you'll see it coming long before it touches you.",
   },
@@ -109,6 +128,7 @@ function FaqItem({
         }}
       >
         <p
+          className="qc-faq-answer"
           style={{
             fontSize: 15,
             color: "var(--ink-3)",

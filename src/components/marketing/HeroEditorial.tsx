@@ -10,7 +10,7 @@ export function HeroEditorial() {
     <section style={{ padding: "72px 0 72px" }}>
       <div className="container qc-hero-grid">
         {/* LEFT: copy + CTAs */}
-        <div className="rise-in">
+        <div className="rise-in qc-hero-copy">
           <div className="eyebrow" style={{ marginBottom: 18 }}>
             {COPY.heroEyebrow}
           </div>
@@ -38,6 +38,7 @@ export function HeroEditorial() {
 
           {/* CTA row */}
           <div
+            className="qc-hero-cta"
             style={{
               display: "flex",
               flexWrap: "wrap",

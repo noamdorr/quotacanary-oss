@@ -23,3 +23,30 @@ export function resolveHost(hostname: string | null | undefined): HostSurface {
   }
   return "marketing"
 }
+
+// Every route in the (dashboard) group requires an authenticated user. Next's
+// route groups are invisible in the URL, so the middleware can't infer
+// protection from one path prefix - enumerate the protected roots here so the
+// auth boundary is enforced in one place (defense in depth alongside each
+// page's own getUser() guard). `(\/|$)` anchors on a full path segment, so
+// `/settings` matches but `/settings-export` does not.
+const PROTECTED_APP_PATHS =
+  /^\/(dashboard|alerts|connect|developer|security|settings|tools)(\/|$)/
+
+export function isProtectedAppPath(pathname: string): boolean {
+  return PROTECTED_APP_PATHS.test(pathname)
+}
+
+// App-surface paths that do NOT require a logged-in user (so they're absent
+// from isProtectedAppPath) but still belong to the app subdomain: the auth
+// pages, the email-confirm callback, the REST API, and the MCP endpoint.
+const APP_PUBLIC_PATHS = /^\/(login|update-password|auth|api|mcp)(\/|$)/
+
+// Whether a path belongs to the app surface at all, so the marketing host can
+// bounce it to the app subdomain. Built on top of isProtectedAppPath so a new
+// protected route can never be gated by the auth check yet forgotten in the
+// marketing redirect - which is exactly how /developer slipped out of this
+// bounce before.
+export function isAppOnlyPath(pathname: string): boolean {
+  return isProtectedAppPath(pathname) || APP_PUBLIC_PATHS.test(pathname)
+}

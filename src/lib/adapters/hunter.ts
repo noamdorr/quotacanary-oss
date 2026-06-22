@@ -25,9 +25,9 @@ export const hunterAdapter: ToolAdapter = {
   async readBalance(apiKey: string): Promise<AdapterResult> {
     let res: Response
     try {
-      res = await fetch(
-        `https://api.hunter.io/v2/account?api_key=${encodeURIComponent(apiKey)}`
-      )
+      res = await fetch("https://api.hunter.io/v2/account", {
+        headers: { Authorization: `Bearer ${apiKey}` },
+      })
     } catch {
       return { ok: false, error: "Couldn't reach Hunter." }
     }

@@ -6,6 +6,8 @@ export const debounceAdapter: ToolAdapter = {
   async readBalance(apiKey: string): Promise<AdapterResult> {
     let res: Response
     try {
+      // SECURITY: DeBounce supports only query-string key auth (no header form), so the
+      // key can surface in vendor request logs/proxies. Residual exposure; see 2026-06-22 audit.
       res = await fetch(
         `https://api.debounce.io/v1/balance/?api=${encodeURIComponent(apiKey)}`
       )

@@ -15,7 +15,7 @@ export function SupportedTools() {
       <div className="container">
         <div style={{ textAlign: "center", marginBottom: 48 }}>
           <div className="eyebrow" style={{ marginBottom: 12 }}>
-            Supported tools
+            60+ tools watched
           </div>
           <h2
             className="f-display"

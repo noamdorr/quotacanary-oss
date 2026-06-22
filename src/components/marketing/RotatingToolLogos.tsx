@@ -97,10 +97,6 @@ export function RotatingToolLogos() {
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
     >
-      <div className="qc-rotating-tools__header">
-        <span>60+ credit tools watched</span>
-        <span aria-hidden="true">live stack radar</span>
-      </div>
       <ul
         className="qc-rotating-tools__rail"
         aria-live="off"

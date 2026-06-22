@@ -58,6 +58,9 @@ function vendorError(value: unknown): string | null {
 export const enrichcrmAdapter: ToolAdapter = {
   toolId: "enrichcrm",
   async readBalance(apiKey: string): Promise<AdapterResult> {
+    // SECURITY: Enrich CRM's balance endpoint authenticates via the apiId query param
+    // only (no header form documented for this gateway endpoint), so the key can surface
+    // in vendor request logs/proxies. Residual exposure; see 2026-06-22 audit.
     const url = new URL("https://gateway.enrich-crm.com/api/credit_crm/v1/mine")
     url.searchParams.set("apiId", apiKey)
 

@@ -20,18 +20,20 @@ const REAL_RESPONSE = {
 
 describe("hunter adapter", () => {
   it("returns searches + verifications as separate pools (remaining vs cap)", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(
-        async () =>
-          ({
-            ok: true,
-            status: 200,
-            json: async () => REAL_RESPONSE,
-          }) as unknown as Response
-      )
+    const fetchMock = vi.fn(
+      async () =>
+        ({
+          ok: true,
+          status: 200,
+          json: async () => REAL_RESPONSE,
+        }) as unknown as Response
     )
+    vi.stubGlobal("fetch", fetchMock)
     const result = await hunterAdapter.readBalance("key")
+    // Key rides in the Authorization header, never the URL query string.
+    expect(fetchMock).toHaveBeenCalledWith("https://api.hunter.io/v2/account", {
+      headers: { Authorization: "Bearer key" },
+    })
     expect(result).toEqual({
       ok: true,
       balances: [

@@ -427,7 +427,10 @@
 
 .qc-hero-demo-wrap {
   position: relative;
-  padding-top: 86px;
+  /* Single column (mobile/tablet): reserve the perched mascot's height in
+     flow so it rests on the card's top edge. Desktop (>=900px) zeroes this
+     and lets the bird overhang, so the headline centers on the card itself. */
+  padding-top: 180px;
 }
 .qc-hero-mascot {
   position: absolute;
@@ -438,6 +441,56 @@
 }
 .qc-hero-mascot .qc-canary-callout__bubble {
   max-width: 180px;
+}
+
+/* Hero demo card balance rows: two columns on desktop, stacked on mobile so
+   the burn-out copy never crowds the status pill. */
+.qc-demo-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+  align-items: center;
+  padding: 12px 0;
+  border-top: 1px solid var(--hairline-soft);
+}
+/* No divider above the first row - the borders only separate rows. */
+.qc-demo-row:first-child {
+  border-top: none;
+}
+.qc-demo-eta {
+  font-size: 12px;
+  font-weight: 600;
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* FAQ answer links: darker text + gold underline so they read as links. */
+.qc-faq-answer a {
+  color: var(--ink);
+  font-weight: 500;
+  text-decoration: underline;
+  text-decoration-color: var(--canary-deep);
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+  transition: text-decoration-color 0.15s ease;
+}
+.qc-faq-answer a:hover {
+  text-decoration-color: var(--ink);
+}
+
+/* Footer links: one row on desktop, a tidy 2-column grid on mobile. */
+.qc-footer-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 22px;
+}
+@media (max-width: 640px) {
+  .qc-footer-nav {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2px 24px;
+    width: 100%;
+  }
 }
 
 .qc-final-cta-panel {
@@ -664,7 +717,7 @@
 
 @media (max-width: 640px) {
   .qc-hero-demo-wrap {
-    padding-top: 76px;
+    padding-top: 160px;
   }
   .qc-hero-mascot {
     left: 53%;
@@ -672,6 +725,20 @@
   .qc-hero-mascot .qc-canary-callout__bird svg {
     width: 112px;
     height: 112px;
+  }
+  .qc-hero-copy {
+    text-align: center;
+  }
+  .qc-hero-cta {
+    justify-content: center;
+  }
+  .qc-demo-row {
+    grid-template-columns: 1fr;
+    gap: 4px;
+    align-items: start;
+  }
+  .qc-demo-eta {
+    text-align: left;
   }
   .qc-final-cta {
     padding-top: 142px !important;
@@ -705,6 +772,18 @@
   .qc-hero-grid {
     grid-template-columns: 1.15fr 1fr;
     gap: 60px;
+    /* Push the row down so the overhanging bird - and its hover speech
+       bubble, which pops up above it - clear the sticky nav. */
+    margin-top: 108px;
+  }
+  /* Let the bird overhang the card's top edge instead of reserving its height
+     in flow, so align-items:center centers the headline on the card alone. */
+  .qc-hero-demo-wrap {
+    padding-top: 0;
+  }
+  .qc-hero-mascot {
+    top: auto;
+    bottom: calc(100% - 16px);
   }
 }
 

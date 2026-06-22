@@ -44,6 +44,8 @@ export const shodanAdapter: ToolAdapter = {
   async readBalance(apiKey: string): Promise<AdapterResult> {
     let res: Response
     try {
+      // SECURITY: Shodan supports only query-string key auth (no header form), so the
+      // key can surface in vendor request logs/proxies. Residual exposure; see 2026-06-22 audit.
       res = await fetch(
         `https://api.shodan.io/api-info?key=${encodeURIComponent(apiKey)}`,
         { headers: { Accept: "application/json" } }

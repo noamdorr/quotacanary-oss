@@ -16,39 +16,9 @@ export function BurnRateDemo({ className }: BurnRateDemoProps) {
         overflow: "hidden",
       }}
     >
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          gap: 16,
-          alignItems: "baseline",
-          marginBottom: 20,
-        }}
-      >
-        <div>
-          <div className="eyebrow">5 tools connected</div>
-        </div>
-        <span
-          className="f-mono"
-          style={{ color: "var(--ink-3)", fontSize: 12 }}
-        >
-          live
-        </span>
-      </div>
-
       <div style={{ display: "grid", gap: 10 }}>
         {HERO_DEMO_TOOLS.map((row) => (
-          <div
-            key={row.name}
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1fr auto",
-              gap: 10,
-              alignItems: "center",
-              padding: "12px 0",
-              borderTop: "1px solid var(--hairline-soft)",
-            }}
-          >
+          <div key={row.name} className="qc-demo-row">
             <div style={{ minWidth: 0 }}>
               <div
                 style={{
@@ -98,7 +68,7 @@ export function BurnRateDemo({ className }: BurnRateDemoProps) {
               </div>
             </div>
             <div
-              className="f-mono"
+              className="f-mono qc-demo-eta"
               style={{
                 color:
                   row.status.level === "critical"
@@ -106,10 +76,6 @@ export function BurnRateDemo({ className }: BurnRateDemoProps) {
                     : row.status.level === "low"
                       ? "var(--low-text)"
                       : "var(--ink-3)",
-                fontSize: 12,
-                fontWeight: 600,
-                textAlign: "right",
-                whiteSpace: "nowrap",
               }}
             >
               {row.eta}

@@ -6,6 +6,8 @@ export const scrapingdogAdapter: ToolAdapter = {
   async readBalance(apiKey: string): Promise<AdapterResult> {
     let res: Response
     try {
+      // SECURITY: Scrapingdog's /account endpoint supports only query-string key auth (no header
+      // form), so the key can surface in vendor request logs/proxies. Residual exposure; see 2026-06-22 audit.
       res = await fetch(
         `https://api.scrapingdog.com/account?api_key=${encodeURIComponent(apiKey)}`
       )

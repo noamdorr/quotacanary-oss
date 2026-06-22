@@ -5,22 +5,25 @@ afterEach(() => vi.restoreAllMocks())
 
 describe("scrapingbee adapter", () => {
   it("computes remaining = max_api_credit - used_api_credit", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(
-        async () =>
-          ({
-            ok: true,
-            status: 200,
-            json: async () => ({
-              max_api_credit: 1000,
-              used_api_credit: 150,
-              max_concurrency: 5,
-            }),
-          }) as Response
-      )
+    const fetchMock = vi.fn(
+      async () =>
+        ({
+          ok: true,
+          status: 200,
+          json: async () => ({
+            max_api_credit: 1000,
+            used_api_credit: 150,
+            max_concurrency: 5,
+          }),
+        }) as Response
     )
+    vi.stubGlobal("fetch", fetchMock)
     const result = await scrapingbeeAdapter.readBalance("key")
+    // Key rides in the Authorization header, never the URL query string.
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://app.scrapingbee.com/api/v1/usage",
+      { headers: { Authorization: "Bearer key" } }
+    )
     expect(result).toEqual({
       ok: true,
       balances: [

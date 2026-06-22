@@ -1,5 +1,3 @@
-import { Canary } from "@/components/brand/Canary"
-
 export function FounderNote() {
   return (
     <section id="why" style={{ padding: "100px 0" }}>
@@ -46,7 +44,20 @@ export function FounderNote() {
             marginTop: 30,
           }}
         >
-          <Canary mood="perched" size={36} />
+          <img
+            src="/founder-noam.png"
+            alt="Noam Dorr"
+            width={48}
+            height={48}
+            style={{
+              width: 48,
+              height: 48,
+              borderRadius: "50%",
+              objectFit: "cover",
+              border: "1px solid var(--hairline)",
+              flexShrink: 0,
+            }}
+          />
           <div>
             <div style={{ fontSize: 15, fontWeight: 600 }}>
               <a
@@ -64,9 +75,9 @@ export function FounderNote() {
               </a>
             </div>
             <div style={{ fontSize: 13, color: "var(--ink-3)" }}>
-              Solo founder. Builds GTM tools.{" "}
+              Co-founder of{" "}
               <a
-                href="https://x.com/dordim"
+                href="https://reechee.io"
                 target="_blank"
                 rel="noreferrer noopener"
                 style={{
@@ -75,7 +86,7 @@ export function FounderNote() {
                   textUnderlineOffset: 3,
                 }}
               >
-                @dordim
+                Reechee
               </a>
             </div>
           </div>

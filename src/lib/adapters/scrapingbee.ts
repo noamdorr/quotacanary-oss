@@ -6,9 +6,9 @@ export const scrapingbeeAdapter: ToolAdapter = {
   async readBalance(apiKey: string): Promise<AdapterResult> {
     let res: Response
     try {
-      res = await fetch(
-        `https://app.scrapingbee.com/api/v1/usage?api_key=${encodeURIComponent(apiKey)}`
-      )
+      res = await fetch("https://app.scrapingbee.com/api/v1/usage", {
+        headers: { Authorization: `Bearer ${apiKey}` },
+      })
     } catch {
       return { ok: false, error: "Couldn't reach ScrapingBee." }
     }

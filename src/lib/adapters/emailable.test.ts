@@ -5,18 +5,21 @@ afterEach(() => vi.restoreAllMocks())
 
 describe("emailable adapter", () => {
   it("returns balance from available_credits field", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(
-        async () =>
-          ({
-            ok: true,
-            status: 200,
-            json: async () => ({ available_credits: 1234 }),
-          }) as Response
-      )
+    const fetchMock = vi.fn(
+      async () =>
+        ({
+          ok: true,
+          status: 200,
+          json: async () => ({ available_credits: 1234 }),
+        }) as Response
     )
+    vi.stubGlobal("fetch", fetchMock)
     const result = await emailableAdapter.readBalance("key")
+    // Key rides in the Authorization header, never the URL query string.
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://api.emailable.com/v1/account",
+      { headers: { Authorization: "Bearer key" } }
+    )
     expect(result).toEqual({
       ok: true,
       balances: [

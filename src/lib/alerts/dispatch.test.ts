@@ -19,6 +19,9 @@ vi.mock("@/lib/email/render/alert", () => ({
   renderAlertEmail: (model: unknown) => renderAlertEmail(model),
 }))
 
+const { lookup } = vi.hoisted(() => ({ lookup: vi.fn() }))
+vi.mock("node:dns/promises", () => ({ lookup }))
+
 type InsertRecord = Record<string, unknown>
 
 // Minimal fake of the chained query builder dispatchAlerts uses.
@@ -129,6 +132,7 @@ describe("dispatchAlerts in-app events and destinations", () => {
   beforeEach(() => {
     vi.stubEnv("POSTMARK_SERVER_TOKEN", "tok")
     vi.stubEnv("ENCRYPTION_KEY", "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=")
+    lookup.mockResolvedValue([{ address: "93.184.216.34", family: 4 }])
     vi.stubGlobal(
       "fetch",
       vi.fn(async () => new Response("ok", { status: 200 }))

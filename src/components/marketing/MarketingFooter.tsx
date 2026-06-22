@@ -42,9 +42,8 @@ export function MarketingFooter() {
           </span>
         </div>
         <nav
+          className="qc-footer-nav"
           style={{
-            display: "flex",
-            gap: 22,
             fontSize: 13,
             color: "var(--ink-3)",
           }}

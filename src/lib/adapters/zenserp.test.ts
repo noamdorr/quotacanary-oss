@@ -3,18 +3,21 @@ import { zenserpAdapter } from "./zenserp"
 afterEach(() => vi.restoreAllMocks())
 describe("zenserp adapter", () => {
   it("returns balance from remaining_requests", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(
-        async () =>
-          ({
-            ok: true,
-            status: 200,
-            json: async () => ({ remaining_requests: 900 }),
-          }) as unknown as Response
-      )
+    const fetchMock = vi.fn(
+      async () =>
+        ({
+          ok: true,
+          status: 200,
+          json: async () => ({ remaining_requests: 900 }),
+        }) as unknown as Response
     )
+    vi.stubGlobal("fetch", fetchMock)
     const result = await zenserpAdapter.readBalance("key")
+    // Zenserp authenticates via a bare `apikey` header, never the URL query string.
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://app.zenserp.com/api/v2/status",
+      { headers: { apikey: "key" } }
+    )
     expect(result).toEqual({
       ok: true,
       balances: [

@@ -1,4 +1,8 @@
-import { resolveHost } from "@/lib/host-routing"
+import {
+  isAppOnlyPath,
+  isProtectedAppPath,
+  resolveHost,
+} from "@/lib/host-routing"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 describe("resolveHost", () => {
@@ -59,5 +63,92 @@ describe("resolveHost", () => {
   it("ignores APP_ONLY when not exactly 'true'", () => {
     vi.stubEnv("APP_ONLY", "1")
     expect(resolveHost("quotacanary.com")).toBe("marketing")
+  })
+})
+
+describe("isProtectedAppPath", () => {
+  it("gates every (dashboard)-group route root", () => {
+    for (const path of [
+      "/dashboard",
+      "/alerts",
+      "/connect",
+      "/developer",
+      "/security",
+      "/settings",
+      "/tools",
+    ]) {
+      expect(isProtectedAppPath(path)).toBe(true)
+    }
+  })
+
+  it("gates nested protected paths (e.g. a tool detail page)", () => {
+    expect(isProtectedAppPath("/tools/openai")).toBe(true)
+    expect(isProtectedAppPath("/dashboard/anything")).toBe(true)
+  })
+
+  it("leaves the (auth) routes open to anonymous users", () => {
+    expect(isProtectedAppPath("/login")).toBe(false)
+    expect(isProtectedAppPath("/update-password")).toBe(false)
+  })
+
+  it("leaves the marketing root and non-page routes ungated", () => {
+    expect(isProtectedAppPath("/")).toBe(false)
+    expect(isProtectedAppPath("/api/poll")).toBe(false)
+    expect(isProtectedAppPath("/auth/confirm")).toBe(false)
+    expect(isProtectedAppPath("/mcp")).toBe(false)
+  })
+
+  it("anchors on a full path segment, not a bare prefix", () => {
+    expect(isProtectedAppPath("/settings-export")).toBe(false)
+    expect(isProtectedAppPath("/toolsmith")).toBe(false)
+    expect(isProtectedAppPath("/developer-portal")).toBe(false)
+  })
+})
+
+describe("isAppOnlyPath", () => {
+  it("treats every protected (dashboard) path as app-only", () => {
+    for (const path of [
+      "/dashboard",
+      "/alerts",
+      "/connect",
+      "/developer",
+      "/security",
+      "/settings",
+      "/tools",
+    ]) {
+      expect(isAppOnlyPath(path)).toBe(true)
+    }
+  })
+
+  it("also covers the app's non-(dashboard) surface (auth, api, mcp)", () => {
+    expect(isAppOnlyPath("/login")).toBe(true)
+    expect(isAppOnlyPath("/update-password")).toBe(true)
+    expect(isAppOnlyPath("/auth/confirm")).toBe(true)
+    expect(isAppOnlyPath("/api/poll")).toBe(true)
+    expect(isAppOnlyPath("/mcp")).toBe(true)
+  })
+
+  it("keeps /developer on the app surface (regression: it was omitted before)", () => {
+    expect(isAppOnlyPath("/developer")).toBe(true)
+  })
+
+  it("leaves genuine marketing routes on the marketing host", () => {
+    for (const path of [
+      "/",
+      "/directory",
+      "/directory/abc",
+      "/docs",
+      "/privacy",
+      "/terms",
+      "/robots.txt",
+      "/sitemap.xml",
+    ]) {
+      expect(isAppOnlyPath(path)).toBe(false)
+    }
+  })
+
+  it("anchors on a full path segment, not a bare prefix", () => {
+    expect(isAppOnlyPath("/developer-portal")).toBe(false)
+    expect(isAppOnlyPath("/loginhelp")).toBe(false)
   })
 })

@@ -6,9 +6,9 @@ export const apifyAdapter: ToolAdapter = {
   async readBalance(apiKey: string): Promise<AdapterResult> {
     let res: Response
     try {
-      res = await fetch(
-        `https://api.apify.com/v2/users/me/limits?token=${encodeURIComponent(apiKey)}`
-      )
+      res = await fetch("https://api.apify.com/v2/users/me/limits", {
+        headers: { Authorization: `Bearer ${apiKey}` },
+      })
     } catch {
       return { ok: false, error: "Couldn't reach Apify." }
     }

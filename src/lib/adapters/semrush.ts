@@ -20,6 +20,9 @@ export const semrushAdapter: ToolAdapter = {
   async readBalance(apiKey: string): Promise<AdapterResult> {
     let res: Response
     try {
+      // SECURITY: Semrush's countapiunits balance call supports only query-string key auth
+      // (header auth exists only for their Listing Management API), so the key can surface in
+      // vendor request logs/proxies. Residual exposure; see 2026-06-22 audit.
       res = await fetch(
         `${SEMRUSH_BALANCE_URL}?key=${encodeURIComponent(apiKey)}`,
         {

@@ -1,4 +1,8 @@
-import { resolveHost } from "@/lib/host-routing"
+import {
+  isAppOnlyPath,
+  isProtectedAppPath,
+  resolveHost,
+} from "@/lib/host-routing"
 import { type CookieOptions, createServerClient } from "@supabase/ssr"
 import { type NextRequest, NextResponse } from "next/server"
 
@@ -32,9 +36,7 @@ export async function updateSession(request: NextRequest) {
   if (surface === "marketing") {
     // The marketing host only serves the homepage + Next internals. App
     // paths don't exist here - bounce them to the app subdomain.
-    const appOnly =
-      /^\/(dashboard|login|update-password|alerts|settings|security|tools|connect|auth|api|mcp)(\/|$)/
-    if (appOnly.test(pathname)) {
+    if (isAppOnlyPath(pathname)) {
       const appHost = host.replace(/^(www\.|marketing\.)?/, "app.")
       return NextResponse.redirect(`${proto}://${appHost}${pathname}${search}`)
     }
@@ -80,8 +82,10 @@ export async function updateSession(request: NextRequest) {
   } = await supabase.auth.getUser()
 
   // Unauthenticated user visiting a protected route → redirect to /login
-  // Preserve return URL so user lands back after auth
-  if (!user && pathname.startsWith("/dashboard")) {
+  // Preserve return URL so user lands back after auth. isProtectedAppPath
+  // covers the whole (dashboard) route group, not just /dashboard, so the
+  // boundary holds even if a future page forgets its own getUser() guard.
+  if (!user && isProtectedAppPath(pathname)) {
     return withAppNoIndex(
       NextResponse.redirect(
         `${proto}://${host}/login?next=${encodeURIComponent(pathname)}`
