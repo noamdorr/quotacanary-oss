@@ -1,4 +1,4 @@
-import { toFiniteNumber } from "./shared"
+import { finiteOrNull, timedFetch } from "./shared"
 import type { AdapterResult, ToolAdapter } from "./types"
 
 export const scrapingantAdapter: ToolAdapter = {
@@ -6,7 +6,7 @@ export const scrapingantAdapter: ToolAdapter = {
   async readBalance(apiKey: string): Promise<AdapterResult> {
     let res: Response
     try {
-      res = await fetch(
+      res = await timedFetch(
         `https://api.scrapingant.com/v2/usage?x-api-key=${encodeURIComponent(apiKey)}`
       )
     } catch {
@@ -26,14 +26,21 @@ export const scrapingantAdapter: ToolAdapter = {
         error: "ScrapingAnt returned an unexpected response.",
       }
     }
+    const balance = finiteOrNull(data.remained_credits)
+    if (balance === null) {
+      return {
+        ok: false,
+        error: "ScrapingAnt returned an unexpected response.",
+      }
+    }
     return {
       ok: true,
       balances: [
         {
           creditType: "credits",
           label: "Credits",
-          balance: toFiniteNumber(data.remained_credits),
-          balanceLimit: toFiniteNumber(data.plan_total_credits) || null,
+          balance,
+          balanceLimit: finiteOrNull(data.plan_total_credits) || null,
           unit: "credits",
         },
       ],

@@ -4,7 +4,7 @@ const steps = [
   {
     n: "01",
     title: "Connect your stack.",
-    body: "OAuth or an API key. We read your balances and nothing else - not your sends, not your contacts, not your message bodies.",
+    body: "An API key. We read your balances and nothing else - not your sends, not your contacts, not your message bodies.",
     mood: "perched" as const,
   },
   {

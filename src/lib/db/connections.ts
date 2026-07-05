@@ -4,6 +4,14 @@ import { type BalanceRow, buildPools } from "./build-pools"
 
 const HISTORY_LIMIT = 30
 
+// Cap the embedded balances fetch per connection. buildPools only ever keeps
+// HISTORY_LIMIT rows per pool, so 240 newest rows cover 8 pools (no tool
+// declares more than 3 today). Without a cap the select grows with account
+// age (~96 rows/day/pool). Tradeoff: a credit type the vendor stopped
+// reporting drops off the dashboard once other pools push its last reading
+// past the cap; rows stay in the DB until retention prunes them.
+const BALANCE_FETCH_LIMIT = 240
+
 // Connections + their tool metadata + recent balance readings (newest first),
 // grouped into one pool per credit_type. `pools` is filtered to the
 // connection's watched_credit_types (null = all).
@@ -24,6 +32,7 @@ export async function listConnectionsWithBalance(
     )
     .eq("user_id", userId)
     .order("recorded_at", { foreignTable: "balances", ascending: false })
+    .limit(BALANCE_FETCH_LIMIT, { foreignTable: "balances" })
     .order("created_at", { ascending: true })
   if (error) throw error
 

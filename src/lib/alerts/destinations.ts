@@ -81,8 +81,18 @@ function isBlockedIpv4(ip: string): boolean {
 function isBlockedIpv6(ip: string): boolean {
   const v = ip.toLowerCase()
   if (v === "::" || v === "::1") return true // unspecified, loopback
-  const mapped = v.match(/^::ffff:(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/)
-  if (mapped) return isBlockedIpv4(mapped[1])
+  // v4-mapped (::ffff:0:0/96) in dotted-decimal form, e.g. ::ffff:127.0.0.1
+  const mappedDotted = v.match(/^::ffff:(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/)
+  if (mappedDotted) return isBlockedIpv4(mappedDotted[1])
+  // v4-mapped in hex form: the URL parser prints ::ffff:127.0.0.1 as
+  // ::ffff:7f00:1, so rebuild the four octets from the two 16-bit groups.
+  const mappedHex = v.match(/^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/)
+  if (mappedHex) {
+    const hi = Number.parseInt(mappedHex[1], 16)
+    const lo = Number.parseInt(mappedHex[2], 16)
+    const octets = [hi >> 8, hi & 0xff, lo >> 8, lo & 0xff].join(".")
+    return isBlockedIpv4(octets)
+  }
   if (/^fe[89ab]/.test(v)) return true // fe80::/10 link-local
   if (/^f[cd]/.test(v)) return true // fc00::/7 unique-local
   return false
@@ -171,6 +181,8 @@ export async function postAlertDestination(
         "user-agent": "QuotaCanary/1.0",
       },
       body: JSON.stringify(renderDestinationPayload(kind, event)),
+      // A hanging user webhook must not stall the whole alert dispatch.
+      signal: AbortSignal.timeout(10_000),
     })
 
     if (!res.ok) return { ok: false, error: `HTTP ${res.status}` }

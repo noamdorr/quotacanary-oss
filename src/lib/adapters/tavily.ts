@@ -1,4 +1,4 @@
-import { toFiniteNumber } from "./shared"
+import { timedFetch, toFiniteNumber } from "./shared"
 import type { AdapterResult, BalanceReading, ToolAdapter } from "./types"
 
 type TavilyUsage = {
@@ -55,7 +55,7 @@ export const tavilyAdapter: ToolAdapter = {
   async readBalance(apiKey: string): Promise<AdapterResult> {
     let res: Response
     try {
-      res = await fetch("https://api.tavily.com/usage", {
+      res = await timedFetch("https://api.tavily.com/usage", {
         headers: {
           Accept: "application/json",
           Authorization: `Bearer ${apiKey}`,

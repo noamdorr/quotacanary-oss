@@ -1,4 +1,4 @@
-import { toFiniteNumber } from "./shared"
+import { finiteOrNull, timedFetch } from "./shared"
 import type { AdapterResult, ToolAdapter } from "./types"
 
 export const openrouterAdapter: ToolAdapter = {
@@ -6,7 +6,7 @@ export const openrouterAdapter: ToolAdapter = {
   async readBalance(apiKey: string): Promise<AdapterResult> {
     let res: Response
     try {
-      res = await fetch("https://openrouter.ai/api/v1/credits", {
+      res = await timedFetch("https://openrouter.ai/api/v1/credits", {
         headers: { Authorization: `Bearer ${apiKey}` },
       })
     } catch {
@@ -26,8 +26,11 @@ export const openrouterAdapter: ToolAdapter = {
     } catch {
       return { ok: false, error: "OpenRouter returned an unexpected response." }
     }
-    const total = toFiniteNumber(data.data?.total_credits)
-    const used = toFiniteNumber(data.data?.total_usage)
+    const total = finiteOrNull(data.data?.total_credits)
+    if (total === null) {
+      return { ok: false, error: "OpenRouter returned an unexpected response." }
+    }
+    const used = finiteOrNull(data.data?.total_usage) ?? 0
     // total_credits is lifetime top-ups, not a quota; showing it as a
     // denominator misreads pay-per-use as a cap, so report balance only.
     return {

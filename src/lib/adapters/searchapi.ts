@@ -1,4 +1,4 @@
-import { toFiniteNumber } from "./shared"
+import { finiteOrNull, timedFetch } from "./shared"
 import type { AdapterResult, ToolAdapter } from "./types"
 
 export const searchapiAdapter: ToolAdapter = {
@@ -6,7 +6,7 @@ export const searchapiAdapter: ToolAdapter = {
   async readBalance(apiKey: string): Promise<AdapterResult> {
     let res: Response
     try {
-      res = await fetch("https://www.searchapi.io/api/v1/me", {
+      res = await timedFetch("https://www.searchapi.io/api/v1/me", {
         headers: { Authorization: `Bearer ${apiKey}` },
       })
     } catch {
@@ -25,14 +25,18 @@ export const searchapiAdapter: ToolAdapter = {
     } catch {
       return { ok: false, error: "SearchApi returned an unexpected response." }
     }
+    const balance = finiteOrNull(data.account?.remaining_credits)
+    if (balance === null) {
+      return { ok: false, error: "SearchApi returned an unexpected response." }
+    }
     return {
       ok: true,
       balances: [
         {
           creditType: "credits",
           label: "Credits",
-          balance: toFiniteNumber(data.account?.remaining_credits),
-          balanceLimit: toFiniteNumber(data.account?.monthly_allowance) || null,
+          balance,
+          balanceLimit: finiteOrNull(data.account?.monthly_allowance) || null,
           unit: "credits",
         },
       ],

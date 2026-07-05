@@ -1,4 +1,4 @@
-import { toFiniteNumber } from "./shared"
+import { finiteOrNull, timedFetch } from "./shared"
 import type { AdapterResult, ToolAdapter } from "./types"
 
 export const serpwowAdapter: ToolAdapter = {
@@ -8,7 +8,7 @@ export const serpwowAdapter: ToolAdapter = {
     try {
       // SECURITY: SerpWow supports only query-string key auth (no header form), so the
       // key can surface in vendor request logs/proxies. Residual exposure; see 2026-06-22 audit.
-      res = await fetch(
+      res = await timedFetch(
         `https://api.serpwow.com/live/account?api_key=${encodeURIComponent(apiKey)}`
       )
     } catch {
@@ -26,15 +26,18 @@ export const serpwowAdapter: ToolAdapter = {
     } catch {
       return { ok: false, error: "SerpWow returned an unexpected response." }
     }
+    const balance = finiteOrNull(data.account_info?.credits_remaining)
+    if (balance === null) {
+      return { ok: false, error: "SerpWow returned an unexpected response." }
+    }
     return {
       ok: true,
       balances: [
         {
           creditType: "credits",
           label: "Credits",
-          balance: toFiniteNumber(data.account_info?.credits_remaining),
-          balanceLimit:
-            toFiniteNumber(data.account_info?.credits_limit) || null,
+          balance,
+          balanceLimit: finiteOrNull(data.account_info?.credits_limit) || null,
           unit: "credits",
         },
       ],

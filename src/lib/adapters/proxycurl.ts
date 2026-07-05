@@ -1,4 +1,4 @@
-import { toFiniteNumber } from "./shared"
+import { finiteOrNull, timedFetch } from "./shared"
 import type { AdapterResult, ToolAdapter } from "./types"
 
 type ProxycurlResponse = {
@@ -10,7 +10,7 @@ export const proxycurlAdapter: ToolAdapter = {
   async readBalance(apiKey: string): Promise<AdapterResult> {
     let res: Response
     try {
-      res = await fetch("https://nubela.co/api/v1/meta/credit-balance", {
+      res = await timedFetch("https://nubela.co/api/v1/meta/credit-balance", {
         headers: { Authorization: `Bearer ${apiKey}` },
       })
     } catch {
@@ -32,13 +32,20 @@ export const proxycurlAdapter: ToolAdapter = {
       }
     }
 
+    const balance = finiteOrNull(data.credit_balance)
+    if (balance === null) {
+      return {
+        ok: false,
+        error: "Proxycurl returned an unexpected response.",
+      }
+    }
     return {
       ok: true,
       balances: [
         {
           creditType: "credits",
           label: "Credits",
-          balance: toFiniteNumber(data.credit_balance),
+          balance,
           balanceLimit: null,
           unit: "credits",
         },

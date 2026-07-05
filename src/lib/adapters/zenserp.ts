@@ -1,4 +1,4 @@
-import { toFiniteNumber } from "./shared"
+import { finiteOrNull, timedFetch } from "./shared"
 import type { AdapterResult, ToolAdapter } from "./types"
 
 export const zenserpAdapter: ToolAdapter = {
@@ -6,7 +6,7 @@ export const zenserpAdapter: ToolAdapter = {
   async readBalance(apiKey: string): Promise<AdapterResult> {
     let res: Response
     try {
-      res = await fetch("https://app.zenserp.com/api/v2/status", {
+      res = await timedFetch("https://app.zenserp.com/api/v2/status", {
         headers: { apikey: apiKey },
       })
     } catch {
@@ -22,13 +22,17 @@ export const zenserpAdapter: ToolAdapter = {
     } catch {
       return { ok: false, error: "Zenserp returned an unexpected response." }
     }
+    const balance = finiteOrNull(data.remaining_requests)
+    if (balance === null) {
+      return { ok: false, error: "Zenserp returned an unexpected response." }
+    }
     return {
       ok: true,
       balances: [
         {
           creditType: "requests",
           label: "Requests",
-          balance: toFiniteNumber(data.remaining_requests),
+          balance,
           balanceLimit: null,
           unit: "credits",
         },

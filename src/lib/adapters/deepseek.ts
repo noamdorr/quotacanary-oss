@@ -1,4 +1,4 @@
-import { toFiniteNumber } from "./shared"
+import { finiteOrNull, timedFetch } from "./shared"
 import type { AdapterResult, ToolAdapter } from "./types"
 
 interface BalanceInfo {
@@ -13,7 +13,7 @@ export const deepseekAdapter: ToolAdapter = {
   async readBalance(apiKey: string): Promise<AdapterResult> {
     let res: Response
     try {
-      res = await fetch("https://api.deepseek.com/user/balance", {
+      res = await timedFetch("https://api.deepseek.com/user/balance", {
         headers: { Authorization: `Bearer ${apiKey}` },
       })
     } catch {
@@ -47,13 +47,17 @@ export const deepseekAdapter: ToolAdapter = {
     }
 
     const entry = infos.find((e) => e.currency === "USD") ?? infos[0]
+    const balance = finiteOrNull(entry.total_balance)
+    if (balance === null) {
+      return { ok: false, error: "DeepSeek returned an unexpected response." }
+    }
     return {
       ok: true,
       balances: [
         {
           creditType: "balance",
           label: "Balance",
-          balance: toFiniteNumber(entry.total_balance),
+          balance,
           balanceLimit: null,
           unit: "usd",
         },

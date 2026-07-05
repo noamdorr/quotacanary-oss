@@ -1000,3 +1000,100 @@ update public.tools set website_url = 'https://shodan.io' where id = 'shodan';
 update public.tools set website_url = 'https://enrich-crm.com' where id = 'enrichcrm';
 update public.tools set website_url = 'https://skrapp.io' where id = 'skrapp';
 update public.tools set website_url = 'https://oppora.ai' where id = 'oppora';
+
+-- ---------------------------------------------------------------------------
+-- Top-up URLs for fresh installs. Migrations 034/035 backfilled these on the
+-- hosted DB, but migrations run before seed inserts the tools, so on a clean
+-- db reset those updates no-op. This block mirrors their final state (034
+-- with 035's three corrections); research notes live in the migrations.
+-- ---------------------------------------------------------------------------
+update public.tools set topup_url = 'https://platform.deepseek.com/top_up' where id = 'deepseek';
+update public.tools set topup_url = 'https://app.hyperbolic.ai/settings/billing' where id = 'hyperbolic';
+update public.tools set topup_url = 'https://anymailfinder.com/pricing' where id = 'anymailfinder';
+update public.tools set topup_url = 'https://app.dropcontact.com/billing' where id = 'dropcontact';
+update public.tools set topup_url = 'https://enrow.io/pricing' where id = 'enrow';
+update public.tools set topup_url = 'https://www.findymail.com/pricing/' where id = 'findymail';
+update public.tools set topup_url = 'https://app.fullenrich.com/app/settings/billing' where id = 'fullenrich';
+update public.tools set topup_url = 'https://app.leadmagic.io/settings/billing' where id = 'leadmagic';
+update public.tools set topup_url = 'https://dashboard.lusha.com/account' where id = 'lusha';
+update public.tools set topup_url = 'https://app.prospeo.io/account/subscription' where id = 'prospeo';
+update public.tools set topup_url = 'https://rocketreach.co/pricing' where id = 'rocketreach';
+update public.tools set topup_url = 'https://app.surfe.com/lighthouse/home?open-buy-credits=true' where id = 'surfe';
+update public.tools set topup_url = 'https://wiza.co/app/settings/billing' where id = 'wiza';
+update public.tools set topup_url = 'https://www.usebouncer.com/pricing/' where id = 'bouncer';
+update public.tools set topup_url = 'https://bouncify.io/pricing.html' where id = 'bouncify';
+update public.tools set topup_url = 'https://app.clearout.io/public/credits' where id = 'clearout';
+update public.tools set topup_url = 'https://debounce.com/pricing/' where id = 'debounce';
+update public.tools set topup_url = 'https://app.emailable.com/checkout/credits' where id = 'emailable';
+update public.tools set topup_url = 'https://app.emailhippo.com/' where id = 'emailhippo';
+update public.tools set topup_url = 'https://app.emaillistverify.com/signin' where id = 'emaillistverify';
+update public.tools set topup_url = 'https://app.mailercheck.com/' where id = 'mailercheck';
+update public.tools set topup_url = 'https://client.myemailverifier.com/login?buyCredit=10000' where id = 'myemailverifier';
+update public.tools set topup_url = 'https://emailverifier.reoon.com/' where id = 'reoon';
+update public.tools set topup_url = 'https://www.zerobounce.net/members/pricing' where id = 'zerobounce';
+update public.tools set topup_url = 'https://console.apify.com/billing/subscription' where id = 'apify';
+update public.tools set topup_url = 'https://brightdata.com/cp/billing' where id = 'brightdata';
+update public.tools set topup_url = 'https://app.captaindata.com/settings/plans' where id = 'captaindata';
+update public.tools set topup_url = 'https://www.firecrawl.dev/pricing' where id = 'firecrawl';
+update public.tools set topup_url = 'https://dashboard.netnut.io' where id = 'netnut';
+update public.tools set topup_url = 'https://scrapegraphai.com/pricing' where id = 'scrapegraphai';
+update public.tools set topup_url = 'https://scrapeops.io/app/login/' where id = 'scrapeops';
+update public.tools set topup_url = 'https://dashboard.scraperapi.com/billing' where id = 'scraperapi';
+update public.tools set topup_url = 'https://scrapfly.io/dashboard/billing' where id = 'scrapfly';
+update public.tools set topup_url = 'https://app.scrapingant.com/dashboard' where id = 'scrapingant';
+update public.tools set topup_url = 'https://app.scrapingbee.com/billing/plans' where id = 'scrapingbee';
+update public.tools set topup_url = 'https://www.scrapingdog.com/pricing/' where id = 'scrapingdog';
+update public.tools set topup_url = 'https://www.searchapi.io/pricing' where id = 'searchapi';
+update public.tools set topup_url = 'https://serpapi.com/change-plan' where id = 'serpapi';
+update public.tools set topup_url = 'https://app.serpwow.com/' where id = 'serpwow';
+update public.tools set topup_url = 'https://app.valueserp.com/' where id = 'valueserp';
+update public.tools set topup_url = 'https://zenserp.com/pricing-plans/' where id = 'zenserp';
+
+-- ---------------------------------------------------------------------------
+-- Pools for the multi-pool tools declared in migration 037 (same
+-- migrations-run-before-seed problem as above). credit_type, label, and unit
+-- mirror each adapter's readBalance output exactly.
+-- ---------------------------------------------------------------------------
+update public.tools
+  set pools = '[
+    {"credit_type":"ondemand","label":"Credits","unit":"credits"},
+    {"credit_type":"subscription","label":"Daily Credits","unit":"credits"}
+  ]'::jsonb
+  where id = 'emaillistverify';
+
+update public.tools
+  set pools = '[
+    {"credit_type":"instant","label":"Credits","unit":"credits"},
+    {"credit_type":"daily","label":"Daily Credits","unit":"credits"}
+  ]'::jsonb
+  where id = 'reoon';
+
+update public.tools
+  set pools = '[
+    {"credit_type":"email","label":"Email Credits","unit":"credits"},
+    {"credit_type":"mobile","label":"Mobile Credits","unit":"credits"},
+    {"credit_type":"search","label":"Search Credits","unit":"credits"}
+  ]'::jsonb
+  where id = 'surfe';
+
+update public.tools
+  set pools = '[
+    {"credit_type":"monthly","label":"Monthly Credits","unit":"credits"},
+    {"credit_type":"topup","label":"Top-up Credits","unit":"credits"}
+  ]'::jsonb
+  where id = 'valueserp';
+
+-- ---------------------------------------------------------------------------
+-- Migration 009 parity (same migrations-run-before-seed problem): the three
+-- original tools' top-up URLs, and the default low threshold rule 009
+-- backfilled on the hosted DB. Later tools set default_low_threshold in their
+-- own inserts, so the guarded update only touches the original wave.
+-- ---------------------------------------------------------------------------
+update public.tools set topup_url = 'https://app.neverbounce.com/account/billing' where id = 'neverbounce';
+update public.tools set topup_url = 'https://app.millionverifier.com/' where id = 'millionverifier';
+update public.tools set topup_url = 'https://openrouter.ai/credits' where id = 'openrouter';
+
+update public.tools
+  set default_low_threshold = default_alert_threshold * 3
+  where default_alert_threshold is not null
+    and default_low_threshold is null;

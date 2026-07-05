@@ -38,12 +38,15 @@ describe("meltly adapter", () => {
 
     const result = await meltlyAdapter.readBalance("melt-key")
 
-    expect(fetchMock).toHaveBeenCalledWith("https://melt.ly/api/user/credits", {
-      headers: {
-        Accept: "application/json",
-        "x-api-key": "melt-key",
-      },
-    })
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://melt.ly/api/user/credits",
+      expect.objectContaining({
+        headers: {
+          Accept: "application/json",
+          "x-api-key": "melt-key",
+        },
+      })
+    )
     expect(result).toEqual({
       ok: true,
       balances: [

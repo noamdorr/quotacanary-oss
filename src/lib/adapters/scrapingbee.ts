@@ -1,4 +1,4 @@
-import { toFiniteNumber } from "./shared"
+import { finiteOrNull, timedFetch } from "./shared"
 import type { AdapterResult, ToolAdapter } from "./types"
 
 export const scrapingbeeAdapter: ToolAdapter = {
@@ -6,7 +6,7 @@ export const scrapingbeeAdapter: ToolAdapter = {
   async readBalance(apiKey: string): Promise<AdapterResult> {
     let res: Response
     try {
-      res = await fetch("https://app.scrapingbee.com/api/v1/usage", {
+      res = await timedFetch("https://app.scrapingbee.com/api/v1/usage", {
         headers: { Authorization: `Bearer ${apiKey}` },
       })
     } catch {
@@ -26,8 +26,14 @@ export const scrapingbeeAdapter: ToolAdapter = {
         error: "ScrapingBee returned an unexpected response.",
       }
     }
-    const limit = toFiniteNumber(data.max_api_credit)
-    const used = toFiniteNumber(data.used_api_credit)
+    const limit = finiteOrNull(data.max_api_credit)
+    if (limit === null) {
+      return {
+        ok: false,
+        error: "ScrapingBee returned an unexpected response.",
+      }
+    }
+    const used = finiteOrNull(data.used_api_credit) ?? 0
     return {
       ok: true,
       balances: [

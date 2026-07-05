@@ -1,4 +1,4 @@
-import { toFiniteNumber } from "./shared"
+import { finiteOrNull, timedFetch } from "./shared"
 import type { AdapterResult, ToolAdapter } from "./types"
 
 export const brightdataAdapter: ToolAdapter = {
@@ -6,7 +6,7 @@ export const brightdataAdapter: ToolAdapter = {
   async readBalance(apiKey: string): Promise<AdapterResult> {
     let res: Response
     try {
-      res = await fetch("https://api.brightdata.com/customer/balance", {
+      res = await timedFetch("https://api.brightdata.com/customer/balance", {
         headers: { Authorization: `Bearer ${apiKey}` },
       })
     } catch {
@@ -26,13 +26,20 @@ export const brightdataAdapter: ToolAdapter = {
         error: "Bright Data returned an unexpected response.",
       }
     }
+    const balance = finiteOrNull(data.balance)
+    if (balance === null) {
+      return {
+        ok: false,
+        error: "Bright Data returned an unexpected response.",
+      }
+    }
     return {
       ok: true,
       balances: [
         {
           creditType: "balance",
           label: "Balance",
-          balance: toFiniteNumber(data.balance),
+          balance,
           balanceLimit: null,
           unit: "usd",
         },

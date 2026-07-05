@@ -1,4 +1,4 @@
-import { toFiniteNumber } from "./shared"
+import { finiteOrNull, timedFetch } from "./shared"
 import type { AdapterResult, ToolAdapter } from "./types"
 
 export const hyperbolicAdapter: ToolAdapter = {
@@ -6,7 +6,7 @@ export const hyperbolicAdapter: ToolAdapter = {
   async readBalance(apiKey: string): Promise<AdapterResult> {
     let res: Response
     try {
-      res = await fetch(
+      res = await timedFetch(
         "https://api.hyperbolic.xyz/billing/get_current_balance",
         {
           headers: { Authorization: `Bearer ${apiKey}` },
@@ -26,13 +26,17 @@ export const hyperbolicAdapter: ToolAdapter = {
     } catch {
       return { ok: false, error: "Hyperbolic returned an unexpected response." }
     }
+    const credits = finiteOrNull(data.credits)
+    if (credits === null) {
+      return { ok: false, error: "Hyperbolic returned an unexpected response." }
+    }
     return {
       ok: true,
       balances: [
         {
           creditType: "balance",
           label: "Balance",
-          balance: toFiniteNumber(data.credits) / 100,
+          balance: credits / 100,
           balanceLimit: null,
           unit: "usd",
         },

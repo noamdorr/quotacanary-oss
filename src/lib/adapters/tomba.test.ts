@@ -31,12 +31,15 @@ describe("tomba adapter", () => {
       })
     )
 
-    expect(fetchMock).toHaveBeenCalledWith("https://api.tomba.io/v1/me", {
-      headers: {
-        "X-Tomba-Key": "ta_key",
-        "X-Tomba-Secret": "ts_secret",
-      },
-    })
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://api.tomba.io/v1/me",
+      expect.objectContaining({
+        headers: {
+          "X-Tomba-Key": "ta_key",
+          "X-Tomba-Secret": "ts_secret",
+        },
+      })
+    )
     expect(result).toEqual({
       ok: true,
       balances: [

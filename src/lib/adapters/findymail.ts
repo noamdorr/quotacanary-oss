@@ -1,4 +1,4 @@
-import { toFiniteNumber } from "./shared"
+import { finiteOrNull, timedFetch } from "./shared"
 import type { AdapterResult, ToolAdapter } from "./types"
 
 export const findymailAdapter: ToolAdapter = {
@@ -6,7 +6,7 @@ export const findymailAdapter: ToolAdapter = {
   async readBalance(apiKey: string): Promise<AdapterResult> {
     let res: Response
     try {
-      res = await fetch("https://app.findymail.com/api/credits", {
+      res = await timedFetch("https://app.findymail.com/api/credits", {
         headers: {
           Authorization: `Bearer ${apiKey}`,
           Accept: "application/json",
@@ -26,13 +26,17 @@ export const findymailAdapter: ToolAdapter = {
     } catch {
       return { ok: false, error: "Findymail returned an unexpected response." }
     }
+    const balance = finiteOrNull(data.credits)
+    if (balance === null) {
+      return { ok: false, error: "Findymail returned an unexpected response." }
+    }
     return {
       ok: true,
       balances: [
         {
           creditType: "credits",
           label: "Credits",
-          balance: toFiniteNumber(data.credits),
+          balance,
           balanceLimit: null,
           unit: "credits",
         },

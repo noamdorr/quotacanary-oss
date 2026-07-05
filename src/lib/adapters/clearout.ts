@@ -1,4 +1,4 @@
-import { toFiniteNumber } from "./shared"
+import { finiteOrNull, timedFetch } from "./shared"
 import type { AdapterResult, ToolAdapter } from "./types"
 
 export const clearoutAdapter: ToolAdapter = {
@@ -6,9 +6,12 @@ export const clearoutAdapter: ToolAdapter = {
   async readBalance(apiKey: string): Promise<AdapterResult> {
     let res: Response
     try {
-      res = await fetch("https://api.clearout.io/v2/email_verify/getcredits", {
-        headers: { Authorization: apiKey },
-      })
+      res = await timedFetch(
+        "https://api.clearout.io/v2/email_verify/getcredits",
+        {
+          headers: { Authorization: apiKey },
+        }
+      )
     } catch {
       return { ok: false, error: "Couldn't reach Clearout." }
     }
@@ -24,14 +27,18 @@ export const clearoutAdapter: ToolAdapter = {
     } catch {
       return { ok: false, error: "Clearout returned an unexpected response." }
     }
+    const balance = finiteOrNull(data.data?.available_credits)
+    if (balance === null) {
+      return { ok: false, error: "Clearout returned an unexpected response." }
+    }
     return {
       ok: true,
       balances: [
         {
           creditType: "credits",
           label: "Credits",
-          balance: toFiniteNumber(data.data?.available_credits),
-          balanceLimit: toFiniteNumber(data.data?.credits?.total) || null,
+          balance,
+          balanceLimit: finiteOrNull(data.data?.credits?.total) || null,
           unit: "credits",
         },
       ],

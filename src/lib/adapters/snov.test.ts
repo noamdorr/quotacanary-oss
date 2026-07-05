@@ -38,7 +38,7 @@ describe("snov adapter", () => {
     expect(fetchMock).toHaveBeenNthCalledWith(
       1,
       "https://api.snov.io/v1/oauth/access_token",
-      {
+      expect.objectContaining({
         method: "POST",
         headers: {
           "Content-Type": "application/x-www-form-urlencoded",
@@ -48,12 +48,14 @@ describe("snov adapter", () => {
           client_id: "client-id",
           client_secret: "client-secret",
         }),
-      }
+      })
     )
     expect(fetchMock).toHaveBeenNthCalledWith(
       2,
       "https://api.snov.io/v1/get-balance",
-      { headers: { Authorization: "Bearer access-token" } }
+      expect.objectContaining({
+        headers: { Authorization: "Bearer access-token" },
+      })
     )
     expect(result).toEqual({
       ok: true,

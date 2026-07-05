@@ -18,8 +18,19 @@ export const metadata: Metadata = {
     description:
       "The bird that sings before the credits die. Credit monitoring for your whole API stack.",
     type: "website",
+    images: [
+      {
+        url: "/og.jpg",
+        width: 1920,
+        height: 1080,
+        alt: "QuotaCanary - the bird that sings before the credits die",
+      },
+    ],
   },
-  twitter: { card: "summary" },
+  twitter: {
+    card: "summary_large_image",
+    images: ["/og.jpg"],
+  },
 }
 
 export default function MarketingHome() {

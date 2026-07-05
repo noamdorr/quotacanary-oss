@@ -1,4 +1,4 @@
-import { toFiniteNumber } from "./shared"
+import { finiteOrNull, timedFetch } from "./shared"
 import type { AdapterResult, ToolAdapter } from "./types"
 
 export const scraperapiAdapter: ToolAdapter = {
@@ -8,7 +8,7 @@ export const scraperapiAdapter: ToolAdapter = {
     try {
       // SECURITY: ScraperAPI's /account endpoint supports only query-string key auth (no header
       // form), so the key can surface in vendor request logs/proxies. Residual exposure; see 2026-06-22 audit.
-      res = await fetch(
+      res = await timedFetch(
         `https://api.scraperapi.com/account?api_key=${encodeURIComponent(apiKey)}`
       )
     } catch {
@@ -25,8 +25,11 @@ export const scraperapiAdapter: ToolAdapter = {
     } catch {
       return { ok: false, error: "ScraperAPI returned an unexpected response." }
     }
-    const limit = toFiniteNumber(data.requestLimit)
-    const used = toFiniteNumber(data.requestCount)
+    const limit = finiteOrNull(data.requestLimit)
+    if (limit === null) {
+      return { ok: false, error: "ScraperAPI returned an unexpected response." }
+    }
+    const used = finiteOrNull(data.requestCount) ?? 0
     return {
       ok: true,
       balances: [

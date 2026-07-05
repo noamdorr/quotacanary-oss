@@ -2,7 +2,7 @@
 
 The bird that sings before the credits die.
 
-QuotaCanary watches the credit balances across your API tool stack (NeverBounce, MillionVerifier, OpenRouter, Hunter, Prospeo, and ~35 more) and warns you before any of them runs dry. One screen, every balance, no logging into ten dashboards.
+QuotaCanary watches the credit balances across your API tool stack (NeverBounce, MillionVerifier, OpenRouter, Hunter, Prospeo, and 60+ tools) and warns you before any of them runs dry. One screen, every balance, no logging into ten dashboards.
 
 ## Use it (free, hosted)
 
@@ -25,7 +25,6 @@ QuotaCanary is open source for two reasons:
 - Background polling keeps balances fresh
 - Burn-rate estimate ("burns out ~Thursday")
 - Alerts before a balance hits zero (email optional)
-- Manual entry for tools without a balance API
 - API keys encrypted at rest (AES-256-GCM); read-only access only
 - A small HTTP API + MCP server for your own automations
 

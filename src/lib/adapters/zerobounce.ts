@@ -1,4 +1,4 @@
-import { toFiniteNumber } from "./shared"
+import { finiteOrNull, timedFetch } from "./shared"
 import type { AdapterResult, ToolAdapter } from "./types"
 
 export const zerobounceAdapter: ToolAdapter = {
@@ -8,7 +8,7 @@ export const zerobounceAdapter: ToolAdapter = {
     try {
       // SECURITY: ZeroBounce supports only query-string key auth (no header form), so the
       // key can surface in vendor request logs/proxies. Residual exposure; see 2026-06-22 audit.
-      res = await fetch(
+      res = await timedFetch(
         `https://api.zerobounce.net/v2/getcredits?api_key=${encodeURIComponent(apiKey)}`
       )
     } catch {
@@ -23,7 +23,11 @@ export const zerobounceAdapter: ToolAdapter = {
     } catch {
       return { ok: false, error: "ZeroBounce returned an unexpected response." }
     }
-    const credits = toFiniteNumber(data.Credits)
+    const credits = finiteOrNull(data.Credits)
+    if (credits === null) {
+      return { ok: false, error: "ZeroBounce returned an unexpected response." }
+    }
+    // ZeroBounce returns HTTP 200 with Credits:-1 on a bad key
     if (credits < 0)
       return { ok: false, error: "ZeroBounce rejected this key." }
     return {

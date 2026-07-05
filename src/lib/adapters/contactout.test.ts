@@ -32,14 +32,14 @@ describe("contactout adapter", () => {
 
     expect(fetchMock).toHaveBeenCalledWith(
       "https://api.contactout.com/v1/stats",
-      {
+      expect.objectContaining({
         headers: {
           "Content-Type": "application/json",
           Accept: "application/json",
           authorization: "basic",
           token: "api-token",
         },
-      }
+      })
     )
     expect(result).toEqual({
       ok: true,

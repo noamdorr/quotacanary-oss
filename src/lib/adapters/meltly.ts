@@ -1,4 +1,4 @@
-import { toFiniteNumber } from "./shared"
+import { timedFetch, toFiniteNumber } from "./shared"
 import type { AdapterResult, BalanceReading, ToolAdapter } from "./types"
 
 type MeltlyCreditsResponse = {
@@ -47,7 +47,7 @@ export const meltlyAdapter: ToolAdapter = {
   async readBalance(apiKey: string): Promise<AdapterResult> {
     let res: Response
     try {
-      res = await fetch("https://melt.ly/api/user/credits", {
+      res = await timedFetch("https://melt.ly/api/user/credits", {
         headers: {
           Accept: "application/json",
           "x-api-key": apiKey,

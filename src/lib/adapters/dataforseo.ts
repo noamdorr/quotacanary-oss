@@ -1,5 +1,5 @@
 import { Buffer } from "node:buffer"
-import { toFiniteNumber } from "./shared"
+import { timedFetch, toFiniteNumber } from "./shared"
 import type { AdapterResult, ToolAdapter } from "./types"
 
 type DataForSeoCredentials = {
@@ -66,13 +66,16 @@ export const dataforseoAdapter: ToolAdapter = {
 
     let res: Response
     try {
-      res = await fetch("https://api.dataforseo.com/v3/appendix/user_data", {
-        headers: {
-          Authorization: `Basic ${Buffer.from(
-            `${credentials.login}:${credentials.password}`
-          ).toString("base64")}`,
-        },
-      })
+      res = await timedFetch(
+        "https://api.dataforseo.com/v3/appendix/user_data",
+        {
+          headers: {
+            Authorization: `Basic ${Buffer.from(
+              `${credentials.login}:${credentials.password}`
+            ).toString("base64")}`,
+          },
+        }
+      )
     } catch {
       return { ok: false, error: "Couldn't reach DataForSEO." }
     }

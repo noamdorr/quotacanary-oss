@@ -1,4 +1,4 @@
-import { toFiniteNumber } from "./shared"
+import { finiteOrNull, timedFetch } from "./shared"
 import type { AdapterResult, ToolAdapter } from "./types"
 
 export const scrapegraphaiAdapter: ToolAdapter = {
@@ -6,7 +6,7 @@ export const scrapegraphaiAdapter: ToolAdapter = {
   async readBalance(apiKey: string): Promise<AdapterResult> {
     let res: Response
     try {
-      res = await fetch("https://v2-api.scrapegraphai.com/api/credits", {
+      res = await timedFetch("https://v2-api.scrapegraphai.com/api/credits", {
         headers: { "SGAI-APIKEY": apiKey },
       })
     } catch {
@@ -28,13 +28,20 @@ export const scrapegraphaiAdapter: ToolAdapter = {
       }
     }
 
+    const balance = finiteOrNull(data.remaining)
+    if (balance === null) {
+      return {
+        ok: false,
+        error: "ScrapeGraphAI returned an unexpected response.",
+      }
+    }
     return {
       ok: true,
       balances: [
         {
           creditType: "credits",
           label: "Credits",
-          balance: toFiniteNumber(data.remaining),
+          balance,
           balanceLimit: null,
           unit: "credits",
         },

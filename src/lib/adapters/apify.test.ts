@@ -23,7 +23,7 @@ describe("apify adapter", () => {
     // Key rides in the Authorization header, never the URL query string.
     expect(fetchMock).toHaveBeenCalledWith(
       "https://api.apify.com/v2/users/me/limits",
-      { headers: { Authorization: "Bearer key" } }
+      expect.objectContaining({ headers: { Authorization: "Bearer key" } })
     )
     expect(result).toEqual({
       ok: true,

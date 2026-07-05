@@ -29,14 +29,14 @@ describe("verifalia adapter", () => {
 
     expect(fetchMock).toHaveBeenCalledWith(
       "https://api.verifalia.com/v2.7/credits/balance",
-      {
+      expect.objectContaining({
         headers: {
           Accept: "application/json",
           Authorization: `Basic ${Buffer.from("api-user:api-password").toString(
             "base64"
           )}`,
         },
-      }
+      })
     )
     expect(result).toEqual({
       ok: true,

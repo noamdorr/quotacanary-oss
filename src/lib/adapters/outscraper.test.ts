@@ -22,7 +22,7 @@ describe("outscraper adapter", () => {
 
     expect(fetchMock).toHaveBeenCalledWith(
       "https://api.outscraper.com/profile/balance",
-      { headers: { "X-API-KEY": "api-key" } }
+      expect.objectContaining({ headers: { "X-API-KEY": "api-key" } })
     )
     expect(result).toEqual({
       ok: true,

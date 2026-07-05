@@ -23,12 +23,12 @@ describe("bettercontact adapter", () => {
 
     expect(fetchMock).toHaveBeenCalledWith(
       "https://app.bettercontact.rocks/api/v2/account",
-      {
+      expect.objectContaining({
         headers: {
           Accept: "application/json",
           "X-API-Key": "api-key",
         },
-      }
+      })
     )
     expect(result).toEqual({
       ok: true,

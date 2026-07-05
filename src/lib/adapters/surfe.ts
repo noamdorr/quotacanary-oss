@@ -1,12 +1,12 @@
-import { toFiniteNumber } from "./shared"
-import type { AdapterResult, ToolAdapter } from "./types"
+import { finiteOrNull, timedFetch } from "./shared"
+import type { AdapterResult, BalanceReading, ToolAdapter } from "./types"
 
 export const surfeAdapter: ToolAdapter = {
   toolId: "surfe",
   async readBalance(apiKey: string): Promise<AdapterResult> {
     let res: Response
     try {
-      res = await fetch("https://api.surfe.com/v1/credits", {
+      res = await timedFetch("https://api.surfe.com/v1/credits", {
         headers: { Authorization: `Bearer ${apiKey}` },
       })
     } catch {
@@ -26,31 +26,28 @@ export const surfeAdapter: ToolAdapter = {
     } catch {
       return { ok: false, error: "Surfe returned an unexpected response." }
     }
-    return {
-      ok: true,
-      balances: [
-        {
-          creditType: "email",
-          label: "Email Credits",
-          balance: toFiniteNumber(data.totalEmail),
+    const pools: Array<[string, string, unknown]> = [
+      ["email", "Email Credits", data.totalEmail],
+      ["mobile", "Mobile Credits", data.totalMobile],
+      ["search", "Search Credits", data.totalSearch],
+    ]
+    const balances = pools
+      .map(([creditType, label, value]): BalanceReading | null => {
+        const balance = finiteOrNull(value)
+        if (balance === null) return null
+        return {
+          creditType,
+          label,
+          balance,
           balanceLimit: null,
           unit: "credits",
-        },
-        {
-          creditType: "mobile",
-          label: "Mobile Credits",
-          balance: toFiniteNumber(data.totalMobile),
-          balanceLimit: null,
-          unit: "credits",
-        },
-        {
-          creditType: "search",
-          label: "Search Credits",
-          balance: toFiniteNumber(data.totalSearch),
-          balanceLimit: null,
-          unit: "credits",
-        },
-      ],
+        }
+      })
+      .filter((reading): reading is BalanceReading => reading !== null)
+
+    if (balances.length === 0) {
+      return { ok: false, error: "Surfe returned an unexpected response." }
     }
+    return { ok: true, balances }
   },
 }

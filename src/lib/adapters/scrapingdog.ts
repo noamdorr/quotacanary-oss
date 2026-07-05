@@ -1,4 +1,4 @@
-import { toFiniteNumber } from "./shared"
+import { finiteOrNull, timedFetch } from "./shared"
 import type { AdapterResult, ToolAdapter } from "./types"
 
 export const scrapingdogAdapter: ToolAdapter = {
@@ -8,7 +8,7 @@ export const scrapingdogAdapter: ToolAdapter = {
     try {
       // SECURITY: Scrapingdog's /account endpoint supports only query-string key auth (no header
       // form), so the key can surface in vendor request logs/proxies. Residual exposure; see 2026-06-22 audit.
-      res = await fetch(
+      res = await timedFetch(
         `https://api.scrapingdog.com/account?api_key=${encodeURIComponent(apiKey)}`
       )
     } catch {
@@ -28,8 +28,14 @@ export const scrapingdogAdapter: ToolAdapter = {
         error: "Scrapingdog returned an unexpected response.",
       }
     }
-    const limit = toFiniteNumber(data.requestLimit)
-    const used = toFiniteNumber(data.requestUsed)
+    const limit = finiteOrNull(data.requestLimit)
+    if (limit === null) {
+      return {
+        ok: false,
+        error: "Scrapingdog returned an unexpected response.",
+      }
+    }
+    const used = finiteOrNull(data.requestUsed) ?? 0
     return {
       ok: true,
       balances: [

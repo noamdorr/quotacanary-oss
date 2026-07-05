@@ -1,4 +1,4 @@
-import { toFiniteNumber } from "./shared"
+import { timedFetch, toFiniteNumber } from "./shared"
 import type { AdapterResult, BalanceReading, ToolAdapter } from "./types"
 
 type CreditUsage = {
@@ -25,7 +25,7 @@ export const rocketreachAdapter: ToolAdapter = {
       // /api/v2/account/ is the classic account endpoint (works on all plans).
       // /api/v2/universal/account/ is gated behind Universal Credits and 4xxs
       // for normal accounts, so it must not be used here.
-      res = await fetch("https://api.rocketreach.co/api/v2/account/", {
+      res = await timedFetch("https://api.rocketreach.co/api/v2/account/", {
         headers: { "Api-Key": apiKey },
       })
     } catch {

@@ -1,3 +1,4 @@
+import { timedFetch } from "./shared"
 import type { AdapterResult, BalanceReading, ToolAdapter } from "./types"
 
 type ContactOutUsage = {
@@ -48,14 +49,19 @@ function finiteNumber(value: unknown): number | null {
   return Number.isFinite(n) ? n : null
 }
 
-function toReading(usage: ContactOutUsage, pool: PoolConfig): BalanceReading {
+function toReading(
+  usage: ContactOutUsage,
+  pool: PoolConfig
+): BalanceReading | null {
   const quota = finiteNumber(usage[pool.quotaField])
   const remaining = finiteNumber(usage[pool.remainingField])
+  const balance = remaining ?? quota
+  if (balance === null) return null
 
   return {
     creditType: pool.creditType,
     label: pool.label,
-    balance: remaining ?? quota ?? 0,
+    balance,
     balanceLimit: remaining === null ? null : quota,
     unit: "credits",
   }
@@ -66,7 +72,7 @@ export const contactoutAdapter: ToolAdapter = {
   async readBalance(apiKey: string): Promise<AdapterResult> {
     let res: Response
     try {
-      res = await fetch("https://api.contactout.com/v1/stats", {
+      res = await timedFetch("https://api.contactout.com/v1/stats", {
         headers: {
           "Content-Type": "application/json",
           Accept: "application/json",
@@ -108,11 +114,18 @@ export const contactoutAdapter: ToolAdapter = {
       }
     }
 
-    return {
-      ok: true,
-      balances: POOLS.map((pool) =>
-        toReading(data.usage as ContactOutUsage, pool)
-      ),
+    const usage = data.usage
+    const balances = POOLS.map((pool) => toReading(usage, pool)).filter(
+      (reading): reading is BalanceReading => reading !== null
+    )
+
+    if (balances.length === 0) {
+      return {
+        ok: false,
+        error: "ContactOut returned an unexpected response.",
+      }
     }
+
+    return { ok: true, balances }
   },
 }

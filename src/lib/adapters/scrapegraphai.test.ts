@@ -27,7 +27,7 @@ describe("scrapegraphai adapter", () => {
 
     expect(fetchMock).toHaveBeenCalledWith(
       "https://v2-api.scrapegraphai.com/api/credits",
-      { headers: { "SGAI-APIKEY": "key" } }
+      expect.objectContaining({ headers: { "SGAI-APIKEY": "key" } })
     )
     expect(result).toEqual({
       ok: true,
@@ -98,5 +98,55 @@ describe("scrapegraphai adapter", () => {
     const result = await scrapegraphaiAdapter.readBalance("key")
 
     expect(result.ok).toBe(false)
+  })
+
+  it("treats a missing remaining field as an unexpected response, not a zero balance", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          ({
+            ok: true,
+            status: 200,
+            json: async () => ({ used: 287, plan: "Pro Plan" }),
+          }) as unknown as Response
+      )
+    )
+
+    const result = await scrapegraphaiAdapter.readBalance("key")
+
+    expect(result).toEqual({
+      ok: false,
+      error: "ScrapeGraphAI returned an unexpected response.",
+    })
+  })
+
+  it("records a present zero remaining as a healthy zero balance", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          ({
+            ok: true,
+            status: 200,
+            json: async () => ({ remaining: 0 }),
+          }) as unknown as Response
+      )
+    )
+
+    const result = await scrapegraphaiAdapter.readBalance("key")
+
+    expect(result).toEqual({
+      ok: true,
+      balances: [
+        {
+          creditType: "credits",
+          label: "Credits",
+          balance: 0,
+          balanceLimit: null,
+          unit: "credits",
+        },
+      ],
+    })
   })
 })

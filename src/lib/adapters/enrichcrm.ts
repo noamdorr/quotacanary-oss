@@ -1,4 +1,4 @@
-import { toFiniteNumber } from "./shared"
+import { timedFetch, toFiniteNumber } from "./shared"
 import type { AdapterResult, ToolAdapter } from "./types"
 
 type JsonRecord = Record<string, unknown>
@@ -66,7 +66,7 @@ export const enrichcrmAdapter: ToolAdapter = {
 
     let res: Response
     try {
-      res = await fetch(url.toString(), {
+      res = await timedFetch(url.toString(), {
         headers: { Accept: "application/json" },
       })
     } catch {

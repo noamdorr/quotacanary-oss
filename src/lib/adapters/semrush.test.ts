@@ -19,11 +19,11 @@ describe("semrush adapter", () => {
 
     expect(fetchMock).toHaveBeenCalledWith(
       "https://www.semrush.com/users/countapiunits.html?key=semrush-key",
-      {
+      expect.objectContaining({
         headers: {
           Accept: "text/csv, text/plain;q=0.9, application/json;q=0.8",
         },
-      }
+      })
     )
     expect(result).toEqual({
       ok: true,

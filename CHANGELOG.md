@@ -9,6 +9,48 @@ migration under **Upgrade notes**. Always run the migration step after updating.
 
 ## [Unreleased]
 
+## [1.0.2] - 2026-07-05
+
+### Security
+- Send security headers on every route: HSTS, `X-Content-Type-Options: nosniff`,
+  `X-Frame-Options: DENY`, and a `frame-ancestors 'none'` CSP.
+- Allowlist the `/login` notice params. Unknown or malformed values fall back to
+  generic copy instead of crashing the page or echoing attacker-supplied text.
+- Block IPv4-mapped IPv6 addresses in the alert webhook SSRF guard.
+
+### Added
+- Branded 404 and error pages.
+- Balance history retention: each poll run prunes readings older than 90 days,
+  always keeping the newest 50 per pool so sparklines and burn rates survive.
+
+### Fixed
+- Fresh installs now grant table privileges to all three Supabase roles:
+  `authenticated` (migration 036) plus `anon` and `service_role` (039). Without
+  them a clean self-host could sign up, but polling failed with `permission
+  denied for table connections`. Hosted Supabase masks the gap with platform
+  default privileges, which is why it went unnoticed.
+- Vendor adapter requests now time out instead of hanging, and a response that
+  is missing the balance field counts as an error, not a zero balance.
+- Poll runs isolate per-connection failures and run with bounded concurrency,
+  so one slow or broken vendor cannot fail the whole run. Alert webhook
+  delivery gets a 10 second timeout.
+- Seed parity for fresh installs: catalog backfills from migrations 009, 034,
+  and 035 (topup URLs, default low thresholds) are mirrored in `seed.sql`, and
+  four multi-pool tools (emaillistverify, reoon, surfe, valueserp) now declare
+  their pools (037).
+- Middleware redirects now carry the refreshed Supabase auth cookies, per the
+  `@supabase/ssr` contract.
+- Marketing site: og:image on the homepage and per-tool directory pages,
+  `/docs` in the sitemap, apple-touch-icon.
+
+### Upgrade notes
+- No new environment variables.
+- Four new database migrations (036-039). Run `supabase db push` (hosted
+  Supabase) or `supabase db reset` (local stack; wipes data) after pulling.
+  036 and 039 are required: fresh installs cannot poll without them.
+- Balance readings older than 90 days are now pruned automatically (the newest
+  50 per pool are always kept).
+
 ## [1.0.1] - 2026-06-22
 
 ### Security
@@ -37,6 +79,7 @@ migration under **Upgrade notes**. Always run the migration step after updating.
 - New optional env var `APP_ONLY` (set `true` for single-domain self-host).
 - Run `supabase db push` (hosted) or `supabase db reset` (local) after pulling.
 
-[unreleased]: https://github.com/noamdorr/quotacanary-oss/compare/v1.0.1...HEAD
+[unreleased]: https://github.com/noamdorr/quotacanary-oss/compare/v1.0.2...HEAD
+[1.0.2]: https://github.com/noamdorr/quotacanary-oss/compare/v1.0.1...v1.0.2
 [1.0.1]: https://github.com/noamdorr/quotacanary-oss/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/noamdorr/quotacanary-oss/releases/tag/v1.0.0

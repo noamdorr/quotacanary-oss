@@ -1,5 +1,5 @@
-import { toFiniteNumber } from "./shared"
-import type { AdapterResult, ToolAdapter } from "./types"
+import { finiteOrNull, timedFetch } from "./shared"
+import type { AdapterResult, BalanceReading, ToolAdapter } from "./types"
 
 export const valueserpAdapter: ToolAdapter = {
   toolId: "valueserp",
@@ -8,7 +8,7 @@ export const valueserpAdapter: ToolAdapter = {
     try {
       // SECURITY: ValueSERP supports only query-string key auth (no header form), so the
       // key can surface in vendor request logs/proxies. Residual exposure; see 2026-06-22 audit.
-      res = await fetch(
+      res = await timedFetch(
         `https://api.valueserp.com/account?api_key=${encodeURIComponent(apiKey)}`
       )
     } catch {
@@ -31,25 +31,31 @@ export const valueserpAdapter: ToolAdapter = {
     } catch {
       return { ok: false, error: "ValueSERP returned an unexpected response." }
     }
-    return {
-      ok: true,
-      balances: [
-        {
-          creditType: "monthly",
-          label: "Monthly Credits",
-          balance: toFiniteNumber(data.account_info?.monthly_credits_remaining),
-          balanceLimit:
-            toFiniteNumber(data.account_info?.monthly_credits_limit) || null,
-          unit: "credits",
-        },
-        {
-          creditType: "topup",
-          label: "Top-up Credits",
-          balance: toFiniteNumber(data.account_info?.topup_credits_remaining),
-          balanceLimit: null,
-          unit: "credits",
-        },
-      ],
+    const info = data.account_info
+    const balances: BalanceReading[] = []
+    const monthly = finiteOrNull(info?.monthly_credits_remaining)
+    if (monthly !== null) {
+      balances.push({
+        creditType: "monthly",
+        label: "Monthly Credits",
+        balance: monthly,
+        balanceLimit: finiteOrNull(info?.monthly_credits_limit) || null,
+        unit: "credits",
+      })
     }
+    const topup = finiteOrNull(info?.topup_credits_remaining)
+    if (topup !== null) {
+      balances.push({
+        creditType: "topup",
+        label: "Top-up Credits",
+        balance: topup,
+        balanceLimit: null,
+        unit: "credits",
+      })
+    }
+    if (balances.length === 0) {
+      return { ok: false, error: "ValueSERP returned an unexpected response." }
+    }
+    return { ok: true, balances }
   },
 }

@@ -1,4 +1,4 @@
-import { toFiniteNumber } from "./shared"
+import { finiteOrNull, timedFetch } from "./shared"
 import type { AdapterResult, ToolAdapter } from "./types"
 
 export const bouncifyAdapter: ToolAdapter = {
@@ -8,7 +8,7 @@ export const bouncifyAdapter: ToolAdapter = {
     try {
       // SECURITY: Bouncify supports only query-string key auth (no header form), so the
       // key can surface in vendor request logs/proxies. Residual exposure; see 2026-06-22 audit.
-      res = await fetch(
+      res = await timedFetch(
         `https://api.bouncify.io/v1/info?apikey=${encodeURIComponent(apiKey)}`
       )
     } catch {
@@ -24,13 +24,17 @@ export const bouncifyAdapter: ToolAdapter = {
     } catch {
       return { ok: false, error: "Bouncify returned an unexpected response." }
     }
+    const balance = finiteOrNull(data.credits_info?.credits_remaining)
+    if (balance === null) {
+      return { ok: false, error: "Bouncify returned an unexpected response." }
+    }
     return {
       ok: true,
       balances: [
         {
           creditType: "credits",
           label: "Credits",
-          balance: toFiniteNumber(data.credits_info?.credits_remaining),
+          balance,
           balanceLimit: null,
           unit: "credits",
         },

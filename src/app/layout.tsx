@@ -23,11 +23,43 @@ const jetbrainsMono = JetBrains_Mono({
 })
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://quotacanary.com"),
   title: "QuotaCanary",
   description:
     "The bird that sings before the credits die. Credit-balance monitoring for your whole API stack.",
   icons: {
     icon: [{ url: "/favicon.svg", type: "image/svg+xml" }],
+    apple: [{ url: "/apple-touch-icon.png" }],
+  },
+  openGraph: {
+    type: "website",
+    siteName: "QuotaCanary",
+    title: "QuotaCanary",
+    description:
+      "The bird that sings before the credits die. Credit-balance monitoring for your whole API stack.",
+    url: "/",
+    images: [
+      {
+        url: "/og.jpg",
+        width: 1920,
+        height: 1080,
+        alt: "QuotaCanary - the bird that sings before the credits die",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "QuotaCanary",
+    description:
+      "The bird that sings before the credits die. Credit-balance monitoring for your whole API stack.",
+    images: [
+      {
+        url: "/og.jpg",
+        width: 1920,
+        height: 1080,
+        alt: "QuotaCanary - the bird that sings before the credits die",
+      },
+    ],
   },
 }
 

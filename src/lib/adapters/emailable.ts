@@ -1,4 +1,4 @@
-import { toFiniteNumber } from "./shared"
+import { finiteOrNull, timedFetch } from "./shared"
 import type { AdapterResult, ToolAdapter } from "./types"
 
 export const emailableAdapter: ToolAdapter = {
@@ -6,7 +6,7 @@ export const emailableAdapter: ToolAdapter = {
   async readBalance(apiKey: string): Promise<AdapterResult> {
     let res: Response
     try {
-      res = await fetch("https://api.emailable.com/v1/account", {
+      res = await timedFetch("https://api.emailable.com/v1/account", {
         headers: { Authorization: `Bearer ${apiKey}` },
       })
     } catch {
@@ -23,13 +23,17 @@ export const emailableAdapter: ToolAdapter = {
     } catch {
       return { ok: false, error: "Emailable returned an unexpected response." }
     }
+    const balance = finiteOrNull(data.available_credits)
+    if (balance === null) {
+      return { ok: false, error: "Emailable returned an unexpected response." }
+    }
     return {
       ok: true,
       balances: [
         {
           creditType: "credits",
           label: "Credits",
-          balance: toFiniteNumber(data.available_credits),
+          balance,
           balanceLimit: null,
           unit: "credits",
         },

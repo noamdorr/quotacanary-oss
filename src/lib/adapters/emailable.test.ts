@@ -18,7 +18,7 @@ describe("emailable adapter", () => {
     // Key rides in the Authorization header, never the URL query string.
     expect(fetchMock).toHaveBeenCalledWith(
       "https://api.emailable.com/v1/account",
-      { headers: { Authorization: "Bearer key" } }
+      expect.objectContaining({ headers: { Authorization: "Bearer key" } })
     )
     expect(result).toEqual({
       ok: true,

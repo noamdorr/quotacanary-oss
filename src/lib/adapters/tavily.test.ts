@@ -31,12 +31,15 @@ describe("tavily adapter", () => {
 
     const result = await tavilyAdapter.readBalance("tvly-key")
 
-    expect(fetchMock).toHaveBeenCalledWith("https://api.tavily.com/usage", {
-      headers: {
-        Accept: "application/json",
-        Authorization: "Bearer tvly-key",
-      },
-    })
+    expect(fetchMock).toHaveBeenCalledWith(
+      "https://api.tavily.com/usage",
+      expect.objectContaining({
+        headers: {
+          Accept: "application/json",
+          Authorization: "Bearer tvly-key",
+        },
+      })
+    )
     expect(result).toEqual({
       ok: true,
       balances: [

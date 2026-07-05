@@ -1,4 +1,4 @@
-import { toFiniteNumber } from "./shared"
+import { finiteOrNull, timedFetch } from "./shared"
 import type { AdapterResult, ToolAdapter } from "./types"
 
 type SnovCredentials = {
@@ -48,7 +48,7 @@ async function getAccessToken(
 ): Promise<{ ok: true; token: string } | { ok: false; error: string }> {
   let res: Response
   try {
-    res = await fetch("https://api.snov.io/v1/oauth/access_token", {
+    res = await timedFetch("https://api.snov.io/v1/oauth/access_token", {
       method: "POST",
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
@@ -98,7 +98,7 @@ export const snovAdapter: ToolAdapter = {
 
     let res: Response
     try {
-      res = await fetch("https://api.snov.io/v1/get-balance", {
+      res = await timedFetch("https://api.snov.io/v1/get-balance", {
         headers: { Authorization: `Bearer ${token.token}` },
       })
     } catch {
@@ -123,13 +123,17 @@ export const snovAdapter: ToolAdapter = {
       }
     }
 
+    const balance = finiteOrNull(data.data?.balance)
+    if (balance === null) {
+      return { ok: false, error: "Snov.io returned an unexpected response." }
+    }
     return {
       ok: true,
       balances: [
         {
           creditType: "credits",
           label: "Credits",
-          balance: toFiniteNumber(data.data?.balance),
+          balance,
           balanceLimit: null,
           unit: "credits",
         },

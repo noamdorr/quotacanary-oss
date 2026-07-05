@@ -1,4 +1,4 @@
-import { toFiniteNumber } from "./shared"
+import { finiteOrNull, timedFetch } from "./shared"
 import type { AdapterResult, ToolAdapter } from "./types"
 
 export const captaindataAdapter: ToolAdapter = {
@@ -6,7 +6,7 @@ export const captaindataAdapter: ToolAdapter = {
   async readBalance(apiKey: string): Promise<AdapterResult> {
     let res: Response
     try {
-      res = await fetch("https://api.captaindata.com/v1/quotas", {
+      res = await timedFetch("https://api.captaindata.com/v1/quotas", {
         headers: { "X-API-Key": apiKey },
       })
     } catch {
@@ -26,14 +26,21 @@ export const captaindataAdapter: ToolAdapter = {
         error: "Captain Data returned an unexpected response.",
       }
     }
+    const balance = finiteOrNull(data.credits_left)
+    if (balance === null) {
+      return {
+        ok: false,
+        error: "Captain Data returned an unexpected response.",
+      }
+    }
     return {
       ok: true,
       balances: [
         {
           creditType: "credits",
           label: "Credits",
-          balance: toFiniteNumber(data.credits_left),
-          balanceLimit: toFiniteNumber(data.credits_max) || null,
+          balance,
+          balanceLimit: finiteOrNull(data.credits_max) || null,
           unit: "credits",
         },
       ],

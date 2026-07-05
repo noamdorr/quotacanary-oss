@@ -1,4 +1,4 @@
-import { toFiniteNumber } from "./shared"
+import { finiteOrNull, timedFetch } from "./shared"
 import type { AdapterResult, ToolAdapter } from "./types"
 
 export const debounceAdapter: ToolAdapter = {
@@ -8,7 +8,7 @@ export const debounceAdapter: ToolAdapter = {
     try {
       // SECURITY: DeBounce supports only query-string key auth (no header form), so the
       // key can surface in vendor request logs/proxies. Residual exposure; see 2026-06-22 audit.
-      res = await fetch(
+      res = await timedFetch(
         `https://api.debounce.io/v1/balance/?api=${encodeURIComponent(apiKey)}`
       )
     } catch {
@@ -24,13 +24,17 @@ export const debounceAdapter: ToolAdapter = {
     } catch {
       return { ok: false, error: "DeBounce returned an unexpected response." }
     }
+    const balance = finiteOrNull(data.balance)
+    if (balance === null) {
+      return { ok: false, error: "DeBounce returned an unexpected response." }
+    }
     return {
       ok: true,
       balances: [
         {
           creditType: "credits",
           label: "Credits",
-          balance: toFiniteNumber(data.balance),
+          balance,
           balanceLimit: null,
           unit: "credits",
         },

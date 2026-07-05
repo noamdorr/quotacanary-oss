@@ -1,5 +1,5 @@
-import { toFiniteNumber } from "./shared"
-import type { AdapterResult, ToolAdapter } from "./types"
+import { finiteOrNull, timedFetch } from "./shared"
+import type { AdapterResult, BalanceReading, ToolAdapter } from "./types"
 
 export const reoonAdapter: ToolAdapter = {
   toolId: "reoon",
@@ -8,7 +8,7 @@ export const reoonAdapter: ToolAdapter = {
     try {
       // SECURITY: Reoon supports only query-string key auth (no header form), so the
       // key can surface in vendor request logs/proxies. Residual exposure; see 2026-06-22 audit.
-      res = await fetch(
+      res = await timedFetch(
         `https://emailverifier.reoon.com/api/v1/check-account-balance/?key=${encodeURIComponent(apiKey)}`
       )
     } catch {
@@ -27,24 +27,27 @@ export const reoonAdapter: ToolAdapter = {
     } catch {
       return { ok: false, error: "Reoon returned an unexpected response." }
     }
-    return {
-      ok: true,
-      balances: [
-        {
-          creditType: "instant",
-          label: "Credits",
-          balance: toFiniteNumber(data.remaining_instant_credits),
+    const pools: Array<[string, string, unknown]> = [
+      ["instant", "Credits", data.remaining_instant_credits],
+      ["daily", "Daily Credits", data.remaining_daily_credits],
+    ]
+    const balances = pools
+      .map(([creditType, label, value]): BalanceReading | null => {
+        const balance = finiteOrNull(value)
+        if (balance === null) return null
+        return {
+          creditType,
+          label,
+          balance,
           balanceLimit: null,
           unit: "credits",
-        },
-        {
-          creditType: "daily",
-          label: "Daily Credits",
-          balance: toFiniteNumber(data.remaining_daily_credits),
-          balanceLimit: null,
-          unit: "credits",
-        },
-      ],
+        }
+      })
+      .filter((reading): reading is BalanceReading => reading !== null)
+
+    if (balances.length === 0) {
+      return { ok: false, error: "Reoon returned an unexpected response." }
     }
+    return { ok: true, balances }
   },
 }

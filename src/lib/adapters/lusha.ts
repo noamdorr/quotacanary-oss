@@ -1,4 +1,4 @@
-import { toFiniteNumber } from "./shared"
+import { finiteOrNull, timedFetch } from "./shared"
 import type { AdapterResult, ToolAdapter } from "./types"
 
 export const lushaAdapter: ToolAdapter = {
@@ -6,7 +6,7 @@ export const lushaAdapter: ToolAdapter = {
   async readBalance(apiKey: string): Promise<AdapterResult> {
     let res: Response
     try {
-      res = await fetch("https://api.lusha.com/v3/account/usage", {
+      res = await timedFetch("https://api.lusha.com/v3/account/usage", {
         headers: { api_key: apiKey },
       })
     } catch {
@@ -24,14 +24,18 @@ export const lushaAdapter: ToolAdapter = {
     } catch {
       return { ok: false, error: "Lusha returned an unexpected response." }
     }
+    const balance = finiteOrNull(data.usage?.bulkCredits?.remaining)
+    if (balance === null) {
+      return { ok: false, error: "Lusha returned an unexpected response." }
+    }
     return {
       ok: true,
       balances: [
         {
           creditType: "credits",
           label: "Credits",
-          balance: toFiniteNumber(data.usage?.bulkCredits?.remaining),
-          balanceLimit: toFiniteNumber(data.usage?.bulkCredits?.total) || null,
+          balance,
+          balanceLimit: finiteOrNull(data.usage?.bulkCredits?.total) || null,
           unit: "credits",
         },
       ],

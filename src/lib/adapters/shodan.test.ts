@@ -29,7 +29,7 @@ describe("shodan adapter", () => {
 
     expect(fetchMock).toHaveBeenCalledWith(
       "https://api.shodan.io/api-info?key=api-key",
-      { headers: { Accept: "application/json" } }
+      expect.objectContaining({ headers: { Accept: "application/json" } })
     )
     expect(result).toEqual({
       ok: true,

@@ -1,5 +1,5 @@
 import { Buffer } from "node:buffer"
-import { toFiniteNumber } from "./shared"
+import { timedFetch, toFiniteNumber } from "./shared"
 import type { AdapterResult, BalanceReading, ToolAdapter } from "./types"
 
 type VerifaliaCredentials = {
@@ -58,7 +58,7 @@ export const verifaliaAdapter: ToolAdapter = {
 
     let res: Response
     try {
-      res = await fetch("https://api.verifalia.com/v2.7/credits/balance", {
+      res = await timedFetch("https://api.verifalia.com/v2.7/credits/balance", {
         headers: {
           Accept: "application/json",
           Authorization: `Basic ${Buffer.from(

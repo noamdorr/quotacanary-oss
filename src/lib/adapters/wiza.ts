@@ -1,4 +1,4 @@
-import { toFiniteNumber } from "./shared"
+import { finiteOrNull, timedFetch } from "./shared"
 import type { AdapterResult, ToolAdapter } from "./types"
 
 export const wizaAdapter: ToolAdapter = {
@@ -6,7 +6,7 @@ export const wizaAdapter: ToolAdapter = {
   async readBalance(apiKey: string): Promise<AdapterResult> {
     let res: Response
     try {
-      res = await fetch("https://wiza.co/api/meta/credits", {
+      res = await timedFetch("https://wiza.co/api/meta/credits", {
         headers: { Authorization: `Bearer ${apiKey}` },
       })
     } catch {
@@ -22,13 +22,17 @@ export const wizaAdapter: ToolAdapter = {
     } catch {
       return { ok: false, error: "Wiza returned an unexpected response." }
     }
+    const balance = finiteOrNull(data.credits?.api_credits)
+    if (balance === null) {
+      return { ok: false, error: "Wiza returned an unexpected response." }
+    }
     return {
       ok: true,
       balances: [
         {
           creditType: "api",
           label: "API Credits",
-          balance: toFiniteNumber(data.credits?.api_credits),
+          balance,
           balanceLimit: null,
           unit: "credits",
         },

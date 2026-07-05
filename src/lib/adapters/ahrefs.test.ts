@@ -29,12 +29,12 @@ describe("ahrefs adapter", () => {
 
     expect(fetchMock).toHaveBeenCalledWith(
       "https://api.ahrefs.com/v3/subscription-info/limits-and-usage",
-      {
+      expect.objectContaining({
         headers: {
           Accept: "application/json",
           Authorization: "Bearer api-key",
         },
-      }
+      })
     )
     expect(result).toEqual({
       ok: true,

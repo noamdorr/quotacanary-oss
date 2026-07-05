@@ -1,4 +1,4 @@
-import { toFiniteNumber } from "./shared"
+import { timedFetch, toFiniteNumber } from "./shared"
 import type { AdapterResult, ToolAdapter } from "./types"
 
 function parseDollarBalance(value: unknown): number {
@@ -12,7 +12,7 @@ export const orthogonalAdapter: ToolAdapter = {
   async readBalance(apiKey: string): Promise<AdapterResult> {
     let res: Response
     try {
-      res = await fetch("https://api.orthogonal.com/v1/credits/balance", {
+      res = await timedFetch("https://api.orthogonal.com/v1/credits/balance", {
         headers: { Authorization: `Bearer ${apiKey}` },
       })
     } catch {

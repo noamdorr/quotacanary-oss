@@ -1,4 +1,4 @@
-import { toFiniteNumber } from "./shared"
+import { finiteOrNull, timedFetch } from "./shared"
 import type { AdapterResult, ToolAdapter } from "./types"
 
 export const emailhippoAdapter: ToolAdapter = {
@@ -6,7 +6,7 @@ export const emailhippoAdapter: ToolAdapter = {
   async readBalance(apiKey: string): Promise<AdapterResult> {
     let res: Response
     try {
-      res = await fetch(
+      res = await timedFetch(
         `https://api.hippoapi.com/customer/reports/v3/quota/${encodeURIComponent(apiKey)}`,
         { headers: { Accept: "application/json" } }
       )
@@ -39,8 +39,14 @@ export const emailhippoAdapter: ToolAdapter = {
         error: "Email Hippo rejected the quota request.",
       }
 
-    const remaining = toFiniteNumber(data.quotaRemaining)
-    const used = toFiniteNumber(data.quotaUsed, Number.NaN)
+    const remaining = finiteOrNull(data.quotaRemaining)
+    if (remaining === null) {
+      return {
+        ok: false,
+        error: "Email Hippo returned an unexpected response.",
+      }
+    }
+    const used = finiteOrNull(data.quotaUsed)
 
     return {
       ok: true,
@@ -49,7 +55,7 @@ export const emailhippoAdapter: ToolAdapter = {
           creditType: "quota",
           label: "Quota",
           balance: remaining,
-          balanceLimit: Number.isFinite(used) ? remaining + used : null,
+          balanceLimit: used !== null ? remaining + used : null,
           unit: "credits",
         },
       ],

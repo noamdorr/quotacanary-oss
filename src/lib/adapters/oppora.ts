@@ -1,4 +1,4 @@
-import { toFiniteNumber } from "./shared"
+import { timedFetch, toFiniteNumber } from "./shared"
 import type { AdapterResult, BalanceReading, ToolAdapter } from "./types"
 
 type OpporaCreditPool = {
@@ -74,7 +74,7 @@ export const opporaAdapter: ToolAdapter = {
   async readBalance(apiKey: string): Promise<AdapterResult> {
     let res: Response
     try {
-      res = await fetch("https://api.oppora.ai/api/v1/public/credits", {
+      res = await timedFetch("https://api.oppora.ai/api/v1/public/credits", {
         headers: {
           Accept: "application/json",
           Authorization: `Bearer ${apiKey}`,

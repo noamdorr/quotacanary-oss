@@ -19,7 +19,7 @@ describe("mailercheck adapter", () => {
 
     expect(fetchMock).toHaveBeenCalledWith(
       "https://app.mailercheck.com/api/credits",
-      { headers: { Authorization: "Bearer key" } }
+      expect.objectContaining({ headers: { Authorization: "Bearer key" } })
     )
     expect(result).toEqual({
       ok: true,
@@ -90,5 +90,55 @@ describe("mailercheck adapter", () => {
     const result = await mailercheckAdapter.readBalance("key")
 
     expect(result.ok).toBe(false)
+  })
+
+  it("treats a missing total field as an unexpected response, not a zero balance", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          ({
+            ok: true,
+            status: 200,
+            json: async () => ({}),
+          }) as unknown as Response
+      )
+    )
+
+    const result = await mailercheckAdapter.readBalance("key")
+
+    expect(result).toEqual({
+      ok: false,
+      error: "MailerCheck returned an unexpected response.",
+    })
+  })
+
+  it("records a present zero total as a healthy zero balance", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          ({
+            ok: true,
+            status: 200,
+            json: async () => ({ total: 0 }),
+          }) as unknown as Response
+      )
+    )
+
+    const result = await mailercheckAdapter.readBalance("key")
+
+    expect(result).toEqual({
+      ok: true,
+      balances: [
+        {
+          creditType: "credits",
+          label: "Credits",
+          balance: 0,
+          balanceLimit: null,
+          unit: "credits",
+        },
+      ],
+    })
   })
 })

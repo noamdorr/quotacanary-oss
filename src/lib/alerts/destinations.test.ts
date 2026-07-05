@@ -101,6 +101,41 @@ describe("webhook SSRF guards", () => {
   it("rejects IPv6 loopback and link-local targets", () => {
     expect(validateDestinationUrl("https://[::1]/hook").ok).toBe(false)
     expect(validateDestinationUrl("https://[fe80::1]/hook").ok).toBe(false)
+    expect(validateDestinationUrl("https://127.0.0.1/hook").ok).toBe(false)
+  })
+
+  it("rejects IPv4-mapped IPv6 literals that hide internal targets", () => {
+    // The URL parser prints these in hex form (e.g. ::ffff:7f00:1), which the
+    // old dotted-decimal-only guard missed, so loopback/metadata/RFC1918 slipped
+    // through as public. Each must resolve to a blocked v4 target.
+    expect(validateDestinationUrl("https://[::ffff:127.0.0.1]/hook").ok).toBe(
+      false
+    )
+    expect(
+      validateDestinationUrl("https://[::ffff:169.254.169.254]/latest/").ok
+    ).toBe(false)
+    expect(validateDestinationUrl("https://[::ffff:10.0.0.5]/hook").ok).toBe(
+      false
+    )
+    expect(validateDestinationUrl("https://[::ffff:192.168.1.1]/hook").ok).toBe(
+      false
+    )
+  })
+
+  it("blocks the hex spelling of a mapped internal address directly", () => {
+    // ::ffff:7f00:1 === ::ffff:127.0.0.1, ::ffff:a9fe:a9fe === 169.254.169.254.
+    expect(isBlockedIp("::ffff:7f00:1")).toBe(true)
+    expect(isBlockedIp("::ffff:a9fe:a9fe")).toBe(true)
+    expect(isBlockedIp("::ffff:a00:5")).toBe(true)
+  })
+
+  it("treats a public v4-mapped v6 host consistently with its v4 form", () => {
+    // ::ffff:8.8.8.8 prints as ::ffff:808:808; a public mapped address stays
+    // allowed, matching how the bare 8.8.8.8 is classified.
+    expect(isBlockedIp("::ffff:808:808")).toBe(false)
+    expect(validateDestinationUrl("https://[::ffff:8.8.8.8]/hook").ok).toBe(
+      true
+    )
   })
 
   it("rejects the GCP metadata hostname", () => {
@@ -137,6 +172,9 @@ describe("webhook SSRF guards", () => {
       "fc00::1",
       "fd12:3456::1",
       "::ffff:127.0.0.1",
+      "::ffff:7f00:1",
+      "::ffff:a9fe:a9fe",
+      "::ffff:a00:5",
     ]) {
       expect(isBlockedIp(ip), `${ip} should be blocked`).toBe(true)
     }
@@ -177,6 +215,24 @@ describe("webhook SSRF guards", () => {
       expect(fetchMock).toHaveBeenCalledWith(
         "https://example.com/hook",
         expect.objectContaining({ redirect: "manual" })
+      )
+    })
+
+    it("sends deliveries with a timeout so a hanging webhook can't stall dispatch", async () => {
+      lookup.mockResolvedValue([{ address: "93.184.216.34", family: 4 }])
+      const fetchMock = vi.fn(async () => new Response("ok", { status: 200 }))
+      vi.stubGlobal("fetch", fetchMock)
+
+      const res = await postAlertDestination(
+        "webhook",
+        "https://example.com/hook",
+        event
+      )
+
+      expect(res.ok).toBe(true)
+      expect(fetchMock).toHaveBeenCalledWith(
+        "https://example.com/hook",
+        expect.objectContaining({ signal: expect.any(AbortSignal) })
       )
     })
 

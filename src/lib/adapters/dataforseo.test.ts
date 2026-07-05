@@ -39,13 +39,13 @@ describe("dataforseo adapter", () => {
 
     expect(fetchMock).toHaveBeenCalledWith(
       "https://api.dataforseo.com/v3/appendix/user_data",
-      {
+      expect.objectContaining({
         headers: {
           Authorization: `Basic ${Buffer.from(
             "api-login:api-password"
           ).toString("base64")}`,
         },
-      }
+      })
     )
     expect(result).toEqual({
       ok: true,

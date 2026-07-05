@@ -26,13 +26,13 @@ describe("skrapp adapter", () => {
 
     expect(fetchMock).toHaveBeenCalledWith(
       "https://api.skrapp.io/api/v2/account",
-      {
+      expect.objectContaining({
         headers: {
           Accept: "application/json",
           "Content-Type": "application/json",
           "X-Access-Key": "skrapp-key",
         },
-      }
+      })
     )
     expect(result).toEqual({
       ok: true,

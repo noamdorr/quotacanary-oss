@@ -1,4 +1,4 @@
-import { toFiniteNumber } from "./shared"
+import { timedFetch, toFiniteNumber } from "./shared"
 import type { AdapterResult, BalanceReading, ToolAdapter } from "./types"
 
 type ShodanResponse = {
@@ -46,7 +46,7 @@ export const shodanAdapter: ToolAdapter = {
     try {
       // SECURITY: Shodan supports only query-string key auth (no header form), so the
       // key can surface in vendor request logs/proxies. Residual exposure; see 2026-06-22 audit.
-      res = await fetch(
+      res = await timedFetch(
         `https://api.shodan.io/api-info?key=${encodeURIComponent(apiKey)}`,
         { headers: { Accept: "application/json" } }
       )

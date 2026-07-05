@@ -83,4 +83,66 @@ describe("surfe adapter", () => {
     const result = await surfeAdapter.readBalance("key")
     expect(result.ok).toBe(false)
   })
+  it("treats all missing credit fields as an unexpected response, not zero balances", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          ({
+            ok: true,
+            status: 200,
+            json: async () => ({}),
+          }) as unknown as Response
+      )
+    )
+    const result = await surfeAdapter.readBalance("key")
+    expect(result).toEqual({
+      ok: false,
+      error: "Surfe returned an unexpected response.",
+    })
+  })
+  it("records present zero credit fields as healthy zero balances", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          ({
+            ok: true,
+            status: 200,
+            json: async () => ({
+              totalEmail: 0,
+              totalMobile: 0,
+              totalSearch: 0,
+            }),
+          }) as unknown as Response
+      )
+    )
+    const result = await surfeAdapter.readBalance("key")
+    expect(result).toEqual({
+      ok: true,
+      balances: [
+        {
+          creditType: "email",
+          label: "Email Credits",
+          balance: 0,
+          balanceLimit: null,
+          unit: "credits",
+        },
+        {
+          creditType: "mobile",
+          label: "Mobile Credits",
+          balance: 0,
+          balanceLimit: null,
+          unit: "credits",
+        },
+        {
+          creditType: "search",
+          label: "Search Credits",
+          balance: 0,
+          balanceLimit: null,
+          unit: "credits",
+        },
+      ],
+    })
+  })
 })

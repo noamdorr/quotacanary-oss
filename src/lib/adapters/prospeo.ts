@@ -1,4 +1,4 @@
-import { toFiniteNumber } from "./shared"
+import { finiteOrNull, timedFetch } from "./shared"
 import type { AdapterResult, ToolAdapter } from "./types"
 
 export const prospeoAdapter: ToolAdapter = {
@@ -6,7 +6,7 @@ export const prospeoAdapter: ToolAdapter = {
   async readBalance(apiKey: string): Promise<AdapterResult> {
     let res: Response
     try {
-      res = await fetch("https://api.prospeo.io/account-information", {
+      res = await timedFetch("https://api.prospeo.io/account-information", {
         headers: { "X-KEY": apiKey },
       })
     } catch {
@@ -28,8 +28,11 @@ export const prospeoAdapter: ToolAdapter = {
     if (data.error === true)
       return { ok: false, error: "Prospeo rejected this key." }
 
-    const remaining = toFiniteNumber(data.response?.remaining_credits)
-    const used = toFiniteNumber(data.response?.used_credits)
+    const remaining = finiteOrNull(data.response?.remaining_credits)
+    if (remaining === null) {
+      return { ok: false, error: "Prospeo returned an unexpected response." }
+    }
+    const used = finiteOrNull(data.response?.used_credits)
     return {
       ok: true,
       balances: [
@@ -37,7 +40,7 @@ export const prospeoAdapter: ToolAdapter = {
           creditType: "credits",
           label: "Credits",
           balance: remaining,
-          balanceLimit: remaining + used,
+          balanceLimit: used !== null ? remaining + used : null,
           unit: "credits",
         },
       ],

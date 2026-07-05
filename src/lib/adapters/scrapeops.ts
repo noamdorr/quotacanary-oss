@@ -1,4 +1,4 @@
-import { toFiniteNumber } from "./shared"
+import { finiteOrNull, timedFetch } from "./shared"
 import type { AdapterResult, ToolAdapter } from "./types"
 
 export const scrapeopsAdapter: ToolAdapter = {
@@ -8,7 +8,7 @@ export const scrapeopsAdapter: ToolAdapter = {
     try {
       // SECURITY: ScrapeOps supports only query-string key auth (no header form), so the
       // key can surface in vendor request logs/proxies. Residual exposure; see 2026-06-22 audit.
-      res = await fetch(
+      res = await timedFetch(
         `https://backend.scrapeops.io/v1/proxy/account/usage?api_key=${encodeURIComponent(apiKey)}`
       )
     } catch {
@@ -25,8 +25,11 @@ export const scrapeopsAdapter: ToolAdapter = {
     } catch {
       return { ok: false, error: "ScrapeOps returned an unexpected response." }
     }
-    const total = toFiniteNumber(data.plan_api_credits)
-    const used = toFiniteNumber(data.used_api_credits)
+    const total = finiteOrNull(data.plan_api_credits)
+    if (total === null) {
+      return { ok: false, error: "ScrapeOps returned an unexpected response." }
+    }
+    const used = finiteOrNull(data.used_api_credits) ?? 0
     return {
       ok: true,
       balances: [

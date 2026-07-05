@@ -39,7 +39,19 @@ export async function generateMetadata({
     title,
     description,
     alternates: { canonical: `/directory/${tool.id}` },
-    openGraph: { title, description, type: "website" },
+    openGraph: {
+      title,
+      description,
+      type: "website",
+      images: [
+        {
+          url: "/og.jpg",
+          width: 1920,
+          height: 1080,
+          alt: "QuotaCanary - the bird that sings before the credits die",
+        },
+      ],
+    },
   }
 }
 

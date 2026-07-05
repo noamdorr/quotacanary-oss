@@ -1,4 +1,4 @@
-import { toFiniteNumber } from "./shared"
+import { finiteOrNull, timedFetch } from "./shared"
 import type { AdapterResult, ToolAdapter } from "./types"
 
 export const myemailverifierAdapter: ToolAdapter = {
@@ -6,7 +6,7 @@ export const myemailverifierAdapter: ToolAdapter = {
   async readBalance(apiKey: string): Promise<AdapterResult> {
     let res: Response
     try {
-      res = await fetch(
+      res = await timedFetch(
         `https://client.myemailverifier.com/verifier/getcredits/${encodeURIComponent(apiKey)}`
       )
     } catch {
@@ -26,13 +26,20 @@ export const myemailverifierAdapter: ToolAdapter = {
         error: "MyEmailVerifier returned an unexpected response.",
       }
     }
+    const balance = finiteOrNull(data.Credits)
+    if (balance === null) {
+      return {
+        ok: false,
+        error: "MyEmailVerifier returned an unexpected response.",
+      }
+    }
     return {
       ok: true,
       balances: [
         {
           creditType: "credits",
           label: "Credits",
-          balance: toFiniteNumber(data.Credits),
+          balance,
           balanceLimit: null,
           unit: "credits",
         },

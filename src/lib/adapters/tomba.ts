@@ -1,4 +1,4 @@
-import { toFiniteNumber } from "./shared"
+import { finiteOrNull, timedFetch } from "./shared"
 import type { AdapterResult, BalanceReading, ToolAdapter } from "./types"
 
 type TombaCredentials = {
@@ -58,10 +58,12 @@ function toReading(
   creditType: string,
   label: string,
   usage: CreditUsage | undefined
-): BalanceReading {
-  const available = toFiniteNumber(usage?.available)
-  const used = toFiniteNumber(usage?.used)
-  const limit = available + used
+): BalanceReading | null {
+  const available = finiteOrNull(usage?.available)
+  if (available === null) return null
+
+  const used = finiteOrNull(usage?.used)
+  const limit = used !== null ? available + used : null
 
   return {
     creditType,
@@ -82,7 +84,7 @@ export const tombaAdapter: ToolAdapter = {
 
     let res: Response
     try {
-      res = await fetch("https://api.tomba.io/v1/me", {
+      res = await timedFetch("https://api.tomba.io/v1/me", {
         headers: {
           "X-Tomba-Key": credentials.key,
           "X-Tomba-Secret": credentials.secret,
@@ -102,11 +104,13 @@ export const tombaAdapter: ToolAdapter = {
       return { ok: false, error: "Tomba returned an unexpected response." }
     }
 
-    return {
-      ok: true,
-      balances: POOLS.map(([creditType, label, field]) =>
-        toReading(creditType, label, data.data?.requests?.[field])
-      ),
+    const balances = POOLS.map(([creditType, label, field]) =>
+      toReading(creditType, label, data.data?.requests?.[field])
+    ).filter((reading): reading is BalanceReading => reading !== null)
+
+    if (balances.length === 0) {
+      return { ok: false, error: "Tomba returned an unexpected response." }
     }
+    return { ok: true, balances }
   },
 }

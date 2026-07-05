@@ -1,4 +1,4 @@
-import { toFiniteNumber } from "./shared"
+import { timedFetch, toFiniteNumber } from "./shared"
 import type { AdapterResult, ToolAdapter } from "./types"
 
 type AhrefsLimitsAndUsage = {
@@ -49,7 +49,7 @@ export const ahrefsAdapter: ToolAdapter = {
   async readBalance(apiKey: string): Promise<AdapterResult> {
     let res: Response
     try {
-      res = await fetch(
+      res = await timedFetch(
         "https://api.ahrefs.com/v3/subscription-info/limits-and-usage",
         {
           headers: {

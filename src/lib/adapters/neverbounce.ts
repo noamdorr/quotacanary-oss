@@ -1,4 +1,4 @@
-import { toFiniteNumber } from "./shared"
+import { finiteOrNull, timedFetch } from "./shared"
 import type { AdapterResult, ToolAdapter } from "./types"
 
 export const neverbounceAdapter: ToolAdapter = {
@@ -8,7 +8,7 @@ export const neverbounceAdapter: ToolAdapter = {
     try {
       // SECURITY: NeverBounce supports only query-string key auth (no header form), so the
       // key can surface in vendor request logs/proxies. Residual exposure; see 2026-06-22 audit.
-      res = await fetch(
+      res = await timedFetch(
         `https://api.neverbounce.com/v4/account/info?key=${encodeURIComponent(apiKey)}`
       )
     } catch {
@@ -37,13 +37,20 @@ export const neverbounceAdapter: ToolAdapter = {
         error: data.message ?? "NeverBounce rejected this key.",
       }
     }
+    const balance = finiteOrNull(data.credits_info?.paid_credits_remaining)
+    if (balance === null) {
+      return {
+        ok: false,
+        error: "NeverBounce returned an unexpected response.",
+      }
+    }
     return {
       ok: true,
       balances: [
         {
           creditType: "paid_credits",
           label: "Paid Credits",
-          balance: toFiniteNumber(data.credits_info?.paid_credits_remaining),
+          balance,
           balanceLimit: null,
           unit: "credits",
         },

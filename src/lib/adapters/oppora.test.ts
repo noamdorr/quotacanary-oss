@@ -30,12 +30,12 @@ describe("oppora adapter", () => {
 
     expect(fetchMock).toHaveBeenCalledWith(
       "https://api.oppora.ai/api/v1/public/credits",
-      {
+      expect.objectContaining({
         headers: {
           Accept: "application/json",
           Authorization: "Bearer opp-key",
         },
-      }
+      })
     )
     expect(result).toEqual({
       ok: true,

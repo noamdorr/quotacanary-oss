@@ -1,4 +1,4 @@
-import { toFiniteNumber } from "./shared"
+import { finiteOrNull, timedFetch, toFiniteNumber } from "./shared"
 import type { AdapterResult, ToolAdapter } from "./types"
 
 export const netnutAdapter: ToolAdapter = {
@@ -6,7 +6,7 @@ export const netnutAdapter: ToolAdapter = {
   async readBalance(apiKey: string): Promise<AdapterResult> {
     let res: Response
     try {
-      res = await fetch(
+      res = await timedFetch(
         "https://customers-api.netnut.io/v1/customer/usage/myusage",
         {
           method: "POST",
@@ -31,6 +31,12 @@ export const netnutAdapter: ToolAdapter = {
       return { ok: false, error: "NetNut returned an unexpected response." }
     }
     const rows = Array.isArray(data.data) ? data.data : []
+    // The plan_gb figures anchor the pool; if none are present there is no
+    // usable bandwidth limit, so report an unexpected response instead of 0.
+    const hasPlan = rows.some((r) => finiteOrNull(r.plan_gb) !== null)
+    if (!hasPlan) {
+      return { ok: false, error: "NetNut returned an unexpected response." }
+    }
     const limit = rows.reduce((s, r) => s + toFiniteNumber(r.plan_gb), 0)
     const used = rows.reduce((s, r) => s + toFiniteNumber(r.total_gb_used), 0)
     return {

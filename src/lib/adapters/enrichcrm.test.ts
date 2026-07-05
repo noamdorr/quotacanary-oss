@@ -19,9 +19,9 @@ describe("enrichcrm adapter", () => {
 
     expect(fetchMock).toHaveBeenCalledWith(
       "https://gateway.enrich-crm.com/api/credit_crm/v1/mine?apiId=api-key",
-      {
+      expect.objectContaining({
         headers: { Accept: "application/json" },
-      }
+      })
     )
     expect(result).toEqual({
       ok: true,

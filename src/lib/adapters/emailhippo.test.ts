@@ -27,7 +27,7 @@ describe("emailhippo adapter", () => {
 
     expect(fetchMock).toHaveBeenCalledWith(
       "https://api.hippoapi.com/customer/reports/v3/quota/key",
-      { headers: { Accept: "application/json" } }
+      expect.objectContaining({ headers: { Accept: "application/json" } })
     )
     expect(result).toEqual({
       ok: true,
@@ -58,7 +58,7 @@ describe("emailhippo adapter", () => {
 
     expect(fetchMock).toHaveBeenCalledWith(
       "https://api.hippoapi.com/customer/reports/v3/quota/key%20with%2Fslash",
-      { headers: { Accept: "application/json" } }
+      expect.objectContaining({ headers: { Accept: "application/json" } })
     )
   })
 

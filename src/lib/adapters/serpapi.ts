@@ -1,4 +1,4 @@
-import { toFiniteNumber } from "./shared"
+import { finiteOrNull, timedFetch } from "./shared"
 import type { AdapterResult, ToolAdapter } from "./types"
 
 export const serpapiAdapter: ToolAdapter = {
@@ -8,7 +8,7 @@ export const serpapiAdapter: ToolAdapter = {
     try {
       // SECURITY: SerpApi's account endpoint supports only query-string key auth (no header
       // form), so the key can surface in vendor request logs/proxies. Residual exposure; see 2026-06-22 audit.
-      res = await fetch(
+      res = await timedFetch(
         `https://serpapi.com/account.json?api_key=${encodeURIComponent(apiKey)}`
       )
     } catch {
@@ -24,13 +24,17 @@ export const serpapiAdapter: ToolAdapter = {
     } catch {
       return { ok: false, error: "SerpApi returned an unexpected response." }
     }
+    const balance = finiteOrNull(data.total_searches_left)
+    if (balance === null) {
+      return { ok: false, error: "SerpApi returned an unexpected response." }
+    }
     return {
       ok: true,
       balances: [
         {
           creditType: "searches",
           label: "Searches Left",
-          balance: toFiniteNumber(data.total_searches_left),
+          balance,
           balanceLimit: null,
           unit: "credits",
         },

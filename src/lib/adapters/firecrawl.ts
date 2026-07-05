@@ -1,4 +1,4 @@
-import { toFiniteNumber } from "./shared"
+import { finiteOrNull, timedFetch } from "./shared"
 import type { AdapterResult, ToolAdapter } from "./types"
 
 export const firecrawlAdapter: ToolAdapter = {
@@ -6,7 +6,7 @@ export const firecrawlAdapter: ToolAdapter = {
   async readBalance(apiKey: string): Promise<AdapterResult> {
     let res: Response
     try {
-      res = await fetch("https://api.firecrawl.dev/v2/team/credit-usage", {
+      res = await timedFetch("https://api.firecrawl.dev/v2/team/credit-usage", {
         headers: { Authorization: `Bearer ${apiKey}` },
       })
     } catch {
@@ -34,7 +34,11 @@ export const firecrawlAdapter: ToolAdapter = {
         error: "Firecrawl rejected the credit usage request.",
       }
 
-    const planCredits = toFiniteNumber(data.data?.planCredits, Number.NaN)
+    const balance = finiteOrNull(data.data?.remainingCredits)
+    if (balance === null) {
+      return { ok: false, error: "Firecrawl returned an unexpected response." }
+    }
+    const planCredits = finiteOrNull(data.data?.planCredits)
 
     return {
       ok: true,
@@ -42,8 +46,8 @@ export const firecrawlAdapter: ToolAdapter = {
         {
           creditType: "credits",
           label: "Credits",
-          balance: toFiniteNumber(data.data?.remainingCredits),
-          balanceLimit: Number.isFinite(planCredits) ? planCredits : null,
+          balance,
+          balanceLimit: planCredits,
           unit: "credits",
         },
       ],

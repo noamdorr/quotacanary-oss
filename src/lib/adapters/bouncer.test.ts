@@ -60,4 +60,46 @@ describe("bouncer adapter", () => {
     const result = await bouncerAdapter.readBalance("key")
     expect(result.ok).toBe(false)
   })
+
+  it("treats a missing credits field as an unexpected response, not a zero balance", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          ({ ok: true, status: 200, json: async () => ({}) }) as Response
+      )
+    )
+    const result = await bouncerAdapter.readBalance("key")
+    expect(result).toEqual({
+      ok: false,
+      error: "Bouncer returned an unexpected response.",
+    })
+  })
+
+  it("records a present zero credits as a healthy zero balance", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          ({
+            ok: true,
+            status: 200,
+            json: async () => ({ credits: 0 }),
+          }) as Response
+      )
+    )
+    const result = await bouncerAdapter.readBalance("key")
+    expect(result).toEqual({
+      ok: true,
+      balances: [
+        {
+          creditType: "credits",
+          label: "Credits",
+          balance: 0,
+          balanceLimit: null,
+          unit: "credits",
+        },
+      ],
+    })
+  })
 })

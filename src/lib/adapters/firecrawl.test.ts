@@ -27,7 +27,7 @@ describe("firecrawl adapter", () => {
 
     expect(fetchMock).toHaveBeenCalledWith(
       "https://api.firecrawl.dev/v2/team/credit-usage",
-      { headers: { Authorization: "Bearer key" } }
+      expect.objectContaining({ headers: { Authorization: "Bearer key" } })
     )
     expect(result).toEqual({
       ok: true,

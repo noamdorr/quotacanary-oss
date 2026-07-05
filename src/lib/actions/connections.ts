@@ -197,7 +197,7 @@ export async function refreshConnectionWith(
     return result
   }
 
-  await supabase.from("balances").insert(
+  const { error: insertErr } = await supabase.from("balances").insert(
     result.balances.map((b) => ({
       connection_id: connectionId,
       credit_type: b.creditType,
@@ -207,6 +207,23 @@ export async function refreshConnectionWith(
       unit: b.unit,
     }))
   )
+  if (insertErr) {
+    const { data: cur } = await supabase
+      .from("connections")
+      .select("consecutive_failures")
+      .eq("id", connectionId)
+      .single()
+    await supabase
+      .from("connections")
+      .update({
+        status: "error",
+        last_error: "Couldn't record the balance.",
+        consecutive_failures: (cur?.consecutive_failures ?? 0) + 1,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", connectionId)
+    return { ok: false, error: "Couldn't record the balance." }
+  }
 
   // Resolve per-pool thresholds and evaluate severity. Email dispatch happens
   // in the poll route, which has the user's email + notify_mode.

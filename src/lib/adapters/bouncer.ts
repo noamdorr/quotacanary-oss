@@ -1,4 +1,4 @@
-import { toFiniteNumber } from "./shared"
+import { finiteOrNull, timedFetch } from "./shared"
 import type { AdapterResult, ToolAdapter } from "./types"
 
 export const bouncerAdapter: ToolAdapter = {
@@ -6,7 +6,7 @@ export const bouncerAdapter: ToolAdapter = {
   async readBalance(apiKey: string): Promise<AdapterResult> {
     let res: Response
     try {
-      res = await fetch("https://api.usebouncer.com/v1.1/credits", {
+      res = await timedFetch("https://api.usebouncer.com/v1.1/credits", {
         headers: { "x-api-key": apiKey },
       })
     } catch {
@@ -22,13 +22,17 @@ export const bouncerAdapter: ToolAdapter = {
     } catch {
       return { ok: false, error: "Bouncer returned an unexpected response." }
     }
+    const balance = finiteOrNull(data.credits)
+    if (balance === null) {
+      return { ok: false, error: "Bouncer returned an unexpected response." }
+    }
     return {
       ok: true,
       balances: [
         {
           creditType: "credits",
           label: "Credits",
-          balance: toFiniteNumber(data.credits),
+          balance,
           balanceLimit: null,
           unit: "credits",
         },

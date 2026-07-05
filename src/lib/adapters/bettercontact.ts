@@ -1,4 +1,4 @@
-import { toFiniteNumber } from "./shared"
+import { timedFetch, toFiniteNumber } from "./shared"
 import type { AdapterResult, ToolAdapter } from "./types"
 
 type BetterContactResponse = {
@@ -17,7 +17,7 @@ export const bettercontactAdapter: ToolAdapter = {
   async readBalance(apiKey: string): Promise<AdapterResult> {
     let res: Response
     try {
-      res = await fetch("https://app.bettercontact.rocks/api/v2/account", {
+      res = await timedFetch("https://app.bettercontact.rocks/api/v2/account", {
         headers: {
           Accept: "application/json",
           "X-API-Key": apiKey,

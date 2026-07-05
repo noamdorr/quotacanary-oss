@@ -19,7 +19,7 @@ describe("orthogonal adapter", () => {
 
     expect(fetchMock).toHaveBeenCalledWith(
       "https://api.orthogonal.com/v1/credits/balance",
-      { headers: { Authorization: "Bearer api-key" } }
+      expect.objectContaining({ headers: { Authorization: "Bearer api-key" } })
     )
     expect(result).toEqual({
       ok: true,

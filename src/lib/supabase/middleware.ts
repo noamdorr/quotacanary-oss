@@ -28,6 +28,17 @@ function withAppNoIndex(response: NextResponse) {
   return response
 }
 
+// Redirects built after getUser() must carry the cookies the token refresh
+// wrote onto `response` (new session, or the clearing of an invalid one), or
+// the browser keeps its stale token - the @supabase/ssr contract.
+function redirectWithCookies(url: string, response: NextResponse) {
+  const redirect = NextResponse.redirect(url)
+  for (const cookie of response.cookies.getAll()) {
+    redirect.cookies.set(cookie)
+  }
+  return redirect
+}
+
 export async function updateSession(request: NextRequest) {
   const { host, proto } = publicHost(request)
   const surface = resolveHost(host)
@@ -87,15 +98,18 @@ export async function updateSession(request: NextRequest) {
   // boundary holds even if a future page forgets its own getUser() guard.
   if (!user && isProtectedAppPath(pathname)) {
     return withAppNoIndex(
-      NextResponse.redirect(
-        `${proto}://${host}/login?next=${encodeURIComponent(pathname)}`
+      redirectWithCookies(
+        `${proto}://${host}/login?next=${encodeURIComponent(pathname)}`,
+        response
       )
     )
   }
 
   // Authenticated user visiting /login → redirect to /dashboard
   if (user && pathname === "/login") {
-    return withAppNoIndex(NextResponse.redirect(`${proto}://${host}/dashboard`))
+    return withAppNoIndex(
+      redirectWithCookies(`${proto}://${host}/dashboard`, response)
+    )
   }
 
   return withAppNoIndex(response)

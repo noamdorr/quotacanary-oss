@@ -304,7 +304,7 @@ export default function DocsPage() {
                     [
                       "tool.id",
                       "string",
-                      "Internal tool slug (e.g. apollo, neverbounce).",
+                      "Internal tool slug (e.g. hunter, neverbounce).",
                     ],
                     ["tool.name", "string", "Human-readable tool name."],
                     [

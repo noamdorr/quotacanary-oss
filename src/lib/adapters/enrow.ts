@@ -1,4 +1,4 @@
-import { toFiniteNumber } from "./shared"
+import { finiteOrNull, timedFetch } from "./shared"
 import type { AdapterResult, ToolAdapter } from "./types"
 
 export const enrowAdapter: ToolAdapter = {
@@ -6,7 +6,7 @@ export const enrowAdapter: ToolAdapter = {
   async readBalance(apiKey: string): Promise<AdapterResult> {
     let res: Response
     try {
-      res = await fetch("https://api.enrow.io/account/info", {
+      res = await timedFetch("https://api.enrow.io/account/info", {
         headers: { "x-api-key": apiKey },
       })
     } catch {
@@ -22,13 +22,17 @@ export const enrowAdapter: ToolAdapter = {
     } catch {
       return { ok: false, error: "Enrow returned an unexpected response." }
     }
+    const balance = finiteOrNull(data.credits)
+    if (balance === null) {
+      return { ok: false, error: "Enrow returned an unexpected response." }
+    }
     return {
       ok: true,
       balances: [
         {
           creditType: "credits",
           label: "Credits",
-          balance: toFiniteNumber(data.credits),
+          balance,
           balanceLimit: null,
           unit: "credits",
         },

@@ -1,4 +1,4 @@
-import { toFiniteNumber } from "./shared"
+import { timedFetch, toFiniteNumber } from "./shared"
 import type { AdapterResult, ToolAdapter } from "./types"
 
 type SkrappAccountResponse = {
@@ -25,7 +25,7 @@ export const skrappAdapter: ToolAdapter = {
   async readBalance(apiKey: string): Promise<AdapterResult> {
     let res: Response
     try {
-      res = await fetch("https://api.skrapp.io/api/v2/account", {
+      res = await timedFetch("https://api.skrapp.io/api/v2/account", {
         headers: {
           Accept: "application/json",
           "Content-Type": "application/json",

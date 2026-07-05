@@ -1,4 +1,4 @@
-import { toFiniteNumber } from "./shared"
+import { finiteOrNull, timedFetch } from "./shared"
 import type { AdapterResult, ToolAdapter } from "./types"
 
 export const apifyAdapter: ToolAdapter = {
@@ -6,7 +6,7 @@ export const apifyAdapter: ToolAdapter = {
   async readBalance(apiKey: string): Promise<AdapterResult> {
     let res: Response
     try {
-      res = await fetch("https://api.apify.com/v2/users/me/limits", {
+      res = await timedFetch("https://api.apify.com/v2/users/me/limits", {
         headers: { Authorization: `Bearer ${apiKey}` },
       })
     } catch {
@@ -27,8 +27,11 @@ export const apifyAdapter: ToolAdapter = {
     } catch {
       return { ok: false, error: "Apify returned an unexpected response." }
     }
-    const limit = toFiniteNumber(data.data?.limits?.maxMonthlyUsageUsd)
-    const used = toFiniteNumber(data.data?.current?.monthlyUsageUsd)
+    const limit = finiteOrNull(data.data?.limits?.maxMonthlyUsageUsd)
+    if (limit === null) {
+      return { ok: false, error: "Apify returned an unexpected response." }
+    }
+    const used = finiteOrNull(data.data?.current?.monthlyUsageUsd) ?? 0
     return {
       ok: true,
       balances: [

@@ -1,4 +1,4 @@
-import { toFiniteNumber } from "./shared"
+import { finiteOrNull, timedFetch } from "./shared"
 import type { AdapterResult, ToolAdapter } from "./types"
 
 export const mailercheckAdapter: ToolAdapter = {
@@ -6,7 +6,7 @@ export const mailercheckAdapter: ToolAdapter = {
   async readBalance(apiKey: string): Promise<AdapterResult> {
     let res: Response
     try {
-      res = await fetch("https://app.mailercheck.com/api/credits", {
+      res = await timedFetch("https://app.mailercheck.com/api/credits", {
         headers: { Authorization: `Bearer ${apiKey}` },
       })
     } catch {
@@ -28,13 +28,20 @@ export const mailercheckAdapter: ToolAdapter = {
       }
     }
 
+    const balance = finiteOrNull(data.total)
+    if (balance === null) {
+      return {
+        ok: false,
+        error: "MailerCheck returned an unexpected response.",
+      }
+    }
     return {
       ok: true,
       balances: [
         {
           creditType: "credits",
           label: "Credits",
-          balance: toFiniteNumber(data.total),
+          balance,
           balanceLimit: null,
           unit: "credits",
         },

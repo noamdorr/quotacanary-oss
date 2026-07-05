@@ -1,4 +1,4 @@
-import { toFiniteNumber } from "./shared"
+import { finiteOrNull, timedFetch } from "./shared"
 import type { AdapterResult, ToolAdapter } from "./types"
 
 export const outscraperAdapter: ToolAdapter = {
@@ -6,7 +6,7 @@ export const outscraperAdapter: ToolAdapter = {
   async readBalance(apiKey: string): Promise<AdapterResult> {
     let res: Response
     try {
-      res = await fetch("https://api.outscraper.com/profile/balance", {
+      res = await timedFetch("https://api.outscraper.com/profile/balance", {
         headers: { "X-API-KEY": apiKey },
       })
     } catch {
@@ -34,13 +34,20 @@ export const outscraperAdapter: ToolAdapter = {
       }
     }
 
+    const balance = finiteOrNull(data.balance)
+    if (balance === null) {
+      return {
+        ok: false,
+        error: "Outscraper returned an unexpected response.",
+      }
+    }
     return {
       ok: true,
       balances: [
         {
           creditType: "balance",
           label: "Account Balance",
-          balance: toFiniteNumber(data.balance),
+          balance,
           balanceLimit: null,
           unit: "usd",
         },

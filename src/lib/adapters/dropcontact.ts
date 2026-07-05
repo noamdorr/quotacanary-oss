@@ -1,4 +1,4 @@
-import { toFiniteNumber } from "./shared"
+import { finiteOrNull, timedFetch } from "./shared"
 import type { AdapterResult, ToolAdapter } from "./types"
 
 export const dropcontactAdapter: ToolAdapter = {
@@ -6,7 +6,7 @@ export const dropcontactAdapter: ToolAdapter = {
   async readBalance(apiKey: string): Promise<AdapterResult> {
     let res: Response
     try {
-      res = await fetch("https://api.dropcontact.com/v1/enrich/all", {
+      res = await timedFetch("https://api.dropcontact.com/v1/enrich/all", {
         method: "POST",
         headers: {
           "X-Access-Token": apiKey,
@@ -31,13 +31,20 @@ export const dropcontactAdapter: ToolAdapter = {
         error: "Dropcontact returned an unexpected response.",
       }
     }
+    const balance = finiteOrNull(data.credits_left)
+    if (balance === null) {
+      return {
+        ok: false,
+        error: "Dropcontact returned an unexpected response.",
+      }
+    }
     return {
       ok: true,
       balances: [
         {
           creditType: "credits",
           label: "Credits",
-          balance: toFiniteNumber(data.credits_left),
+          balance,
           balanceLimit: null,
           unit: "credits",
         },
