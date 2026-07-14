@@ -5,6 +5,7 @@ import { bettercontactAdapter } from "./bettercontact"
 import { bouncerAdapter } from "./bouncer"
 import { bouncifyAdapter } from "./bouncify"
 import { brightdataAdapter } from "./brightdata"
+import { builtwithAdapter } from "./builtwith"
 import { captaindataAdapter } from "./captaindata"
 import { clearoutAdapter } from "./clearout"
 import { contactoutAdapter } from "./contactout"
@@ -22,6 +23,7 @@ import { firecrawlAdapter } from "./firecrawl"
 import { fullenrichAdapter } from "./fullenrich"
 import { hunterAdapter } from "./hunter"
 import { hyperbolicAdapter } from "./hyperbolic"
+import { keywordseverywhereAdapter } from "./keywordseverywhere"
 import { leadmagicAdapter } from "./leadmagic"
 import { lushaAdapter } from "./lusha"
 import { mailercheckAdapter } from "./mailercheck"
@@ -82,6 +84,8 @@ const ADAPTERS: Record<string, ToolAdapter> = {
   [scraperapiAdapter.toolId]: scraperapiAdapter,
   [scrapingdogAdapter.toolId]: scrapingdogAdapter,
   [brightdataAdapter.toolId]: brightdataAdapter,
+  [builtwithAdapter.toolId]: builtwithAdapter,
+  [keywordseverywhereAdapter.toolId]: keywordseverywhereAdapter,
   [apifyAdapter.toolId]: apifyAdapter,
   [emaillistverifyAdapter.toolId]: emaillistverifyAdapter,
   [clearoutAdapter.toolId]: clearoutAdapter,

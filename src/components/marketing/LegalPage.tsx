@@ -14,8 +14,11 @@ export function LegalPage({
 }) {
   return (
     <>
+      <a href="#main-content" className="qc-skip-link">
+        Skip to content
+      </a>
       <MarketingNav />
-      <main>
+      <main id="main-content">
         <article
           className="container qc-legal"
           style={{

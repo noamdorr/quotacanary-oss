@@ -21,7 +21,8 @@ const handler = createMcpHandler(
 // Verifies the bearer token against our PAT store and, on success, stashes the
 // owning user + token id on AuthInfo.extra. Tool handlers read this back as
 // `extra.authInfo.extra` - the only source of the per-request identity (the
-// caller can never supply a user id directly).
+// caller can never supply a user id directly). Scopes come from the token row;
+// withMcpAuth rejects tokens missing the "read" scope at the auth boundary.
 const verifyToken = async (
   _req: Request,
   bearerToken?: string
@@ -31,12 +32,15 @@ const verifyToken = async (
   if (!auth) return undefined
   return {
     token: bearerToken,
-    scopes: ["read"],
+    scopes: auth.scopes,
     clientId: auth.userId,
     extra: { userId: auth.userId, tokenId: auth.tokenId },
   }
 }
 
-const authHandler = withMcpAuth(handler, verifyToken, { required: true })
+const authHandler = withMcpAuth(handler, verifyToken, {
+  required: true,
+  requiredScopes: ["read"],
+})
 
 export { authHandler as GET, authHandler as POST, authHandler as DELETE }

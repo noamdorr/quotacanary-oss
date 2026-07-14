@@ -8,6 +8,7 @@ import {
   setPoolThresholds,
   updateKey,
 } from "@/lib/actions/connections"
+import { effectiveStatus } from "@/lib/balance-status"
 import { burnRate } from "@/lib/burn-rate"
 import { runClientAction } from "@/lib/client-action"
 import {
@@ -25,6 +26,7 @@ import { Dialog as DialogPrimitive } from "@base-ui/react/dialog"
 import { Check, ExternalLink, KeyRound, Trash2, X } from "lucide-react"
 import { useState, useTransition } from "react"
 import { Sparkline } from "./Sparkline"
+import { StatusPill } from "./StatusPill"
 
 // Parent keys this by pool-row, so it remounts (resetting inputs) per pool.
 export function ConnectionDrawer({
@@ -61,6 +63,14 @@ export function ConnectionDrawer({
     : "-"
   const eta = pool ? poolEta(pool) : null
   const burn = pool ? burnRate(pool.history) : null
+  // Mirror ConnectionRow so the drawer never disagrees with the row it opened from.
+  const status = effectiveStatus({
+    balance: pool?.balance ?? null,
+    low: initial.low,
+    critical: initial.critical,
+    connectionStatus: c.status,
+  })
+  const tone = status.kind === "level" ? status.level : "neutral"
 
   return (
     <DialogPrimitive.Root
@@ -94,9 +104,12 @@ export function ConnectionDrawer({
               <X className="h-4 w-4" />
             </DialogPrimitive.Close>
           </div>
-          <p className="mb-4 text-xs text-muted-foreground">
-            {pool?.label ?? "No reading yet"}
-          </p>
+          <div className="mb-4 flex items-center gap-2">
+            <p className="text-xs text-muted-foreground">
+              {pool?.label ?? "No reading yet"}
+            </p>
+            <StatusPill status={status} />
+          </div>
 
           {c.last_error && (
             <div
@@ -113,7 +126,7 @@ export function ConnectionDrawer({
 
           <Sparkline
             values={(pool?.history ?? []).map((h) => h.balance)}
-            tone="neutral"
+            tone={tone}
             className="my-4 h-16"
           />
 

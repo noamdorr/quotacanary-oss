@@ -27,6 +27,8 @@ describe("adapter registry", () => {
     expect(getAdapter("semrush")?.toolId).toBe("semrush")
     expect(getAdapter("meltly")?.toolId).toBe("meltly")
     expect(getAdapter("skrapp")?.toolId).toBe("skrapp")
+    expect(getAdapter("builtwith")?.toolId).toBe("builtwith")
+    expect(getAdapter("keywordseverywhere")?.toolId).toBe("keywordseverywhere")
   })
 
   it("returns undefined for an unknown tool", () => {

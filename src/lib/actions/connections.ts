@@ -11,6 +11,7 @@ import type {
   AlertLevel,
   CredentialField,
   NotifyMode,
+  PoolDef,
   PoolThresholds,
 } from "@/lib/types"
 import type { SupabaseClient } from "@supabase/supabase-js"
@@ -25,6 +26,8 @@ export type ConnectResult =
       balances: { balance: number; label: string; unit: string }[]
     }
   | { ok: false; error: string }
+
+const NAME_TOO_LONG = "That name is too long (80 characters max)."
 
 async function requireUser() {
   const supabase = await createClient()
@@ -67,12 +70,26 @@ export async function connectTool(formData: FormData): Promise<ConnectResult> {
     .filter(Boolean)
 
   if (!toolId || !name) return { ok: false, error: "Missing required fields." }
+  if (name.length > 80) return { ok: false, error: NAME_TOO_LONG }
+  if (tags.length > 20) return { ok: false, error: "Too many tags (20 max)." }
+  if (tags.some((t) => t.length > 40))
+    return { ok: false, error: "Tags must be 40 characters or fewer." }
 
   const { data: tool } = await supabase
     .from("tools")
-    .select("credential_fields")
+    .select("credential_fields, pools")
     .eq("id", toolId)
     .single()
+
+  // Watched pools must be ones the tool actually declares. A missing tool row
+  // declares none; the adapter lookup below still rejects unknown tools.
+  if (watched.length > 0) {
+    const pools = (tool?.pools as PoolDef[] | null) ?? []
+    const known = new Set(pools.map((p) => p.credit_type))
+    if (watched.length > 20 || !watched.every((w) => known.has(w)))
+      return { ok: false, error: "Unknown credit pool for this tool." }
+  }
+
   const credential = buildCredentialSecret(
     (tool?.credential_fields as CredentialField[] | null) ?? null,
     formData
@@ -143,6 +160,10 @@ export async function requestTool(formData: FormData): Promise<ActionResult> {
   const toolName = String(formData.get("toolName") ?? "").trim()
   const note = String(formData.get("note") ?? "").trim() || null
   if (!toolName) return { ok: false, error: "Tool name is required." }
+  if (toolName.length > 120)
+    return { ok: false, error: "Tool name is too long (120 characters max)." }
+  if (note && note.length > 1000)
+    return { ok: false, error: "Note is too long (1,000 characters max)." }
   const { error } = await supabase
     .from("tool_requests")
     .insert({ user_id: user.id, tool_name: toolName, note })
@@ -291,9 +312,20 @@ export async function refreshConnectionWith(
 export async function refreshConnection(
   connectionId: string
 ): Promise<ActionResult> {
-  const { supabase } = await requireUser()
+  const { supabase, user } = await requireUser()
+  // refreshConnectionWith is shared with the service-role poll, so the
+  // user-scoped ownership check lives here, not inside it (RLS remains the
+  // primary guard; this is belt and braces).
+  const { data: owned } = await supabase
+    .from("connections")
+    .select("id")
+    .eq("id", connectionId)
+    .eq("user_id", user.id)
+    .single()
+  if (!owned) return { ok: false, error: "Connection not found." }
   const result = await refreshConnectionWith(supabase, connectionId)
   revalidatePath("/dashboard")
+  revalidatePath("/tools/[toolId]", "page")
   return result.ok ? { ok: true } : { ok: false, error: result.error }
 }
 
@@ -301,15 +333,18 @@ export async function renameConnection(
   connectionId: string,
   name: string
 ): Promise<ActionResult> {
-  const { supabase } = await requireUser()
+  const { supabase, user } = await requireUser()
   const trimmed = name.trim()
   if (!trimmed) return { ok: false, error: "Name can't be empty." }
+  if (trimmed.length > 80) return { ok: false, error: NAME_TOO_LONG }
   const { error } = await supabase
     .from("connections")
     .update({ name: trimmed, updated_at: new Date().toISOString() })
     .eq("id", connectionId)
+    .eq("user_id", user.id)
   if (error) return { ok: false, error: "Couldn't rename." }
   revalidatePath("/dashboard")
+  revalidatePath("/tools/[toolId]", "page")
   return { ok: true }
 }
 
@@ -317,11 +352,12 @@ export async function updateKey(
   connectionId: string,
   credentials: FormData | string
 ): Promise<ActionResult> {
-  const { supabase } = await requireUser()
+  const { supabase, user } = await requireUser()
   const { data: conn } = await supabase
     .from("connections")
     .select("tool_id, tool:tools(credential_fields)")
     .eq("id", connectionId)
+    .eq("user_id", user.id)
     .single()
   if (!conn) return { ok: false, error: "Connection not found." }
   const adapter = getAdapter(conn.tool_id)
@@ -347,21 +383,25 @@ export async function updateKey(
       updated_at: new Date().toISOString(),
     })
     .eq("id", connectionId)
+    .eq("user_id", user.id)
   if (error) return { ok: false, error: "Couldn't update the key." }
   revalidatePath("/dashboard")
+  revalidatePath("/tools/[toolId]", "page")
   return { ok: true }
 }
 
 export async function removeConnection(
   connectionId: string
 ): Promise<ActionResult> {
-  const { supabase } = await requireUser()
+  const { supabase, user } = await requireUser()
   const { error } = await supabase
     .from("connections")
     .delete()
     .eq("id", connectionId)
+    .eq("user_id", user.id)
   if (error) return { ok: false, error: "Couldn't remove the connection." }
   revalidatePath("/dashboard")
+  revalidatePath("/tools/[toolId]", "page")
   return { ok: true }
 }
 
@@ -369,26 +409,14 @@ export async function setAlert(
   connectionId: string,
   enabled: boolean
 ): Promise<ActionResult> {
-  const { supabase } = await requireUser()
+  const { supabase, user } = await requireUser()
   const { error } = await supabase
     .from("connections")
     .update({ alert_enabled: enabled, updated_at: new Date().toISOString() })
     .eq("id", connectionId)
+    .eq("user_id", user.id)
   if (error) return { ok: false, error: "Couldn't update the alert." }
   revalidatePath("/alerts")
-  return { ok: true }
-}
-
-export async function setDisplayMode(
-  mode: "flat" | "grouped"
-): Promise<ActionResult> {
-  const { supabase, user } = await requireUser()
-  const { error } = await supabase
-    .from("users")
-    .update({ display_mode: mode })
-    .eq("id", user.id)
-  if (error) return { ok: false, error: "Couldn't save preference." }
-  revalidatePath("/dashboard")
   return { ok: true }
 }
 
@@ -423,7 +451,7 @@ export async function setThresholds(
   low: number | null,
   critical: number | null
 ): Promise<ActionResult> {
-  const { supabase } = await requireUser()
+  const { supabase, user } = await requireUser()
   const orderError = thresholdOrderError(low, critical)
   if (orderError) return { ok: false, error: orderError }
   const { error } = await supabase
@@ -434,6 +462,7 @@ export async function setThresholds(
       updated_at: new Date().toISOString(),
     })
     .eq("id", connectionId)
+    .eq("user_id", user.id)
   if (error) return { ok: false, error: "Couldn't save thresholds." }
   revalidatePath("/dashboard")
   return { ok: true }
@@ -445,13 +474,14 @@ export async function setPoolThresholds(
   low: number | null,
   critical: number | null
 ): Promise<ActionResult> {
-  const { supabase } = await requireUser()
+  const { supabase, user } = await requireUser()
   const orderError = thresholdOrderError(low, critical)
   if (orderError) return { ok: false, error: orderError }
   const { data: conn } = await supabase
     .from("connections")
     .select("pool_thresholds")
     .eq("id", connectionId)
+    .eq("user_id", user.id)
     .single()
   const next = { ...(conn?.pool_thresholds ?? {}) }
   next[creditType] = { low, critical }
@@ -459,6 +489,7 @@ export async function setPoolThresholds(
     .from("connections")
     .update({ pool_thresholds: next, updated_at: new Date().toISOString() })
     .eq("id", connectionId)
+    .eq("user_id", user.id)
   if (error) return { ok: false, error: "Couldn't save thresholds." }
   revalidatePath("/dashboard")
   return { ok: true }

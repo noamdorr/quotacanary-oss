@@ -16,10 +16,13 @@ export async function GET(request: NextRequest) {
   const type = searchParams.get("type") as EmailOtpType | null
 
   // Open-redirect guard: only ever redirect to a relative in-app path.
-  // `//evil.com` is scheme-relative (treated as absolute by browsers).
+  // `//evil.com` is scheme-relative (treated as absolute by browsers), and
+  // browsers normalize backslashes to slashes, so `/\evil.com` is just as bad.
   const nextParam = searchParams.get("next") ?? "/dashboard"
   const next =
-    nextParam.startsWith("/") && !nextParam.startsWith("//")
+    nextParam.startsWith("/") &&
+    !nextParam.startsWith("//") &&
+    !nextParam.startsWith("/\\")
       ? nextParam
       : "/dashboard"
 

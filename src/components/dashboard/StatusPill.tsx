@@ -66,6 +66,7 @@ export function statusDotClass(status: EffectiveStatus): string {
   return {
     healthy: "bg-[var(--healthy)]",
     low: "bg-[var(--canary)]",
-    critical: "bg-[var(--dry)]",
+    // Critical dots pulse gently - the one place urgency earns motion.
+    critical: "qc-dot-pulse bg-[var(--dry)]",
   }[status.level]
 }

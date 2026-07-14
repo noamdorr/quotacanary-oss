@@ -3,8 +3,8 @@ import { withUtm } from "./utm"
 
 describe("withUtm", () => {
   it("adds utm_source and utm_medium to a bare URL", () => {
-    expect(withUtm("https://hunter.io/billing")).toBe(
-      "https://hunter.io/billing?utm_source=quotacanary&utm_medium=directory"
+    expect(withUtm("https://hunter.io/welcome/upgrade")).toBe(
+      "https://hunter.io/welcome/upgrade?utm_source=quotacanary&utm_medium=directory"
     )
   })
 

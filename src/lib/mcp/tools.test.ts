@@ -208,7 +208,11 @@ describe("registerQuotaCanaryTools", () => {
 // ---------------------------------------------------------------------------
 describe("list_balances", () => {
   it("happy path: returns serialized pools + a non-empty text digest", async () => {
-    mockConsume.mockResolvedValue(true)
+    mockConsume.mockResolvedValue({
+      allowed: true,
+      remaining: 59,
+      resetSeconds: 42,
+    })
     mockList.mockResolvedValue([APOLLO_CONN, NODATA_CONN])
 
     const tools = register()
@@ -223,7 +227,11 @@ describe("list_balances", () => {
   })
 
   it("calls listConnectionsWithBalance with the token userId (tenancy)", async () => {
-    mockConsume.mockResolvedValue(true)
+    mockConsume.mockResolvedValue({
+      allowed: true,
+      remaining: 59,
+      resetSeconds: 42,
+    })
     mockList.mockResolvedValue([APOLLO_CONN])
 
     const tools = register()
@@ -235,7 +243,11 @@ describe("list_balances", () => {
   })
 
   it("digest never uses an em dash", async () => {
-    mockConsume.mockResolvedValue(true)
+    mockConsume.mockResolvedValue({
+      allowed: true,
+      remaining: 59,
+      resetSeconds: 42,
+    })
     mockList.mockResolvedValue([APOLLO_CONN, HUNTER_CONN, NODATA_CONN])
 
     const tools = register()
@@ -244,7 +256,11 @@ describe("list_balances", () => {
   })
 
   it("renders a friendly line when no tools are connected", async () => {
-    mockConsume.mockResolvedValue(true)
+    mockConsume.mockResolvedValue({
+      allowed: true,
+      remaining: 59,
+      resetSeconds: 42,
+    })
     mockList.mockResolvedValue([])
 
     const tools = register()
@@ -255,7 +271,11 @@ describe("list_balances", () => {
   })
 
   it("is rate-limited: returns isError and does NOT fetch data", async () => {
-    mockConsume.mockResolvedValue(false)
+    mockConsume.mockResolvedValue({
+      allowed: false,
+      remaining: 0,
+      resetSeconds: 7,
+    })
 
     const tools = register()
     const res = await callTool(tools, "list_balances", {})
@@ -266,7 +286,11 @@ describe("list_balances", () => {
   })
 
   it("invalid status: returns isError and does NOT fetch data", async () => {
-    mockConsume.mockResolvedValue(true)
+    mockConsume.mockResolvedValue({
+      allowed: true,
+      remaining: 59,
+      resetSeconds: 42,
+    })
 
     const tools = register()
     const res = await callTool(tools, "list_balances", { status: "bogus" })
@@ -276,7 +300,11 @@ describe("list_balances", () => {
   })
 
   it("filters by a valid status value", async () => {
-    mockConsume.mockResolvedValue(true)
+    mockConsume.mockResolvedValue({
+      allowed: true,
+      remaining: 59,
+      resetSeconds: 42,
+    })
     // APOLLO healthy (9999), HUNTER low (75: under low 100, over critical 50)
     mockList.mockResolvedValue([APOLLO_CONN, HUNTER_CONN])
 
@@ -290,7 +318,11 @@ describe("list_balances", () => {
   })
 
   it("returns isError text when the data layer throws", async () => {
-    mockConsume.mockResolvedValue(true)
+    mockConsume.mockResolvedValue({
+      allowed: true,
+      remaining: 59,
+      resetSeconds: 42,
+    })
     mockList.mockRejectedValue(new Error("connection refused"))
 
     const tools = register()
@@ -303,7 +335,11 @@ describe("list_balances", () => {
 // ---------------------------------------------------------------------------
 describe("get_tool_balance", () => {
   it("filters to the named tool (case-insensitive)", async () => {
-    mockConsume.mockResolvedValue(true)
+    mockConsume.mockResolvedValue({
+      allowed: true,
+      remaining: 59,
+      resetSeconds: 42,
+    })
     mockList.mockResolvedValue([APOLLO_CONN, HUNTER_CONN])
 
     const tools = register()
@@ -321,7 +357,11 @@ describe("get_tool_balance", () => {
   })
 
   it("returns a clear message when no tool matches", async () => {
-    mockConsume.mockResolvedValue(true)
+    mockConsume.mockResolvedValue({
+      allowed: true,
+      remaining: 59,
+      resetSeconds: 42,
+    })
     mockList.mockResolvedValue([APOLLO_CONN, HUNTER_CONN])
 
     const tools = register()
@@ -335,7 +375,11 @@ describe("get_tool_balance", () => {
   })
 
   it("rejects an empty/whitespace toolName before fetching", async () => {
-    mockConsume.mockResolvedValue(true)
+    mockConsume.mockResolvedValue({
+      allowed: true,
+      remaining: 59,
+      resetSeconds: 42,
+    })
     mockList.mockResolvedValue([APOLLO_CONN, HUNTER_CONN])
 
     const tools = register()
@@ -347,7 +391,11 @@ describe("get_tool_balance", () => {
   })
 
   it("is rate-limited: returns isError and does NOT fetch data", async () => {
-    mockConsume.mockResolvedValue(false)
+    mockConsume.mockResolvedValue({
+      allowed: false,
+      remaining: 0,
+      resetSeconds: 7,
+    })
 
     const tools = register()
     const res = await callTool(tools, "get_tool_balance", {

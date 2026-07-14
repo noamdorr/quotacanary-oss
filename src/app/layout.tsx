@@ -1,4 +1,5 @@
 import { PlausibleAnalytics } from "@/components/analytics/PlausibleAnalytics"
+import { ConsoleEgg } from "@/components/brand/ConsoleEgg"
 import { cn } from "@/lib/utils"
 import type { Metadata } from "next"
 import { Fraunces, Inter, JetBrains_Mono } from "next/font/google"
@@ -73,7 +74,10 @@ export default function RootLayout({
       lang="en"
       className={cn(inter.variable, fraunces.variable, jetbrainsMono.variable)}
     >
-      <body className="bg-background antialiased">{children}</body>
+      <body className="bg-background antialiased">
+        {children}
+        <ConsoleEgg />
+      </body>
       <PlausibleAnalytics />
     </html>
   )

@@ -29,7 +29,7 @@ const event: AlertDestinationEvent = {
     },
   ],
   dashboardUrl: "https://app.quotacanary.com/dashboard",
-  topupUrl: "https://hunter.io/billing",
+  topupUrl: "https://hunter.io/welcome/upgrade",
   createdAt: "2026-06-10T10:00:00.000Z",
 }
 
@@ -43,7 +43,7 @@ describe("alert destination payloads", () => {
       connection: { id: "conn-1", name: "Hunter main" },
       pools: [{ label: "Credits", balance: 38, threshold: 50 }],
       dashboard_url: "https://app.quotacanary.com/dashboard",
-      topup_url: "https://hunter.io/billing",
+      topup_url: "https://hunter.io/welcome/upgrade",
     })
   })
 
@@ -58,6 +58,24 @@ describe("alert destination payloads", () => {
     expect(payload.blocks.length).toBeGreaterThan(1)
   })
 
+  it("escapes Slack mrkdwn control characters in the title and body", () => {
+    const payload = renderDestinationPayload("slack_webhook", {
+      ...event,
+      title: "<https://evil.example|click> & co",
+      body: "<https://evil.example|click> & co",
+    }) as {
+      text: string
+      blocks: { type: string; text?: { type: string; text: string } }[]
+    }
+
+    const escaped = "&lt;https://evil.example|click&gt; &amp; co"
+    expect(payload.text).toContain(escaped)
+    expect(payload.text).not.toContain("<")
+    const section = payload.blocks.find((b) => b.type === "section")
+    expect(section?.text?.text).toContain(escaped)
+    expect(section?.text?.text).not.toContain("<")
+  })
+
   it("delivers low events only to low-or-critical destinations", () => {
     expect(isDestinationLevelAllowed("low", "low")).toBe(true)
     expect(isDestinationLevelAllowed("critical", "low")).toBe(false)
@@ -66,7 +84,7 @@ describe("alert destination payloads", () => {
 })
 
 describe("alert destination URL validation", () => {
-  it("accepts public HTTPS URLs and produces a safe hint", () => {
+  it("accepts public HTTPS URLs and stores only the host in the hint", () => {
     const result = validateDestinationUrl("https://hooks.example.com/a/b/c")
 
     expect(result).toEqual({
@@ -74,8 +92,22 @@ describe("alert destination URL validation", () => {
       url: "https://hooks.example.com/a/b/c",
     })
     expect(destinationUrlHint("https://hooks.example.com/a/b/c")).toBe(
-      "hooks.example.com/a/b/c"
+      "hooks.example.com"
     )
+  })
+
+  it("omits Slack incoming-webhook secret path segments", () => {
+    expect(destinationUrlHint("https://hooks.slack.com/services/T/B/X")).toBe(
+      "hooks.slack.com"
+    )
+  })
+
+  it("omits generic webhook credentials and secret URL components", () => {
+    expect(
+      destinationUrlHint(
+        "https://user:pass@hooks.example.com:8443/team/token?key=x#fragment"
+      )
+    ).toBe("hooks.example.com:8443")
   })
 
   it("rejects local webhook targets", () => {

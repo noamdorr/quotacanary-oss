@@ -36,8 +36,43 @@ describe("renderAlertEmail", () => {
     const { html } = renderAlertEmail({
       ...base,
       severity: "critical",
-      topupUrl: "https://hunter.io/billing",
+      topupUrl: "https://hunter.io/welcome/upgrade",
     })
-    expect(html).toContain("https://hunter.io/billing")
+    expect(html).toContain("https://hunter.io/welcome/upgrade")
+  })
+})
+
+describe("renderAlertEmail html escaping", () => {
+  it("escapes markup in catalog/adapter fields before they hit the html", () => {
+    const { html, text } = renderAlertEmail({
+      ...base,
+      severity: "low",
+      toolName: 'Evil <script>alert("x")</script>',
+      pools: [
+        {
+          label: "<img src=x onerror=1>",
+          balance: 5,
+          threshold: 10,
+          unit: null,
+        },
+      ],
+      etaText: "burns out <b>soon</b>",
+    })
+    expect(html).not.toContain("<script>")
+    expect(html).not.toContain("<img src=x")
+    expect(html).not.toContain("<b>soon</b>")
+    expect(html).toContain("&lt;script&gt;")
+    // The plain-text part is not html and must stay unescaped.
+    expect(text).toContain("<img src=x onerror=1>")
+  })
+
+  it("escapes quotes in urls interpolated into href attributes", () => {
+    const { html } = renderAlertEmail({
+      ...base,
+      severity: "critical",
+      topupUrl: 'https://x.test/billing?a="onmouseover="alert(1)',
+    })
+    expect(html).not.toContain('"onmouseover=')
+    expect(html).toContain("&quot;onmouseover=&quot;")
   })
 })

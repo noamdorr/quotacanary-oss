@@ -51,49 +51,58 @@ export async function createAlertDestination(
 
 export async function toggleAlertDestination(
   formData: FormData
-): Promise<void> {
-  const { supabase } = await requireUser()
+): Promise<ActionResult> {
+  const { supabase, user } = await requireUser()
   const id = String(formData.get("id") ?? "")
   const enabled = String(formData.get("enabled") ?? "") === "true"
-  if (!id) return
+  if (!id) return { ok: false, error: "Missing destination." }
 
+  // RLS already scopes this; the user_id filter is belt and braces.
   const { error } = await supabase
     .from("alert_destinations")
     .update({ is_enabled: enabled, updated_at: new Date().toISOString() })
     .eq("id", id)
+    .eq("user_id", user.id)
 
-  if (error) return
+  if (error) return { ok: false, error: "Couldn't update the destination." }
   revalidatePath("/settings")
+  return { ok: true }
 }
 
 export async function deleteAlertDestination(
   formData: FormData
-): Promise<void> {
-  const { supabase } = await requireUser()
+): Promise<ActionResult> {
+  const { supabase, user } = await requireUser()
   const id = String(formData.get("id") ?? "")
-  if (!id) return
+  if (!id) return { ok: false, error: "Missing destination." }
 
   const { error } = await supabase
     .from("alert_destinations")
     .delete()
     .eq("id", id)
+    .eq("user_id", user.id)
 
-  if (error) return
+  if (error) return { ok: false, error: "Couldn't remove the destination." }
   revalidatePath("/settings")
+  return { ok: true }
 }
 
-export async function markAlertEventRead(formData: FormData): Promise<void> {
-  const { supabase } = await requireUser()
+export async function markAlertEventRead(
+  formData: FormData
+): Promise<ActionResult> {
+  const { supabase, user } = await requireUser()
   const id = String(formData.get("id") ?? "")
-  if (!id) return
+  if (!id) return { ok: false, error: "Missing alert." }
 
   const { error } = await supabase
     .from("alert_events")
     .update({ read_at: new Date().toISOString() })
     .eq("id", id)
+    .eq("user_id", user.id)
 
-  if (error) return
+  if (error) return { ok: false, error: "Couldn't mark the alert read." }
   revalidatePath("/alerts")
+  return { ok: true }
 }
 
 function parseKind(value: string): AlertDestinationKind | null {

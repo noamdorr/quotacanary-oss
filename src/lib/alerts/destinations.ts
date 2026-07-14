@@ -133,9 +133,7 @@ export function validateDestinationUrl(
 }
 
 export function destinationUrlHint(raw: string): string {
-  const url = new URL(raw)
-  const path = url.pathname === "/" ? "" : url.pathname
-  return `${url.host}${path}`.slice(0, 96)
+  return new URL(raw).host
 }
 
 export function renderDestinationPayload(
@@ -211,19 +209,32 @@ function renderWebhookPayload(event: AlertDestinationEvent) {
   }
 }
 
+// Slack parses &, < and > in text objects (mrkdwn and the top-level text), so
+// user-controlled values must be HTML-entity escaped, ampersand first:
+// https://api.slack.com/reference/surfaces/formatting#escaping
+function escapeSlackText(s: string): string {
+  return s
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+}
+
 function renderSlackPayload(event: AlertDestinationEvent) {
+  const title = escapeSlackText(event.title)
+  const body = escapeSlackText(event.body)
   const poolText =
     event.pools.length > 0
       ? event.pools.map(formatPoolLine).join("\n")
       : "No matching pool details were available."
 
   return {
-    text: `${event.title}: ${event.body}`,
+    text: `${title}: ${body}`,
     blocks: [
       {
         type: "header",
         text: {
           type: "plain_text",
+          // plain_text is rendered literally by Slack; don't escape it.
           text: event.title,
           emoji: false,
         },
@@ -232,7 +243,7 @@ function renderSlackPayload(event: AlertDestinationEvent) {
         type: "section",
         text: {
           type: "mrkdwn",
-          text: `${event.body}\n${poolText}`,
+          text: `${body}\n${poolText}`,
         },
       },
       {
@@ -254,6 +265,6 @@ function renderSlackPayload(event: AlertDestinationEvent) {
 }
 
 function formatPoolLine(pool: AlertDestinationEvent["pools"][number]): string {
-  const unit = pool.unit ? ` ${pool.unit}` : ""
-  return `*${pool.label}:* ${pool.balance}${unit} left, threshold ${pool.threshold}${unit}`
+  const unit = pool.unit ? ` ${escapeSlackText(pool.unit)}` : ""
+  return `*${escapeSlackText(pool.label)}:* ${pool.balance}${unit} left, threshold ${pool.threshold}${unit}`
 }

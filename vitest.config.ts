@@ -7,6 +7,11 @@ export default defineConfig({
     include: ["src/**/*.test.ts"],
   },
   resolve: {
-    alias: { "@": resolve(__dirname, "./src") },
+    alias: {
+      "@": resolve(__dirname, "./src"),
+      // crypto.ts/admin.ts import "server-only" as a client-bundle tripwire;
+      // the real module throws outside React Server, so stub it for node.
+      "server-only": resolve(__dirname, "./src/test-stubs/server-only.ts"),
+    },
   },
 })

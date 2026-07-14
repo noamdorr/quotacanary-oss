@@ -1,5 +1,6 @@
 "use client"
 
+import { Canary } from "@/components/brand/Canary"
 import { Button } from "@/components/ui/button"
 import { completeOnboarding, connectTool } from "@/lib/actions/connections"
 import { effectiveStatus } from "@/lib/balance-status"
@@ -13,7 +14,7 @@ import {
 } from "@/lib/credentials"
 import type { FeaturedTool } from "@/lib/featured-tools"
 import { formatBalance } from "@/lib/format"
-import { Check, PartyPopper } from "lucide-react"
+import { Check } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
 import { useState, useTransition } from "react"
@@ -80,6 +81,7 @@ export function OnboardingFlow({
   const [credentialValues, setCredentialValues] = useState<CredentialValues>({})
   const [error, setError] = useState<string | null>(null)
   const [connected, setConnected] = useState<Connected | null>(null)
+  const [checkingBalance, setCheckingBalance] = useState(false)
   const [pending, startTransition] = useTransition()
 
   // Leave the flow: mark onboarding done, then reveal the dashboard. Used by
@@ -104,6 +106,7 @@ export function OnboardingFlow({
       return
     const tool = selected
     setError(null)
+    setCheckingBalance(true)
     startTransition(async () => {
       const fd = new FormData()
       fd.set("toolId", tool.id)
@@ -117,6 +120,7 @@ export function OnboardingFlow({
       const res = await connectTool(fd)
       if (!res.ok) {
         setError(res.error)
+        setCheckingBalance(false)
         return
       }
       setConnected({
@@ -126,6 +130,7 @@ export function OnboardingFlow({
         low: tool.default_low_threshold,
         critical: tool.default_alert_threshold,
       })
+      setCheckingBalance(false)
       setStep("success")
     })
   }
@@ -137,7 +142,13 @@ export function OnboardingFlow({
       {error && <p className="mb-4 text-sm text-[var(--dry)]">{error}</p>}
 
       {step === "welcome" && (
-        <div>
+        <div className="relative">
+          <div
+            className="pointer-events-none absolute -top-3 right-0 hidden sm:block"
+            aria-hidden="true"
+          >
+            <Canary mood="perched" size={76} />
+          </div>
           <h2
             className="mb-2 text-2xl font-extrabold tracking-tight text-foreground"
             style={{ fontFamily: "var(--f-display)" }}
@@ -304,6 +315,28 @@ export function OnboardingFlow({
             </div>
           )}
 
+          {checkingBalance && selected && (
+            <output
+              className="qc-onboarding-listening mb-4 flex max-w-md items-center gap-3 rounded-xl border px-3 py-2 text-sm text-foreground"
+              aria-live="polite"
+            >
+              <span
+                className="qc-onboarding-listening__bird"
+                aria-hidden="true"
+              >
+                <Canary mood="alert" size={38} />
+              </span>
+              <span>
+                <span className="block font-medium">
+                  Listening for {selected.name}'s first balance.
+                </span>
+                <span className="block text-xs text-muted-foreground">
+                  Read-only stakeout. No credits touched.
+                </span>
+              </span>
+            </output>
+          )}
+
           <Button
             onClick={submit}
             disabled={
@@ -312,7 +345,14 @@ export function OnboardingFlow({
               !credentialsComplete(selected.credential_fields, credentialValues)
             }
           >
-            {pending ? "Checking balance…" : "Connect & check balance"}
+            {checkingBalance ? (
+              <span className="qc-connect-listening">
+                <span className="qc-connect-listening-dot" aria-hidden="true" />
+                Listening for balance…
+              </span>
+            ) : (
+              "Connect & check balance"
+            )}
           </Button>
           <button
             type="button"
@@ -328,8 +368,8 @@ export function OnboardingFlow({
       {step === "success" && connected && (
         <div>
           <FirstToolConfetti />
-          <span className="mb-3 flex h-11 w-11 items-center justify-center rounded-xl bg-[var(--healthy-bg)] text-[var(--healthy-text)]">
-            <PartyPopper className="h-6 w-6" />
+          <span className="mb-3 block" aria-hidden="true">
+            <Canary mood="singing" size={56} />
           </span>
           <h2 className="mb-1 text-xl font-bold text-foreground">
             You're monitoring {connected.toolName}

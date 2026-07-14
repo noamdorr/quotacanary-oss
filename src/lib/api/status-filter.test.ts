@@ -48,22 +48,18 @@ describe("parseStatusFilter", () => {
   })
 
   it("accepts all known statuses", () => {
-    const all = "healthy,low,critical,stale,error,disconnected,nodata"
+    const all = "healthy,low,critical,stale,error,nodata"
     const result = parseStatusFilter(all)
     expect(result.ok).toBe(true)
     if (result.ok) {
       expect(result.statuses).toEqual(
-        new Set([
-          "healthy",
-          "low",
-          "critical",
-          "stale",
-          "error",
-          "disconnected",
-          "nodata",
-        ])
+        new Set(["healthy", "low", "critical", "stale", "error", "nodata"])
       )
     }
+  })
+
+  it('rejects "disconnected" (the app never writes that status)', () => {
+    expect(parseStatusFilter("disconnected")).toEqual({ ok: false })
   })
 
   it("handles duplicate values (Set deduplicates)", () => {

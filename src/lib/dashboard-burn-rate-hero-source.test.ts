@@ -8,8 +8,14 @@ const source = readFileSync(
 )
 
 describe("dashboard burn-rate hero", () => {
-  it("uses the singing canary from the homepage", () => {
-    expect(source).toContain('Canary mood="singing"')
+  it("renders the canary with a state-derived mood, not a hardcoded one", () => {
+    // The bird follows its lore: perched when healthy, singing while a
+    // warning is live, dry when the pool is empty, alert on untrusted reads.
+    expect(source).toContain("Canary mood={mood}")
+    expect(source).toContain('let mood: CanaryMood = "alert"')
+    expect(source).toContain('? "perched"')
+    expect(source).toContain(': "singing"')
+    expect(source).toContain('? "dry"')
   })
 
   it("surfaces a top-up action when the tool provides one", () => {

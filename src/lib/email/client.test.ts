@@ -44,13 +44,12 @@ describe("sendEmail", () => {
     expect(body.MessageStream).toBe("outbound")
   })
 
-  it("returns an error on a non-2xx response", async () => {
+  it("returns an error on a non-2xx response without reading the body", async () => {
     vi.stubEnv("POSTMARK_SERVER_TOKEN", "tok-123")
+    const textMock = vi.fn(async () => "bad")
     vi.stubGlobal(
       "fetch",
-      vi
-        .fn()
-        .mockResolvedValue({ ok: false, status: 422, text: async () => "bad" })
+      vi.fn().mockResolvedValue({ ok: false, status: 422, text: textMock })
     )
     const res = await sendEmail({
       to: "a@b.com",
@@ -58,6 +57,9 @@ describe("sendEmail", () => {
       html: "<p>h</p>",
       text: "h",
     })
-    expect(res.ok).toBe(false)
+    expect(res).toEqual({ ok: false, error: "Postmark error 422" })
+    // The error body echoes the recipient address (PII); it must not be
+    // pulled into logs.
+    expect(textMock).not.toHaveBeenCalled()
   })
 })

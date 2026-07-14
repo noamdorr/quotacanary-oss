@@ -10,12 +10,15 @@ import {
   renameConnection,
   updateKey,
 } from "@/lib/actions/connections"
+import { staleAdjustedStatus } from "@/lib/balance-status"
+import { runClientAction } from "@/lib/client-action"
 import {
   credentialFieldsFor,
   credentialInputName,
   credentialPlaceholder,
 } from "@/lib/credentials"
 import { formatBalance } from "@/lib/format"
+import { newestRecordedAt } from "@/lib/pool-rows"
 import type { ConnectionWithBalance } from "@/lib/types"
 import { Pencil } from "lucide-react"
 import { useState, useTransition } from "react"
@@ -30,22 +33,38 @@ export function ConnectionRow({
   const [name, setName] = useState(connection.name)
   const [showKeyForm, setShowKeyForm] = useState(false)
   const [confirmOpen, setConfirmOpen] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const pools = connection.pools
   const credentialFields = credentialFieldsFor(
     connection.tool.credential_fields
   )
+  // Same aging the dashboard applies in toPoolRows: a silent connection must
+  // read "stale" here too, not keep its last "Active" dot.
+  const status = staleAdjustedStatus({
+    status: connection.status,
+    newestRecordedAt: newestRecordedAt(connection),
+  })
 
   return (
     <div className="flex flex-col gap-3 rounded-lg border border-border/60 bg-card p-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <StatusDot status={connection.status} />
+          <StatusDot status={status} />
           {editingName ? (
             <form
               action={(fd) =>
                 startTransition(async () => {
-                  await renameConnection(connection.id, String(fd.get("name")))
-                  setEditingName(false)
+                  const nextName = String(fd.get("name"))
+                  const res = await runClientAction(() =>
+                    renameConnection(connection.id, nextName)
+                  )
+                  if (res.ok) {
+                    setName(nextName.trim())
+                    setEditingName(false)
+                    setError(null)
+                  } else {
+                    setError(res.error)
+                  }
                 })
               }
               className="flex items-center gap-2"
@@ -89,6 +108,12 @@ export function ConnectionRow({
         </p>
       )}
 
+      {error && (
+        <p role="alert" className="text-xs text-[var(--dry)]">
+          {error}
+        </p>
+      )}
+
       <div className="flex items-center gap-2">
         <Button
           size="sm"
@@ -96,7 +121,10 @@ export function ConnectionRow({
           disabled={pending}
           onClick={() =>
             startTransition(async () => {
-              await refreshConnection(connection.id)
+              const res = await runClientAction(() =>
+                refreshConnection(connection.id)
+              )
+              setError(res.ok ? null : res.error)
             })
           }
         >
@@ -124,8 +152,15 @@ export function ConnectionRow({
         <form
           action={(fd) =>
             startTransition(async () => {
-              const res = await updateKey(connection.id, fd)
-              if (res.ok) setShowKeyForm(false)
+              const res = await runClientAction(() =>
+                updateKey(connection.id, fd)
+              )
+              if (res.ok) {
+                setShowKeyForm(false)
+                setError(null)
+              } else {
+                setError(res.error)
+              }
             })
           }
           className="flex flex-col gap-2 sm:flex-row sm:flex-wrap"
@@ -168,7 +203,10 @@ export function ConnectionRow({
               disabled={pending}
               onClick={() =>
                 startTransition(async () => {
-                  await removeConnection(connection.id)
+                  const res = await runClientAction(() =>
+                    removeConnection(connection.id)
+                  )
+                  setError(res.ok ? null : res.error)
                   setConfirmOpen(false)
                 })
               }

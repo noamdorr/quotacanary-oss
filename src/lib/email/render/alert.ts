@@ -20,6 +20,18 @@ function fmt(n: number): string {
   return n.toLocaleString("en-US")
 }
 
+// All catalog/adapter strings currently reaching this template are trusted,
+// but escape at the boundary anyway so one future field-add (e.g. a
+// user-named connection) can't become stored XSS in the email client.
+function esc(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;")
+}
+
 export function renderAlertEmail(model: AlertEmailModel): RenderedEmail {
   const subject =
     model.severity === "critical"
@@ -33,17 +45,17 @@ export function renderAlertEmail(model: AlertEmailModel): RenderedEmail {
 
   const poolRowsHtml = model.pools
     .map((p) => {
-      const unit = p.unit ? ` ${p.unit}` : ""
-      return `<tr><td style="padding:4px 0;font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#1a1a1a;">${p.label}: <span style="font-family:monospace;font-weight:bold;">${fmt(p.balance)}${unit}</span> left <span style="color:#8a8a8a;">(threshold ${fmt(p.threshold)})</span></td></tr>`
+      const unit = p.unit ? ` ${esc(p.unit)}` : ""
+      return `<tr><td style="padding:4px 0;font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#1a1a1a;">${esc(p.label)}: <span style="font-family:monospace;font-weight:bold;">${fmt(p.balance)}${unit}</span> left <span style="color:#8a8a8a;">(threshold ${fmt(p.threshold)})</span></td></tr>`
     })
     .join("")
 
   const etaHtml = model.etaText
-    ? `<tr><td style="padding:8px 0 0;font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#1a1a1a;">${model.etaText}</td></tr>`
+    ? `<tr><td style="padding:8px 0 0;font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#1a1a1a;">${esc(model.etaText)}</td></tr>`
     : ""
 
   const topupHtml = model.topupUrl
-    ? `<tr><td style="height:16px;"></td></tr><tr><td><a href="${model.topupUrl}" style="font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#1a1a1a;">Get more from ${model.toolName}</a></td></tr>`
+    ? `<tr><td style="height:16px;"></td></tr><tr><td><a href="${esc(model.topupUrl)}" style="font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#1a1a1a;">Get more from ${esc(model.toolName)}</a></td></tr>`
     : ""
 
   const html = `<table width="100%" cellpadding="0" cellspacing="0" style="background:#FFFDF5;padding:32px 0;">
@@ -51,11 +63,11 @@ export function renderAlertEmail(model: AlertEmailModel): RenderedEmail {
     <table width="480" cellpadding="0" cellspacing="0" style="background:#ffffff;border:1px solid #f0ead6;border-radius:12px;padding:32px;">
       <tr><td style="font-family:Georgia,serif;font-size:22px;color:#1a1a1a;font-weight:bold;">QuotaCanary 🐤</td></tr>
       <tr><td style="height:16px;"></td></tr>
-      <tr><td style="font-family:Arial,Helvetica,sans-serif;font-size:16px;color:#1a1a1a;line-height:1.5;">${lead}</td></tr>
+      <tr><td style="font-family:Arial,Helvetica,sans-serif;font-size:16px;color:#1a1a1a;line-height:1.5;">${esc(lead)}</td></tr>
       <tr><td style="height:16px;"></td></tr>
       <tr><td><table cellpadding="0" cellspacing="0">${poolRowsHtml}${etaHtml}</table></td></tr>
       <tr><td style="height:24px;"></td></tr>
-      <tr><td><a href="${model.dashboardUrl}" style="background:#FFC400;color:#1a1a1a;text-decoration:none;font-weight:bold;padding:12px 24px;border-radius:8px;display:inline-block;font-family:Arial,Helvetica,sans-serif;">Open dashboard</a></td></tr>
+      <tr><td><a href="${esc(model.dashboardUrl)}" style="background:#FFC400;color:#1a1a1a;text-decoration:none;font-weight:bold;padding:12px 24px;border-radius:8px;display:inline-block;font-family:Arial,Helvetica,sans-serif;">Open dashboard</a></td></tr>
       ${topupHtml}
     </table>
   </td></tr>

@@ -1,6 +1,6 @@
 "use client"
 
-import { Canary } from "@/components/brand/Canary"
+import { Canary, type CanaryMood } from "@/components/brand/Canary"
 import { effectiveStatus } from "@/lib/balance-status"
 import { poolEta } from "@/lib/pool-eta"
 import type { PoolRow } from "@/lib/pool-rows"
@@ -21,6 +21,19 @@ export function BurnRateHero({ row }: { row: PoolRow }) {
   })
   const tone = status.kind === "level" ? status.level : "neutral"
   const eta = poolEta(pool)
+  // The bird plays by its own lore: quiet when everything is fine, singing
+  // while a warning is live ("sings before the credits die"), belly-up once
+  // the pool is actually empty, and wide-eyed when the reading can't be
+  // trusted (stale/error connections).
+  let mood: CanaryMood = "alert"
+  if (status.kind === "level") {
+    mood =
+      status.level === "healthy"
+        ? "perched"
+        : (pool.balance ?? 1) <= 0
+          ? "dry"
+          : "singing"
+  }
   // Brand gold (#ffc400 / canary-deep) fails contrast as text on the cream
   // card, so route the accent through the accessible status tokens.
   const accent = tone === "critical" ? "var(--dry)" : "var(--low-text)"
@@ -46,7 +59,7 @@ export function BurnRateHero({ row }: { row: PoolRow }) {
               Get more <ExternalLink className="h-3 w-3" aria-hidden="true" />
             </a>
           )}
-          <Canary mood="singing" size={56} />
+          <Canary mood={mood} size={56} />
         </div>
       </div>
 

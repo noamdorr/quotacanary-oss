@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 import { STALE_AFTER_MS } from "./balance-status"
-import { toPoolRows } from "./pool-rows"
+import { newestRecordedAt, toPoolRows } from "./pool-rows"
 import type { ConnectionStatus, ConnectionWithBalance, PoolView } from "./types"
 
 const pool = (
@@ -56,5 +56,20 @@ describe("toPoolRows", () => {
   it("leaves a no-reading connection untouched (no data, not stale)", () => {
     const rows = toPoolRows([conn("e", [])])
     expect(rows[0].connection.status).toBe("active")
+  })
+})
+
+describe("newestRecordedAt", () => {
+  it("returns the newest timestamp across pools", () => {
+    const c = conn("f", [
+      pool("searches", "2026-05-01T00:00:00Z"),
+      pool("verifications", "2026-05-03T00:00:00Z"),
+      pool("exports", "2026-05-02T00:00:00Z"),
+    ])
+    expect(newestRecordedAt(c)).toBe("2026-05-03T00:00:00Z")
+  })
+
+  it("returns null when there are no pools", () => {
+    expect(newestRecordedAt(conn("g", []))).toBeNull()
   })
 })

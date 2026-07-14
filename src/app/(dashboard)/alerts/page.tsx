@@ -53,6 +53,12 @@ export default async function AlertsPage() {
         <h2 className="text-sm font-semibold text-muted-foreground">
           Watched connections
         </h2>
+        {connections.length > 0 && (
+          <p className="text-xs text-muted-foreground">
+            Each one alerts you when a tracked balance crosses your warning
+            threshold. Thresholds are set from the dashboard.
+          </p>
+        )}
         {connections.length === 0 ? (
           <p className="text-sm text-muted-foreground">
             Connect a tool to configure alerts.

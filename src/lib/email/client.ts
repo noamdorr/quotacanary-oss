@@ -38,8 +38,9 @@ export async function sendEmail(
       }),
     })
     if (!res.ok) {
-      const detail = await res.text()
-      console.error(`[email] Postmark ${res.status}: ${detail}`)
+      // Don't read/log the response body: Postmark echoes the recipient
+      // address (PII) back in error payloads.
+      console.error(`[email] Postmark ${res.status}`)
       return { ok: false, error: `Postmark error ${res.status}` }
     }
     return { ok: true }

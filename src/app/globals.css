@@ -134,6 +134,80 @@
 }
 
 /* ── Animation primitives (used by the mascot + status pills) ── */
+/* Idle blink: eyes open ~5.2s, shut for ~0.2s. The lid runs in counterphase. */
+@keyframes qc-eye-open {
+  0%,
+  91.9%,
+  95.6%,
+  100% {
+    opacity: 1;
+  }
+  92%,
+  95.5% {
+    opacity: 0;
+  }
+}
+@keyframes qc-eye-lid {
+  0%,
+  91.9%,
+  95.6%,
+  100% {
+    opacity: 0;
+  }
+  92%,
+  95.5% {
+    opacity: 1;
+  }
+}
+.qc-canary-eye {
+  animation: qc-eye-open 5.6s linear infinite;
+}
+.qc-canary-eye-lid {
+  opacity: 0;
+  animation: qc-eye-lid 5.6s linear infinite;
+}
+@keyframes qc-tail-flick {
+  0%,
+  90%,
+  100% {
+    transform: rotate(0deg);
+  }
+  93% {
+    transform: rotate(-9deg);
+  }
+  96% {
+    transform: rotate(3deg);
+  }
+}
+.qc-canary-tail {
+  animation: qc-tail-flick 7.4s ease-in-out infinite;
+}
+/* Sparkline bars grow in oldest-to-newest; whole run stays under ~350ms. */
+@keyframes qc-spark-grow {
+  from {
+    transform: scaleY(0);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+.qc-spark-bar {
+  transform-origin: bottom;
+  animation: qc-spark-grow 0.24s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation-delay: calc(var(--i, 0) * 14ms);
+}
+@keyframes qc-dot-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+.qc-dot-pulse {
+  animation: qc-dot-pulse 2.2s ease-in-out infinite;
+}
 @keyframes breathe {
   0%,
   100% {
@@ -255,9 +329,18 @@
 }
 .btn-primary:hover {
   background: var(--canary-deep);
+  transform: translateY(-1px);
+  box-shadow: 0 10px 28px -8px rgba(255, 196, 0, 0.6), 0 1px 0
+    rgba(0, 0, 0, 0.06) inset;
 }
 .btn-primary:active {
   transform: translateY(1px);
+  box-shadow: var(--canary-shadow);
+}
+@media (prefers-reduced-motion: reduce) {
+  .btn-primary:hover {
+    transform: none;
+  }
 }
 .btn-ghost {
   background: transparent;
@@ -329,10 +412,38 @@
   .qc-rotating-tool-name,
   .qc-canary-note,
   .qc-canary-breathe,
+  .qc-canary-eye,
+  .qc-canary-eye-lid,
+  .qc-canary-tail,
+  .qc-hero-mascot,
+  .qc-spark-bar,
+  .qc-dot-pulse,
+  .qc-connect-card,
+  .qc-connect-card:hover,
+  .qc-connect-card::after,
+  .qc-connect-card__logo,
+  .qc-connect-card:hover .qc-connect-card__logo,
+  .qc-connect-listening-dot,
+  .qc-onboarding-listening__bird,
+  .qc-auth-showcase,
+  .qc-auth-risk-card::before,
+  .qc-auth-watch-dot,
+  .qc-auth-sparkline-line,
+  .qc-auth-sparkline-dot,
   .qc-canary-callout,
   .qc-confetti-piece,
   .qc-confetti-flake {
     animation: none !important;
+  }
+  .qc-connect-card,
+  .qc-connect-card:hover,
+  .qc-connect-card::after,
+  .qc-connect-card__logo,
+  .qc-connect-card:hover .qc-connect-card__logo,
+  .qc-connect-listening-dot,
+  .qc-onboarding-listening__bird {
+    transition: none !important;
+    transform: none !important;
   }
   .qc-confetti-piece {
     display: none;
@@ -415,7 +526,7 @@
   animation: breathe 3.2s ease-in-out infinite !important;
 }
 .qc-canary-callout--reveal:is(:hover, :focus-visible) .qc-canary-note {
-  animation: note-float 1.4s ease-out infinite !important;
+  animation: note-float 1.6s ease-out var(--qc-note-delay, 0s) infinite !important;
   opacity: 1;
   transform: translate(0, 0) scale(1) rotate(0deg);
 }
@@ -438,6 +549,20 @@
   left: 58%;
   z-index: 2;
   transform: translateX(-50%);
+  /* Landing entrance. Transform-only (no opacity) so contexts that pause
+     animations still paint the bird, just hovering a little higher. */
+  animation: qc-mascot-land 0.6s cubic-bezier(0.22, 1, 0.36, 1) 0.15s backwards;
+}
+@keyframes qc-mascot-land {
+  from {
+    transform: translateX(-50%) translateY(-26px);
+  }
+  72% {
+    transform: translateX(-50%) translateY(2px);
+  }
+  to {
+    transform: translateX(-50%) translateY(0);
+  }
 }
 .qc-hero-mascot .qc-canary-callout__bubble {
   max-width: 180px;
@@ -527,6 +652,109 @@
   display: block;
 }
 
+@keyframes qc-connect-listen {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 196, 0, 0.3);
+    transform: scale(0.92);
+  }
+  50% {
+    box-shadow: 0 0 0 5px rgba(255, 196, 0, 0);
+    transform: scale(1);
+  }
+}
+@keyframes qc-onboarding-listen {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-1deg);
+  }
+  50% {
+    transform: translateY(-2px) rotate(1deg);
+  }
+}
+.qc-connect-card {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  box-shadow: 0 1px 0 rgba(26, 26, 26, 0.04);
+  transition: transform 0.18s cubic-bezier(0.22, 1, 0.36, 1), border-color 0.18s
+    ease, box-shadow 0.18s ease;
+}
+.qc-connect-card::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 14px;
+  left: 14px;
+  height: 2px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, transparent, var(--canary), transparent);
+  opacity: 0.75;
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.24s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.qc-connect-card:hover {
+  border-color: rgba(26, 26, 26, 0.2);
+  box-shadow: 0 12px 28px rgba(26, 26, 26, 0.08);
+  transform: translateY(-2px);
+}
+.qc-connect-card:hover::after,
+.qc-connect-card--connected::after {
+  transform: scaleX(1);
+}
+.qc-connect-card__logo {
+  box-shadow: inset 0 1px 0 rgba(255, 253, 245, 0.5);
+  transition: transform 0.18s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.18s
+    ease;
+}
+.qc-connect-card:hover .qc-connect-card__logo {
+  box-shadow: inset 0 1px 0 rgba(255, 253, 245, 0.7), 0 7px 18px
+    rgba(26, 26, 26, 0.08);
+  transform: translateY(-1px) rotate(-2deg);
+}
+.qc-connect-card__status {
+  white-space: nowrap;
+}
+.qc-connect-key-panel {
+  background: linear-gradient(
+    180deg,
+    rgba(255, 253, 245, 0.94),
+    rgba(251, 246, 228, 0.72)
+  );
+  box-shadow: inset 0 1px 0 rgba(255, 253, 245, 0.9);
+}
+.qc-connect-listening {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.qc-connect-listening-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--canary);
+  animation: qc-connect-listen 1.35s ease-in-out infinite;
+}
+.qc-onboarding-listening {
+  border-color: rgba(255, 196, 0, 0.32);
+  background: linear-gradient(
+    180deg,
+    rgba(255, 253, 245, 0.96),
+    rgba(255, 196, 0, 0.12)
+  );
+  box-shadow: inset 0 1px 0 rgba(255, 253, 245, 0.9);
+}
+.qc-onboarding-listening__bird {
+  display: inline-flex;
+  flex: 0 0 auto;
+  transform-origin: center bottom;
+  animation: qc-onboarding-listen 1.8s ease-in-out infinite;
+}
+.qc-onboarding-listening__bird svg {
+  display: block;
+}
+
 .qc-auth-brand-panel {
   background: var(--ink);
   color: var(--ink);
@@ -549,6 +777,49 @@
     transparent
   );
 }
+@keyframes qc-auth-stage-in {
+  from {
+    transform: translateY(8px) rotate(-0.4deg);
+  }
+  to {
+    transform: translateY(0) rotate(0deg);
+  }
+}
+@keyframes qc-auth-card-scan {
+  0%,
+  35% {
+    transform: translateX(-120%);
+  }
+  70%,
+  100% {
+    transform: translateX(120%);
+  }
+}
+@keyframes qc-auth-watch-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(255, 196, 0, 0.28);
+  }
+  50% {
+    box-shadow: 0 0 0 5px rgba(255, 196, 0, 0);
+  }
+}
+@keyframes qc-auth-spark-trace {
+  from {
+    stroke-dashoffset: 180;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes qc-auth-dot-pop {
+  from {
+    transform: scale(0.72);
+  }
+  to {
+    transform: scale(1);
+  }
+}
 .qc-auth-showcase {
   position: relative;
   z-index: 1;
@@ -559,6 +830,10 @@
   border-radius: clamp(28px, 4vw, 52px);
   background: var(--cream);
   box-shadow: 0 28px 80px rgba(0, 0, 0, 0.24);
+}
+.qc-auth-showcase--stage {
+  animation: qc-auth-stage-in 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+  transform-origin: 50% 40%;
 }
 .qc-auth-mascot {
   position: absolute;
@@ -620,7 +895,10 @@
   line-height: 1.55;
 }
 .qc-auth-risk-card {
+  position: relative;
+  isolation: isolate;
   margin-top: 20px;
+  overflow: hidden;
   padding: 16px;
   border: 1px solid rgba(26, 26, 26, 0.12);
   border-radius: 18px;
@@ -628,10 +906,55 @@
   color: var(--cream);
   box-shadow: inset 0 1px 0 rgba(255, 253, 245, 0.08);
 }
+.qc-auth-risk-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    110deg,
+    transparent 0 42%,
+    rgba(255, 196, 0, 0.14) 49%,
+    transparent 57% 100%
+  );
+  animation: qc-auth-card-scan 5.4s ease-in-out infinite;
+}
+.qc-auth-risk-card > * {
+  position: relative;
+  z-index: 1;
+}
+.qc-auth-watch-strip {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px;
+  border: 1px solid rgba(255, 253, 245, 0.14);
+  border-radius: 999px;
+  background: rgba(255, 253, 245, 0.08);
+  color: rgba(255, 253, 245, 0.72);
+  font-family: var(--f-mono);
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+.qc-auth-watch-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--canary);
+  animation: qc-auth-watch-pulse 2.2s ease-in-out infinite;
+}
 .qc-auth-risk-top {
   display: flex;
   align-items: center;
   gap: 12px;
+  padding-right: 112px;
 }
 .qc-auth-tool-logo {
   display: inline-flex;
@@ -684,6 +1007,16 @@
   height: 48px;
   margin-top: 12px;
   overflow: visible;
+}
+.qc-auth-sparkline-line {
+  stroke-dasharray: 180;
+  stroke-dashoffset: 180;
+  animation: qc-auth-spark-trace 0.72s cubic-bezier(0.22, 1, 0.36, 1) 0.12s both;
+}
+.qc-auth-sparkline-dot {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: qc-auth-dot-pop 0.24s cubic-bezier(0.16, 1, 0.3, 1) 0.82s both;
 }
 .qc-auth-verdict {
   display: inline-flex;

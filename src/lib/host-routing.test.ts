@@ -1,5 +1,6 @@
 import {
   isAppOnlyPath,
+  isIpLiteralHost,
   isProtectedAppPath,
   resolveHost,
 } from "@/lib/host-routing"
@@ -43,6 +44,18 @@ describe("resolveHost", () => {
     expect(resolveHost("app.evil.com")).toBe("marketing")
   })
 
+  it("does not treat app.evilquotacanary.com as the app (suffix spoof)", () => {
+    expect(resolveHost("app.evilquotacanary.com")).toBe("marketing")
+  })
+
+  it("does not treat app.evil-localhost as the app (suffix spoof)", () => {
+    expect(resolveHost("app.evil-localhost")).toBe("marketing")
+  })
+
+  it("keeps deeper subdomains of our own domain on the app surface", () => {
+    expect(resolveHost("app.staging.quotacanary.com")).toBe("app")
+  })
+
   beforeEach(() => {
     // Keep the non-APP_ONLY cases deterministic even if APP_ONLY happens to be
     // set in the developer's shell (e.g. a self-hoster who also contributes).
@@ -63,6 +76,26 @@ describe("resolveHost", () => {
   it("ignores APP_ONLY when not exactly 'true'", () => {
     vi.stubEnv("APP_ONLY", "1")
     expect(resolveHost("quotacanary.com")).toBe("marketing")
+  })
+})
+
+describe("isIpLiteralHost", () => {
+  it("detects IPv4 literals with and without a port", () => {
+    expect(isIpLiteralHost("127.0.0.1")).toBe(true)
+    expect(isIpLiteralHost("127.0.0.1:3000")).toBe(true)
+    expect(isIpLiteralHost("10.0.0.7:8080")).toBe(true)
+  })
+
+  it("detects bracketed IPv6 literals with and without a port", () => {
+    expect(isIpLiteralHost("[::1]")).toBe(true)
+    expect(isIpLiteralHost("[::1]:3000")).toBe(true)
+  })
+
+  it("leaves named hosts (and empty) alone", () => {
+    expect(isIpLiteralHost("quotacanary.com")).toBe(false)
+    expect(isIpLiteralHost("app.quotacanary.com:443")).toBe(false)
+    expect(isIpLiteralHost("localhost:3000")).toBe(false)
+    expect(isIpLiteralHost("")).toBe(false)
   })
 })
 

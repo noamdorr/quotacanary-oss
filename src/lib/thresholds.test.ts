@@ -84,4 +84,16 @@ describe("thresholdOrderError", () => {
     expect(thresholdOrderError(3000, null)).toBeNull()
     expect(thresholdOrderError(null, null)).toBeNull()
   })
+  it("allows zero (a legitimate floor)", () => {
+    expect(thresholdOrderError(1, 0)).toBeNull()
+  })
+  it("rejects NaN on either side (Number('junk') from the drawer inputs)", () => {
+    expect(thresholdOrderError(Number.NaN, 2000)).toMatch(/number/i)
+    expect(thresholdOrderError(3000, Number.NaN)).toMatch(/number/i)
+  })
+  it("rejects negatives and non-finite values", () => {
+    expect(thresholdOrderError(-5, null)).toMatch(/number/i)
+    expect(thresholdOrderError(null, -1)).toMatch(/number/i)
+    expect(thresholdOrderError(Number.POSITIVE_INFINITY, 10)).toMatch(/number/i)
+  })
 })

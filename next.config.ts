@@ -4,6 +4,12 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: __dirname,
   },
+  // Dev-only (ignored by `next build`): the marketing surface is previewed on
+  // 127.0.0.1 (localhost routes to the app surface), and without this Next 16
+  // rejects the HMR websocket from that origin, which stalls dev hydration -
+  // the marketing page renders but no client component ever becomes
+  // interactive.
+  allowedDevOrigins: ["127.0.0.1"],
   async headers() {
     return [
       {

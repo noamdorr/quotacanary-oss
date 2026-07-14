@@ -109,7 +109,7 @@ Self-host from tagged releases, not `master`:
 
 ```bash
 git fetch --tags
-git checkout v1.2.0          # the release you want
+git checkout v1.0.2          # the release you want
 npm install
 supabase db push            # or `supabase db reset` for the local path
 npm run build && npm run start

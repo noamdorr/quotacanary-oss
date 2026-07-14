@@ -7,7 +7,8 @@ export const APP_URL =
 export const APP_LOGIN_URL = `${APP_URL}/login`
 export const APP_SIGNUP_URL = `${APP_LOGIN_URL}?tab=signup`
 
-// Public origin of the marketing surface (where /docs lives). The host split
-// makes /docs unreachable on the app host, so app→docs links must use this.
+// Public origin of the marketing surface (where /docs lives). App→docs links
+// use this so they land on the canonical marketing origin, not a duplicate
+// of /docs served on the app host.
 export const MARKETING_URL =
   process.env.NEXT_PUBLIC_MARKETING_URL ?? "https://quotacanary.com"

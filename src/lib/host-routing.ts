@@ -14,14 +14,23 @@ export function resolveHost(hostname: string | null | undefined): HostSurface {
   if (host === "marketing.localhost") return "marketing"
 
   // Anchor the app subdomain to our own domains so a spoofed Host header
-  // (e.g. app.evil.com) can't be classified as the app surface.
+  // (e.g. app.evil.com) can't be classified as the app surface. The leading
+  // dot is load-bearing: a bare endsWith("quotacanary.com") would also admit
+  // app.evilquotacanary.com.
   if (
     host.startsWith("app.") &&
-    (host.endsWith("quotacanary.com") || host.endsWith("localhost"))
+    (host.endsWith(".quotacanary.com") || host.endsWith(".localhost"))
   ) {
     return "app"
   }
   return "marketing"
+}
+
+// Hosts that can't take the app. subdomain prefix: IPv4/IPv6 literals
+// (with optional port). Prefixing one produces an invalid URL, so the
+// middleware must not attempt the app-subdomain bounce for them.
+export function isIpLiteralHost(host: string): boolean {
+  return host.startsWith("[") || /^\d{1,3}(\.\d{1,3}){3}(:\d+)?$/.test(host)
 }
 
 // Every route in the (dashboard) group requires an authenticated user. Next's

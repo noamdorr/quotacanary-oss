@@ -86,8 +86,11 @@ export default function DocsPage() {
 
   return (
     <>
+      <a href="#main-content" className="qc-skip-link">
+        Skip to content
+      </a>
       <MarketingNav />
-      <main>
+      <main id="main-content">
         <article
           className="container qc-docs"
           style={{
@@ -229,7 +232,11 @@ export default function DocsPage() {
 
               <h3 style={H3_STYLE}>Rate limit</h3>
               <p>
-                60 requests per minute per token. Exceed that and you get a{" "}
+                60 requests per minute per token. Every authenticated response
+                carries <code style={INLINE_CODE}>RateLimit-Limit</code>,{" "}
+                <code style={INLINE_CODE}>RateLimit-Remaining</code>, and{" "}
+                <code style={INLINE_CODE}>RateLimit-Reset</code> (seconds until
+                the window resets). Exceed the limit and you get a{" "}
                 <code style={INLINE_CODE}>429</code> with a{" "}
                 <code style={INLINE_CODE}>Retry-After</code> header telling you
                 how many seconds to wait.
@@ -259,7 +266,6 @@ export default function DocsPage() {
                 <code style={INLINE_CODE}>critical</code>,{" "}
                 <code style={INLINE_CODE}>stale</code>,{" "}
                 <code style={INLINE_CODE}>error</code>,{" "}
-                <code style={INLINE_CODE}>disconnected</code>,{" "}
                 <code style={INLINE_CODE}>nodata</code>. An invalid value
                 returns <code style={INLINE_CODE}>400</code>.
               </p>
@@ -345,7 +351,7 @@ export default function DocsPage() {
                     [
                       "status",
                       "string",
-                      "One of: healthy, low, critical, stale, error, disconnected, nodata.",
+                      "One of: healthy, low, critical, stale, error, nodata.",
                     ],
                     [
                       "burn.perDay",
@@ -412,7 +418,7 @@ export default function DocsPage() {
       "tool": {
         "id": "hunter",
         "name": "Hunter",
-        "topupUrl": "https://hunter.io/billing"
+        "topupUrl": "https://hunter.io/welcome/upgrade"
       },
       "creditType": "verifications",
       "label": "Verifications",
@@ -658,7 +664,7 @@ export default function DocsPage() {
     { "label": "Verifications", "balance": 420, "threshold": 500, "unit": "credits" }
   ],
   "dashboard_url": "https://app.quotacanary.com/dashboard",
-  "topup_url": "https://hunter.io/billing",
+  "topup_url": "https://hunter.io/welcome/upgrade",
   "created_at": "2026-06-17T09:30:00.000Z"
 }`}</pre>
               <p>

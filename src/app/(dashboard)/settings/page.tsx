@@ -2,11 +2,10 @@ import { logout } from "@/app/(auth)/login/actions"
 import { MARKETING_URL } from "@/components/marketing/constants"
 import { AlertDestinations } from "@/components/settings/AlertDestinations"
 import { ApiTokens } from "@/components/settings/ApiTokens"
-import { DisplayModeForm } from "@/components/settings/DisplayModeForm"
 import { NotificationPrefs } from "@/components/settings/NotificationPrefs"
 import { Button } from "@/components/ui/button"
 import { createClient } from "@/lib/supabase/server"
-import type { AlertDestination, DisplayMode, NotifyMode } from "@/lib/types"
+import type { AlertDestination, NotifyMode } from "@/lib/types"
 import { redirect } from "next/navigation"
 
 export const dynamic = "force-dynamic"
@@ -20,7 +19,7 @@ export default async function SettingsPage() {
 
   const { data: profile } = await supabase
     .from("users")
-    .select("display_mode, notify_mode")
+    .select("notify_mode")
     .eq("id", user.id)
     .single()
   const { data: destinations } = await supabase
@@ -41,13 +40,6 @@ export default async function SettingsPage() {
     <main className="flex-1 p-6 sm:p-8">
       <div className="mx-auto w-full max-w-3xl space-y-6">
         <h1 className="text-2xl font-bold">Settings</h1>
-
-        <section className="card space-y-4 p-5 sm:p-6">
-          <h2 className="text-base font-semibold text-foreground">Display</h2>
-          <DisplayModeForm
-            current={(profile?.display_mode ?? "flat") as DisplayMode}
-          />
-        </section>
 
         <section className="card space-y-4 p-5 sm:p-6">
           <div className="space-y-1">

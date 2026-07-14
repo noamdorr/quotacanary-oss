@@ -262,6 +262,28 @@ values
     true
   ),
   (
+    'builtwith',
+    'BuiltWith',
+    '/logos/builtwith.png',
+    'https://api.builtwith.com/agent-payment-api',
+    'Go to BuiltWith Agent Payment API configuration, enable Agent API Billing, and copy the Agent API Key',
+    'data',
+    'api',
+    250,
+    true
+  ),
+  (
+    'keywordseverywhere',
+    'Keywords Everywhere',
+    '/logos/keywordseverywhere.png',
+    'https://api.keywordseverywhere.com/docs/#/miscellaneous/get_credits',
+    'Go to Keywords Everywhere -> API key and copy your API key',
+    'data',
+    'api',
+    1000,
+    true
+  ),
+  (
     'apify',
     'Apify',
     '/logos/apify.png',
@@ -703,7 +725,7 @@ on conflict (id) do update set
 -- Multi-pool: Hunter exposes searches + verifications.
 update public.tools
   set
-    topup_url = 'https://hunter.io/billing',
+    topup_url = 'https://hunter.io/welcome/upgrade',
     pools = '[
     {"credit_type":"searches","label":"Searches","unit":"credits"},
     {"credit_type":"verifications","label":"Verifications","unit":"credits"}
@@ -761,6 +783,26 @@ update public.tools
       {"credit_type":"key","label":"API Key Credits","unit":"credits"}
     ]'::jsonb
   where id = 'tavily';
+
+-- BuiltWith exposes one API credits pool through the Agent Payment API.
+update public.tools
+  set
+    default_low_threshold = 750,
+    topup_url = 'https://payments.builtwith.com/agent-payment-api-config',
+    pools = '[
+      {"credit_type":"credits","label":"API Credits","unit":"credits"}
+    ]'::jsonb
+  where id = 'builtwith';
+
+-- Keywords Everywhere exposes one account credit balance pool.
+update public.tools
+  set
+    default_low_threshold = 3000,
+    topup_url = 'https://keywordseverywhere.com/pricing.html',
+    pools = '[
+      {"credit_type":"credits","label":"Credits","unit":"credits"}
+    ]'::jsonb
+  where id = 'keywordseverywhere';
 
 -- Melt.ly exposes subscription and pay-as-you-go credits.
 update public.tools
@@ -953,6 +995,8 @@ update public.tools set description = 'Web scraping API with proxies and headles
 update public.tools set description = 'Web scraping with rotating proxies, priced per API credit.' where id = 'scraperapi';
 update public.tools set description = 'Web and search scraping API, billed per request credit.' where id = 'scrapingdog';
 update public.tools set description = 'Proxies and web data at scale, billed by usage balance.' where id = 'brightdata';
+update public.tools set description = 'Website technology intelligence and lead data APIs, billed from API credits.' where id = 'builtwith';
+update public.tools set description = 'SEO keyword, traffic, and backlink data APIs, billed from account credits.' where id = 'keywordseverywhere';
 update public.tools set description = 'A platform of scrapers and automations, billed from a prepaid balance.' where id = 'apify';
 update public.tools set description = 'Turn websites into clean, LLM-ready data, priced per credit.' where id = 'firecrawl';
 update public.tools set description = 'Search, extraction, crawl, and research APIs for AI agents, billed from API credits.' where id = 'tavily';
@@ -994,6 +1038,8 @@ update public.tools set website_url = 'https://nubela.co/proxycurl' where id = '
 update public.tools set website_url = 'https://ahrefs.com' where id = 'ahrefs';
 update public.tools set website_url = 'https://www.semrush.com' where id = 'semrush';
 update public.tools set website_url = 'https://tavily.com' where id = 'tavily';
+update public.tools set website_url = 'https://builtwith.com' where id = 'builtwith';
+update public.tools set website_url = 'https://keywordseverywhere.com' where id = 'keywordseverywhere';
 update public.tools set website_url = 'https://melt.ly' where id = 'meltly';
 update public.tools set website_url = 'https://bettercontact.rocks' where id = 'bettercontact';
 update public.tools set website_url = 'https://shodan.io' where id = 'shodan';

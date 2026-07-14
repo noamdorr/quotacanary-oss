@@ -81,8 +81,8 @@ async function fetchPools(
     return { error: textResult("Not authenticated.", true) }
   }
 
-  const allowed = await consumeRateLimit(auth.tokenId)
-  if (!allowed) {
+  const rate = await consumeRateLimit(auth.tokenId)
+  if (!rate.allowed) {
     return {
       error: textResult(
         "Rate limited. Slow down and try again in a minute.",

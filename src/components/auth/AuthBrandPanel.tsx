@@ -9,7 +9,7 @@ const sparklinePoints = SIGNATURE_RISK_CARD.sparkline
 export function AuthBrandPanel() {
   return (
     <div className="qc-auth-brand-panel relative hidden flex-col justify-center overflow-hidden px-12 py-10 lg:flex">
-      <div className="qc-auth-showcase">
+      <div className="qc-auth-showcase qc-auth-showcase--stage">
         <div className="qc-auth-mascot">
           <span className="qc-auth-bubble">{MASCOT_LINES.auth}</span>
           <Canary mood="singing" size={100} />
@@ -27,6 +27,11 @@ export function AuthBrandPanel() {
         </p>
 
         <div className="qc-auth-risk-card" aria-label="Demo credit alert">
+          <div className="qc-auth-watch-strip" aria-hidden="true">
+            <span className="qc-auth-watch-dot" />
+            <span>live watch</span>
+          </div>
+
           <div className="qc-auth-risk-top">
             <span className="qc-auth-tool-logo" aria-hidden="true">
               <img
@@ -64,6 +69,7 @@ export function AuthBrandPanel() {
               strokeDasharray="3 4"
             />
             <polyline
+              className="qc-auth-sparkline-line"
               points={sparklinePoints}
               fill="none"
               stroke="var(--canary)"
@@ -71,7 +77,13 @@ export function AuthBrandPanel() {
               strokeLinecap="round"
               strokeLinejoin="round"
             />
-            <circle cx="96" cy="88" r="4" fill="var(--canary)" />
+            <circle
+              className="qc-auth-sparkline-dot"
+              cx="96"
+              cy="88"
+              r="4"
+              fill="var(--canary)"
+            />
           </svg>
 
           <div className="qc-auth-verdict">{SIGNATURE_RISK_CARD.verdict}</div>

@@ -1,6 +1,7 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import {
@@ -9,9 +10,10 @@ import {
   deleteAlertDestination,
   toggleAlertDestination,
 } from "@/lib/actions/alerts"
+import { runClientAction } from "@/lib/client-action"
 import type { AlertDestination } from "@/lib/types"
 import { Power, PowerOff, Trash2 } from "lucide-react"
-import { useActionState } from "react"
+import { useActionState, useState, useTransition } from "react"
 import { useFormStatus } from "react-dom"
 
 function SubmitButton() {
@@ -33,6 +35,34 @@ export function AlertDestinations({
       createAlertDestination(formData),
     null
   )
+  const [pending, startTransition] = useTransition()
+  const [rowError, setRowError] = useState<{
+    id: string
+    message: string
+  } | null>(null)
+  const [confirmRemove, setConfirmRemove] = useState<AlertDestination | null>(
+    null
+  )
+
+  function toggle(destination: AlertDestination) {
+    startTransition(async () => {
+      const formData = new FormData()
+      formData.set("id", destination.id)
+      formData.set("enabled", String(!destination.is_enabled))
+      const res = await runClientAction(() => toggleAlertDestination(formData))
+      setRowError(res.ok ? null : { id: destination.id, message: res.error })
+    })
+  }
+
+  function remove(destination: AlertDestination) {
+    startTransition(async () => {
+      const formData = new FormData()
+      formData.set("id", destination.id)
+      const res = await runClientAction(() => deleteAlertDestination(formData))
+      setConfirmRemove(null)
+      setRowError(res.ok ? null : { id: destination.id, message: res.error })
+    })
+  }
 
   return (
     <div className="space-y-4">
@@ -126,42 +156,74 @@ export function AlertDestinations({
                     Last error: {destination.last_error}
                   </p>
                 )}
+                {rowError?.id === destination.id && (
+                  <p role="alert" className="text-xs text-[var(--dry)]">
+                    {rowError.message}
+                  </p>
+                )}
               </div>
               <div className="flex gap-2">
-                <form action={toggleAlertDestination}>
-                  <input type="hidden" name="id" value={destination.id} />
-                  <input
-                    type="hidden"
-                    name="enabled"
-                    value={String(!destination.is_enabled)}
-                  />
-                  <Button
-                    type="submit"
-                    size="icon-sm"
-                    variant={destination.is_enabled ? "secondary" : "outline"}
-                    aria-label={destination.is_enabled ? "Disable" : "Enable"}
-                    title={destination.is_enabled ? "Disable" : "Enable"}
-                  >
-                    {destination.is_enabled ? <PowerOff /> : <Power />}
-                  </Button>
-                </form>
-                <form action={deleteAlertDestination}>
-                  <input type="hidden" name="id" value={destination.id} />
-                  <Button
-                    type="submit"
-                    size="icon-sm"
-                    variant="destructive"
-                    aria-label="Remove"
-                    title="Remove"
-                  >
-                    <Trash2 />
-                  </Button>
-                </form>
+                <Button
+                  type="button"
+                  size="icon-sm"
+                  variant={destination.is_enabled ? "secondary" : "outline"}
+                  aria-label={destination.is_enabled ? "Disable" : "Enable"}
+                  title={destination.is_enabled ? "Disable" : "Enable"}
+                  disabled={pending}
+                  onClick={() => toggle(destination)}
+                >
+                  {destination.is_enabled ? <PowerOff /> : <Power />}
+                </Button>
+                <Button
+                  type="button"
+                  size="icon-sm"
+                  variant="destructive"
+                  aria-label="Remove"
+                  title="Remove"
+                  disabled={pending}
+                  onClick={() => setConfirmRemove(destination)}
+                >
+                  <Trash2 />
+                </Button>
               </div>
             </div>
           ))
         )}
       </div>
+
+      <Dialog
+        open={confirmRemove !== null}
+        onOpenChange={(open) => {
+          if (!open) setConfirmRemove(null)
+        }}
+      >
+        <DialogContent className="max-w-sm">
+          <DialogTitle>Remove {confirmRemove?.name}?</DialogTitle>
+          <p className="text-sm text-muted-foreground">
+            This stops sending alerts to it. This can't be undone.
+          </p>
+          <div className="flex justify-end gap-2">
+            <Button
+              size="sm"
+              variant="secondary"
+              disabled={pending}
+              onClick={() => setConfirmRemove(null)}
+            >
+              Keep
+            </Button>
+            <Button
+              size="sm"
+              variant="destructive"
+              disabled={pending}
+              onClick={() => {
+                if (confirmRemove) remove(confirmRemove)
+              }}
+            >
+              Remove
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

@@ -1,6 +1,11 @@
 import { finiteOrNull, timedFetch } from "./shared"
 import type { AdapterResult, ToolAdapter } from "./types"
 
+// Dropcontact has no dedicated credits endpoint. Their docs say to POST one
+// empty object to /enrich/all, which "will return your remaining credits
+// without consuming any" and enriches nothing - so this preserves the
+// read-only promise despite the POST verb (verified 2026-07-05,
+// developer.dropcontact.com).
 export const dropcontactAdapter: ToolAdapter = {
   toolId: "dropcontact",
   async readBalance(apiKey: string): Promise<AdapterResult> {

@@ -23,4 +23,19 @@ describe("auth brand panel", () => {
     expect(css).toContain(".qc-auth-bubble")
     expect(css).toContain(".qc-auth-risk-card")
   })
+
+  it("keeps the auth risk card feeling live without ignoring reduced motion", () => {
+    expect(source).toContain("qc-auth-watch-strip")
+    expect(source).toContain("qc-auth-sparkline-line")
+    expect(css).toContain("@keyframes qc-auth-card-scan")
+    expect(css).toContain("@keyframes qc-auth-spark-trace")
+
+    const reducedMotionBlock = css.slice(
+      css.indexOf("@media (prefers-reduced-motion: reduce)")
+    )
+
+    expect(reducedMotionBlock).toContain(".qc-auth-risk-card::before")
+    expect(reducedMotionBlock).toContain(".qc-auth-sparkline-line")
+    expect(reducedMotionBlock).toContain(".qc-auth-watch-dot")
+  })
 })

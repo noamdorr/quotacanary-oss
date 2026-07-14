@@ -174,8 +174,16 @@ describe("GET /api/v1/pools", () => {
   // -------------------------------------------------------------------------
   describe("data layer errors", () => {
     it("returns 500 (JSON) when listConnectionsWithBalance throws", async () => {
-      mockVerify.mockResolvedValue({ userId: "user-1", tokenId: "tok-1" })
-      mockConsume.mockResolvedValue(true)
+      mockVerify.mockResolvedValue({
+        userId: "user-1",
+        tokenId: "tok-1",
+        scopes: ["read"],
+      })
+      mockConsume.mockResolvedValue({
+        allowed: true,
+        remaining: 59,
+        resetSeconds: 42,
+      })
       mockList.mockRejectedValue(new Error("connection refused"))
       const res = await GET(bearerRequest("qc_live_test"))
       expect(res.status).toBe(500)
@@ -185,25 +193,80 @@ describe("GET /api/v1/pools", () => {
   })
 
   // -------------------------------------------------------------------------
+  describe("scope check", () => {
+    it("returns 403 insufficient_scope when the token lacks the read scope", async () => {
+      mockVerify.mockResolvedValue({
+        userId: "user-1",
+        tokenId: "tok-1",
+        scopes: [],
+      })
+      const res = await GET(bearerRequest("qc_live_test"))
+      expect(res.status).toBe(403)
+      const body = await res.json()
+      expect(body.error.code).toBe("insufficient_scope")
+      expect(res.headers.get("WWW-Authenticate")).toBe(
+        'Bearer error="insufficient_scope"'
+      )
+      // Scope is checked before the rate limit budget is spent.
+      expect(mockConsume).not.toHaveBeenCalled()
+      expect(mockList).not.toHaveBeenCalled()
+    })
+  })
+
+  // -------------------------------------------------------------------------
   describe("rate limiting", () => {
     it("returns 429 when rate limit is exceeded", async () => {
-      mockVerify.mockResolvedValue({ userId: "user-1", tokenId: "tok-1" })
-      mockConsume.mockResolvedValue(false)
+      mockVerify.mockResolvedValue({
+        userId: "user-1",
+        tokenId: "tok-1",
+        scopes: ["read"],
+      })
+      mockConsume.mockResolvedValue({
+        allowed: false,
+        remaining: 0,
+        resetSeconds: 7,
+      })
       const res = await GET(bearerRequest("qc_live_test"))
       expect(res.status).toBe(429)
       const body = await res.json()
       expect(body.error.code).toBe("rate_limited")
-      expect(res.headers.get("Retry-After")).toBe(String(RATE_WINDOW_SECONDS))
+      // Retry-After / RateLimit-Reset carry the limiter's real resetSeconds.
+      expect(res.headers.get("Retry-After")).toBe("7")
       expect(res.headers.get("RateLimit-Limit")).toBe(String(RATE_LIMIT))
       expect(res.headers.get("RateLimit-Remaining")).toBe("0")
+      expect(res.headers.get("RateLimit-Reset")).toBe("7")
+    })
+
+    it("falls back to the window size in Retry-After when resetSeconds is unknown", async () => {
+      mockVerify.mockResolvedValue({
+        userId: "user-1",
+        tokenId: "tok-1",
+        scopes: ["read"],
+      })
+      mockConsume.mockResolvedValue({
+        allowed: false,
+        remaining: 0,
+        resetSeconds: null,
+      })
+      const res = await GET(bearerRequest("qc_live_test"))
+      expect(res.status).toBe(429)
+      expect(res.headers.get("Retry-After")).toBe(String(RATE_WINDOW_SECONDS))
       expect(res.headers.get("RateLimit-Reset")).toBe(
         String(RATE_WINDOW_SECONDS)
       )
     })
 
     it("does NOT call listConnectionsWithBalance when rate limited", async () => {
-      mockVerify.mockResolvedValue({ userId: "user-1", tokenId: "tok-1" })
-      mockConsume.mockResolvedValue(false)
+      mockVerify.mockResolvedValue({
+        userId: "user-1",
+        tokenId: "tok-1",
+        scopes: ["read"],
+      })
+      mockConsume.mockResolvedValue({
+        allowed: false,
+        remaining: 0,
+        resetSeconds: 7,
+      })
       await GET(bearerRequest("qc_live_test"))
       expect(mockList).not.toHaveBeenCalled()
     })
@@ -212,8 +275,16 @@ describe("GET /api/v1/pools", () => {
   // -------------------------------------------------------------------------
   describe("status filter validation", () => {
     it("returns 400 for an unknown status value", async () => {
-      mockVerify.mockResolvedValue({ userId: "user-1", tokenId: "tok-1" })
-      mockConsume.mockResolvedValue(true)
+      mockVerify.mockResolvedValue({
+        userId: "user-1",
+        tokenId: "tok-1",
+        scopes: ["read"],
+      })
+      mockConsume.mockResolvedValue({
+        allowed: true,
+        remaining: 59,
+        resetSeconds: 42,
+      })
       const res = await GET(bearerRequest("qc_live_test", { status: "bogus" }))
       expect(res.status).toBe(400)
       const body = await res.json()
@@ -221,10 +292,37 @@ describe("GET /api/v1/pools", () => {
     })
 
     it("returns 400 for a partially invalid comma-list", async () => {
-      mockVerify.mockResolvedValue({ userId: "user-1", tokenId: "tok-1" })
-      mockConsume.mockResolvedValue(true)
+      mockVerify.mockResolvedValue({
+        userId: "user-1",
+        tokenId: "tok-1",
+        scopes: ["read"],
+      })
+      mockConsume.mockResolvedValue({
+        allowed: true,
+        remaining: 59,
+        resetSeconds: 42,
+      })
       const res = await GET(
         bearerRequest("qc_live_test", { status: "healthy,bogus" })
+      )
+      expect(res.status).toBe(400)
+      const body = await res.json()
+      expect(body.error.code).toBe("invalid_status")
+    })
+
+    it("returns 400 for status=disconnected (no longer an accepted filter value)", async () => {
+      mockVerify.mockResolvedValue({
+        userId: "user-1",
+        tokenId: "tok-1",
+        scopes: ["read"],
+      })
+      mockConsume.mockResolvedValue({
+        allowed: true,
+        remaining: 59,
+        resetSeconds: 42,
+      })
+      const res = await GET(
+        bearerRequest("qc_live_test", { status: "disconnected" })
       )
       expect(res.status).toBe(400)
       const body = await res.json()
@@ -235,8 +333,16 @@ describe("GET /api/v1/pools", () => {
   // -------------------------------------------------------------------------
   describe("successful response", () => {
     beforeEach(() => {
-      mockVerify.mockResolvedValue({ userId: "user-1", tokenId: "tok-1" })
-      mockConsume.mockResolvedValue(true)
+      mockVerify.mockResolvedValue({
+        userId: "user-1",
+        tokenId: "tok-1",
+        scopes: ["read"],
+      })
+      mockConsume.mockResolvedValue({
+        allowed: true,
+        remaining: 59,
+        resetSeconds: 42,
+      })
       mockList.mockResolvedValue([HEALTHY_CONN, NODATA_CONN])
     })
 
@@ -256,13 +362,42 @@ describe("GET /api/v1/pools", () => {
       const [, calledUserId] = mockList.mock.calls[0]
       expect(calledUserId).toBe("user-1")
     })
+
+    it("sets RateLimit-Limit/Remaining/Reset on a 200", async () => {
+      const res = await GET(bearerRequest("qc_live_test"))
+      expect(res.status).toBe(200)
+      expect(res.headers.get("RateLimit-Limit")).toBe(String(RATE_LIMIT))
+      expect(res.headers.get("RateLimit-Remaining")).toBe("59")
+      expect(res.headers.get("RateLimit-Reset")).toBe("42")
+    })
+
+    it("omits RateLimit-Remaining/Reset when the limiter failed open (nulls)", async () => {
+      mockConsume.mockResolvedValue({
+        allowed: true,
+        remaining: null,
+        resetSeconds: null,
+      })
+      const res = await GET(bearerRequest("qc_live_test"))
+      expect(res.status).toBe(200)
+      expect(res.headers.get("RateLimit-Limit")).toBe(String(RATE_LIMIT))
+      expect(res.headers.get("RateLimit-Remaining")).toBeNull()
+      expect(res.headers.get("RateLimit-Reset")).toBeNull()
+    })
   })
 
   // -------------------------------------------------------------------------
   describe("TENANCY GUARD", () => {
     it("ignores ?user_id= query param and uses the token userId", async () => {
-      mockVerify.mockResolvedValue({ userId: "user-1", tokenId: "tok-1" })
-      mockConsume.mockResolvedValue(true)
+      mockVerify.mockResolvedValue({
+        userId: "user-1",
+        tokenId: "tok-1",
+        scopes: ["read"],
+      })
+      mockConsume.mockResolvedValue({
+        allowed: true,
+        remaining: 59,
+        resetSeconds: 42,
+      })
       mockList.mockResolvedValue([HEALTHY_CONN])
 
       // An attacker supplies someone else's user id in the query string
@@ -282,8 +417,16 @@ describe("GET /api/v1/pools", () => {
   // -------------------------------------------------------------------------
   describe("status filter", () => {
     beforeEach(() => {
-      mockVerify.mockResolvedValue({ userId: "user-1", tokenId: "tok-1" })
-      mockConsume.mockResolvedValue(true)
+      mockVerify.mockResolvedValue({
+        userId: "user-1",
+        tokenId: "tok-1",
+        scopes: ["read"],
+      })
+      mockConsume.mockResolvedValue({
+        allowed: true,
+        remaining: 59,
+        resetSeconds: 42,
+      })
       // Two connections: one healthy (high balance), one nodata (no pools)
       mockList.mockResolvedValue([HEALTHY_CONN, NODATA_CONN])
     })
@@ -329,8 +472,16 @@ describe("GET /api/v1/pools", () => {
   // -------------------------------------------------------------------------
   describe("Cache-Control header", () => {
     it("sets Cache-Control: no-store on success", async () => {
-      mockVerify.mockResolvedValue({ userId: "user-1", tokenId: "tok-1" })
-      mockConsume.mockResolvedValue(true)
+      mockVerify.mockResolvedValue({
+        userId: "user-1",
+        tokenId: "tok-1",
+        scopes: ["read"],
+      })
+      mockConsume.mockResolvedValue({
+        allowed: true,
+        remaining: 59,
+        resetSeconds: 42,
+      })
       mockList.mockResolvedValue([])
       const res = await GET(bearerRequest("qc_live_test"))
       expect(res.headers.get("Cache-Control")).toBe("no-store")

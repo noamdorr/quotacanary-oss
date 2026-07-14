@@ -28,19 +28,31 @@ export async function GET(req: NextRequest) {
     return res
   }
 
-  // 2. Rate limit
-  const allowed = await consumeRateLimit(auth.tokenId)
-  if (!allowed) {
-    const res = jsonError(429, "rate_limited", "Too many requests. Slow down.")
-    res.headers.set("Retry-After", String(RATE_WINDOW_SECONDS))
-    res.headers.set("RateLimit-Limit", String(RATE_LIMIT))
-    res.headers.set("RateLimit-Remaining", "0")
-    // Reset is the window size (conservative); we don't track exact time remaining.
-    res.headers.set("RateLimit-Reset", String(RATE_WINDOW_SECONDS))
+  // 2. Scope check (tokens carry scopes; this endpoint requires "read")
+  if (!auth.scopes.includes("read")) {
+    const res = jsonError(
+      403,
+      "insufficient_scope",
+      "This token does not have the read scope."
+    )
+    res.headers.set("WWW-Authenticate", 'Bearer error="insufficient_scope"')
     return res
   }
 
-  // 3. Parse status filter
+  // 3. Rate limit
+  const rate = await consumeRateLimit(auth.tokenId)
+  if (!rate.allowed) {
+    const res = jsonError(429, "rate_limited", "Too many requests. Slow down.")
+    // Reset falls back to the window size when the limiter did not report it.
+    const reset = String(rate.resetSeconds ?? RATE_WINDOW_SECONDS)
+    res.headers.set("Retry-After", reset)
+    res.headers.set("RateLimit-Limit", String(RATE_LIMIT))
+    res.headers.set("RateLimit-Remaining", "0")
+    res.headers.set("RateLimit-Reset", reset)
+    return res
+  }
+
+  // 4. Parse status filter
   const filter = parseStatusFilter(req.nextUrl.searchParams.get("status"))
   if (!filter.ok) {
     return jsonError(
@@ -50,7 +62,7 @@ export async function GET(req: NextRequest) {
     )
   }
 
-  // 4. Fetch + serialize (userId comes ONLY from the verified token — never from query params)
+  // 5. Fetch + serialize (userId comes ONLY from the verified token, never from query params)
   const supabase = createAdminClient()
   let pools: PoolPayload[]
   try {
@@ -64,12 +76,20 @@ export async function GET(req: NextRequest) {
     )
   }
 
-  // 5. Apply status filter if provided
+  // 6. Apply status filter if provided
   if (filter.statuses !== null) {
     const statuses = filter.statuses
     pools = pools.filter((p) => statuses.has(p.status))
   }
 
-  // 6. Respond
-  return jsonOk({ pools })
+  // 7. Respond (fail-open leaves remaining/reset unknown; omit those headers)
+  const res = jsonOk({ pools })
+  res.headers.set("RateLimit-Limit", String(RATE_LIMIT))
+  if (rate.remaining !== null) {
+    res.headers.set("RateLimit-Remaining", String(rate.remaining))
+  }
+  if (rate.resetSeconds !== null) {
+    res.headers.set("RateLimit-Reset", String(rate.resetSeconds))
+  }
+  return res
 }

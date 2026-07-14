@@ -1,0 +1,11 @@
+/* TEAM */
+Founder: Noam. Got tired of tools dying mid-campaign, built the bird.
+Mascot: The canary. Does most of the watching, all of the singing.
+
+/* SITE */
+Stack: Next.js, Supabase, one very alert bird.
+Motto: the bird that sings before the credits die.
+Source: https://github.com/noamdorr/quotacanary-oss
+
+/* YOU */
+You read humans.txt files. The bird would like to be friends.

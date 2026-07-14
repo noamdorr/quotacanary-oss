@@ -1,6 +1,5 @@
 export type ToolIntegrationType = "api" | "manual_only"
 export type ConnectionStatus = "active" | "stale" | "error" | "disconnected"
-export type DisplayMode = "flat" | "grouped"
 export type ViewMode = "table" | "cards"
 export type NotifyMode = "off" | "critical" | "low_and_critical"
 export type AlertLevel = "none" | "low" | "critical"

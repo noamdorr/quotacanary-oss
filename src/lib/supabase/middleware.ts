@@ -1,5 +1,6 @@
 import {
   isAppOnlyPath,
+  isIpLiteralHost,
   isProtectedAppPath,
   resolveHost,
 } from "@/lib/host-routing"
@@ -48,6 +49,13 @@ export async function updateSession(request: NextRequest) {
     // The marketing host only serves the homepage + Next internals. App
     // paths don't exist here - bounce them to the app subdomain.
     if (isAppOnlyPath(pathname)) {
+      // An IP-literal host can't be prefixed with app. (the resulting URL is
+      // invalid and NextResponse.redirect throws). The marketing surface
+      // still refuses app paths, so send the visitor to the homepage on the
+      // same host instead of crashing.
+      if (isIpLiteralHost(host)) {
+        return NextResponse.redirect(`${proto}://${host}/`)
+      }
       const appHost = host.replace(/^(www\.|marketing\.)?/, "app.")
       return NextResponse.redirect(`${proto}://${appHost}${pathname}${search}`)
     }

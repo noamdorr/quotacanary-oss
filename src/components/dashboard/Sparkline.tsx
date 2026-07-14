@@ -1,3 +1,5 @@
+import type { CSSProperties } from "react"
+
 type Tone = "healthy" | "low" | "critical" | "neutral"
 
 const FILL: Record<Tone, string> = {
@@ -33,8 +35,13 @@ export function Sparkline({
         <span
           // biome-ignore lint/suspicious/noArrayIndexKey: bars are positional and values may repeat
           key={i}
-          className={`w-1 rounded-[1px] ${FILL[tone]}`}
-          style={{ height: `${10 + ((v - min) / span) * 90}%` }}
+          className={`qc-spark-bar w-1 rounded-[1px] ${FILL[tone]}`}
+          style={
+            {
+              height: `${10 + ((v - min) / span) * 90}%`,
+              "--i": i,
+            } as CSSProperties
+          }
         />
       ))}
     </div>

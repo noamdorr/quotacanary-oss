@@ -1,3 +1,4 @@
+import { Canary } from "@/components/brand/Canary"
 import { DashboardClient } from "@/components/dashboard/DashboardClient"
 import { OnboardingFlow } from "@/components/dashboard/OnboardingFlow"
 import { Button } from "@/components/ui/button"
@@ -60,6 +61,7 @@ export default async function DashboardPage({
       <h1 className="mb-6 text-2xl font-bold">Dashboard</h1>
       {connections.length === 0 ? (
         <div className="flex flex-col items-center gap-4 rounded-lg border border-dashed border-border/60 py-20 text-center">
+          <Canary mood="sleepy" size={64} />
           <p className="text-xl font-semibold">No tools connected yet</p>
           <p className="max-w-sm text-sm text-muted-foreground">
             Connect a credit-based tool to start monitoring balances and getting

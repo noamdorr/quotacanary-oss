@@ -1,12 +1,14 @@
 import type { PoolPayload } from "./serialize"
 
+// "disconnected" is deliberately absent: the app never writes that status, so
+// it is not an accepted filter value. It stays in the PoolPayload type only
+// for tolerance of manually-set DB rows.
 export const KNOWN_STATUSES: PoolPayload["status"][] = [
   "healthy",
   "low",
   "critical",
   "stale",
   "error",
-  "disconnected",
   "nodata",
 ]
 

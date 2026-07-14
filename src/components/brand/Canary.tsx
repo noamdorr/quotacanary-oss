@@ -7,6 +7,7 @@ export type CanaryMood = "perched" | "singing" | "sleepy" | "alert" | "dry"
 const CANARY = "#FFC400"
 const CANARY_DEEP = "#E0AC00"
 const INK = "#1a1a1a"
+const CREAM = "#FFFDF5"
 
 export function Canary({
   size = 64,
@@ -18,8 +19,10 @@ export function Canary({
   style?: CSSProperties
 }) {
   const dying = mood === "dry"
-  const sleepy = mood === "sleepy" || dying
+  const sleepy = mood === "sleepy"
+  const alert = mood === "alert"
   const singing = mood === "singing"
+  const eyesOpen = !sleepy && !dying
   const filterId = `qc-rough-${useId()}`
 
   return (
@@ -38,17 +41,37 @@ export function Canary({
       </defs>
 
       {singing && (
-        <g
-          className="qc-canary-note"
-          style={{ animation: "note-float 1.4s ease-out infinite" }}
-          fill="none"
-          stroke={INK}
-          strokeWidth={1.4}
-          strokeLinecap="round"
-        >
-          <circle cx="86" cy="22" r="3" fill={INK} stroke="none" />
-          <path d="M 88.5 22 L 88.5 9 q 4 1 4 5" />
-        </g>
+        <>
+          <g
+            className="qc-canary-note"
+            style={{ animation: "note-float 1.6s ease-out infinite" }}
+            fill="none"
+            stroke={INK}
+            strokeWidth={1.4}
+            strokeLinecap="round"
+          >
+            <circle cx="86" cy="22" r="3" fill={INK} stroke="none" />
+            <path d="M 88.5 22 L 88.5 9 q 4 1 4 5" />
+          </g>
+          <g
+            className="qc-canary-note"
+            style={
+              {
+                animation: "note-float 1.6s ease-out infinite",
+                animationDelay: "0.8s",
+                animationFillMode: "backwards",
+                "--qc-note-delay": "0.8s",
+              } as CSSProperties
+            }
+            fill="none"
+            stroke={INK}
+            strokeWidth={1.2}
+            strokeLinecap="round"
+          >
+            <circle cx="79" cy="16" r="2.2" fill={INK} stroke="none" />
+            <path d="M 80.9 16 L 80.9 6.5 q 3 0.8 3 3.6" />
+          </g>
+        </>
       )}
 
       <path
@@ -62,7 +85,9 @@ export function Canary({
       <g
         className="qc-canary-breathe"
         style={{
-          animation: dying ? "none" : "breathe 3.2s ease-in-out infinite",
+          animation: dying
+            ? "none"
+            : `breathe ${alert ? 2.1 : 3.2}s ease-in-out infinite`,
           transformOrigin: "50px 60px",
         }}
         transform={dying ? "translate(0 5) rotate(3 50 60)" : undefined}
@@ -96,23 +121,93 @@ export function Canary({
           strokeWidth={1.2}
           filter={`url(#${filterId})`}
         />
-        <path
-          d="M 78 40 l 7 -1 l -7 5 z"
-          fill={CANARY_DEEP}
-          stroke={INK}
-          strokeWidth={1.2}
-          strokeLinejoin="round"
-          filter={`url(#${filterId})`}
-        />
-        <path
-          d="M 56 24 q 1 -7 5 -7 q -1 4 0 8"
-          fill="none"
-          stroke={INK}
-          strokeWidth={1.4}
-          strokeLinecap="round"
-          filter={`url(#${filterId})`}
-        />
-        {sleepy ? (
+        {singing ? (
+          <g
+            fill={CANARY_DEEP}
+            stroke={INK}
+            strokeWidth={1.2}
+            strokeLinejoin="round"
+          >
+            <path
+              d="M 78 38.5 l 7.5 -2.5 q -3.5 3.5 -7 3.5 z"
+              filter={`url(#${filterId})`}
+            />
+            <path
+              d="M 78.5 42.5 l 6 3 q -3.5 1.2 -6.5 -0.5 z"
+              filter={`url(#${filterId})`}
+            />
+          </g>
+        ) : (
+          <path
+            d="M 78 40 l 7 -1 l -7 5 z"
+            fill={CANARY_DEEP}
+            stroke={INK}
+            strokeWidth={1.2}
+            strokeLinejoin="round"
+            filter={`url(#${filterId})`}
+          />
+        )}
+        {dying ? (
+          <path
+            d="M 57 25 q 5 -4 8 -2 q -4 1 -5 5"
+            fill="none"
+            stroke={INK}
+            strokeWidth={1.4}
+            strokeLinecap="round"
+            filter={`url(#${filterId})`}
+          />
+        ) : (
+          <path
+            d="M 56 24 q 1 -7 5 -7 q -1 4 0 8"
+            fill="none"
+            stroke={INK}
+            strokeWidth={1.4}
+            strokeLinecap="round"
+            filter={`url(#${filterId})`}
+          />
+        )}
+        {alert && (
+          <path
+            d="M 62 26 q 4 -7 7 -6 q -2 4 -1 8"
+            fill="none"
+            stroke={INK}
+            strokeWidth={1.4}
+            strokeLinecap="round"
+            filter={`url(#${filterId})`}
+          />
+        )}
+        {eyesOpen ? (
+          <>
+            <g className={alert ? undefined : "qc-canary-eye"}>
+              <circle cx="67" cy="40" r={alert ? 2.6 : 1.8} fill={INK} />
+              <circle
+                cx={alert ? 66.1 : 66.4}
+                cy={alert ? 39 : 39.4}
+                r={alert ? 0.8 : 0.55}
+                fill={CREAM}
+              />
+            </g>
+            {!alert && (
+              <path
+                className="qc-canary-eye-lid"
+                d="M 63.5 40 q 3.5 2.8 7 0"
+                stroke={INK}
+                strokeWidth={1.6}
+                fill="none"
+                strokeLinecap="round"
+              />
+            )}
+          </>
+        ) : dying ? (
+          <path
+            d="M 65.2 38.2 l 3.6 3.6 M 68.8 38.2 l -3.6 3.6"
+            stroke={INK}
+            strokeWidth={1.5}
+            fill="none"
+            strokeLinecap="round"
+            filter={`url(#${filterId})`}
+          />
+        ) : (
           <path
             d="M 63 40 q 4 3 8 0"
             stroke={INK}
@@ -121,17 +216,20 @@ export function Canary({
             strokeLinecap="round"
             filter={`url(#${filterId})`}
           />
-        ) : (
-          <circle cx="67" cy="40" r="1.8" fill={INK} />
         )}
-        <path
-          d="M 22 62 l -8 -6 m 8 6 l -10 2 m 10 -2 l -6 8"
-          stroke={INK}
-          strokeWidth={1.4}
-          fill="none"
-          strokeLinecap="round"
-          filter={`url(#${filterId})`}
-        />
+        <g
+          className={dying || sleepy ? undefined : "qc-canary-tail"}
+          style={{ transformOrigin: "22px 62px" }}
+        >
+          <path
+            d="M 22 62 l -8 -6 m 8 6 l -10 2 m 10 -2 l -6 8"
+            stroke={INK}
+            strokeWidth={1.4}
+            fill="none"
+            strokeLinecap="round"
+            filter={`url(#${filterId})`}
+          />
+        </g>
         <path
           d="M 30 70 q 22 8 44 -2"
           stroke={INK}

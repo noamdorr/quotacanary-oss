@@ -29,6 +29,11 @@ export const ROTATING_TOOL_LOGOS: readonly RotatingToolLogo[] = [
   { name: "ScraperAPI", logo: "/logos/rotating/scraperapi.webp" },
   { name: "Scrapingdog", logo: "/logos/rotating/scrapingdog.webp" },
   { name: "Bright Data", logo: "/logos/rotating/brightdata.webp" },
+  { name: "BuiltWith", logo: "/logos/rotating/builtwith.webp" },
+  {
+    name: "Keywords Everywhere",
+    logo: "/logos/rotating/keywordseverywhere.webp",
+  },
   { name: "Apify", logo: "/logos/rotating/apify.webp" },
   { name: "Firecrawl", logo: "/logos/rotating/firecrawl.webp" },
   { name: "Tavily", logo: "/logos/rotating/tavily.webp" },

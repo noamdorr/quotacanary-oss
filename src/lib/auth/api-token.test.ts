@@ -16,15 +16,21 @@ vi.mock("@/lib/supabase/admin", () => ({
   createAdminClient: () => createAdminClient(),
 }))
 
-type TokenRow = { id: string; user_id: string; revoked_at: string | null }
+type TokenRow = {
+  id: string
+  user_id: string
+  revoked_at: string | null
+  scopes?: string[] | null
+}
 
 // Minimal fake of the chained query builder verifyApiTokenByRaw uses:
 //   .from("api_tokens").select(...).eq("token_hash", hash).maybeSingle()
 // for the lookup, and .update(...).eq("id", id) for the last_used_at touch.
-// consumeRateLimit instead calls .rpc("consume_api_rate_limit", params), faked
-// via rpcResult / rpcCalls below.
+// consumeRateLimit instead calls .rpc("consume_api_rate_limit_v2", params),
+// faked via rpcResult / rpcCalls below.
 let adminClient: SupabaseClient
 let lookupRow: TokenRow | null
+let lookupError: { message: string } | null
 const updates: { id: string; payload: Record<string, unknown> }[] = []
 let rpcResult: { data: unknown; error: unknown }
 const rpcCalls: { fn: string; params: Record<string, unknown> }[] = []
@@ -50,7 +56,9 @@ function makeAdminClient(): SupabaseClient {
           return builder
         }),
         maybeSingle: vi.fn(async () => {
-          if (table === "api_tokens") return { data: lookupRow, error: null }
+          if (table === "api_tokens") {
+            return { data: lookupRow, error: lookupError }
+          }
           return { data: null, error: null }
         }),
       }
@@ -65,6 +73,7 @@ function makeAdminClient(): SupabaseClient {
 
 beforeEach(() => {
   lookupRow = null
+  lookupError = null
   updates.length = 0
   rpcResult = { data: null, error: null }
   rpcCalls.length = 0
@@ -145,6 +154,51 @@ describe("verifyApiToken header parsing", () => {
     expect(await verifyApiToken(req)).toBeNull()
     expect(createAdminClient).not.toHaveBeenCalled()
   })
+
+  it("accepts a lowercase bearer scheme (RFC 7235 schemes are case-insensitive)", async () => {
+    const { verifyApiToken } = await import("./api-token")
+    lookupRow = {
+      id: "tok-1",
+      user_id: "user-1",
+      revoked_at: null,
+      scopes: ["read"],
+    }
+    const req = new Request("https://x.test", {
+      headers: { authorization: "bearer qc_live_valid" },
+    })
+    expect(await verifyApiToken(req)).toEqual({
+      userId: "user-1",
+      tokenId: "tok-1",
+      scopes: ["read"],
+    })
+  })
+
+  it("accepts an uppercase BEARER scheme", async () => {
+    const { verifyApiToken } = await import("./api-token")
+    lookupRow = {
+      id: "tok-1",
+      user_id: "user-1",
+      revoked_at: null,
+      scopes: ["read"],
+    }
+    const req = new Request("https://x.test", {
+      headers: { authorization: "BEARER qc_live_valid" },
+    })
+    expect(await verifyApiToken(req)).toEqual({
+      userId: "user-1",
+      tokenId: "tok-1",
+      scopes: ["read"],
+    })
+  })
+
+  it("returns null and skips the DB for a garbage scheme", async () => {
+    const { verifyApiToken } = await import("./api-token")
+    const req = new Request("https://x.test", {
+      headers: { authorization: "Token qc_live_valid" },
+    })
+    expect(await verifyApiToken(req)).toBeNull()
+    expect(createAdminClient).not.toHaveBeenCalled()
+  })
 })
 
 describe("verifyApiTokenByRaw", () => {
@@ -165,13 +219,43 @@ describe("verifyApiTokenByRaw", () => {
     expect(updates).toHaveLength(0)
   })
 
-  it("returns the user_id and token id for a valid, non-revoked token", async () => {
+  it("returns the user_id, token id and scopes for a valid, non-revoked token", async () => {
     const { verifyApiTokenByRaw } = await import("./api-token")
-    lookupRow = { id: "tok-1", user_id: "user-1", revoked_at: null }
+    lookupRow = {
+      id: "tok-1",
+      user_id: "user-1",
+      revoked_at: null,
+      scopes: ["read", "write"],
+    }
     expect(await verifyApiTokenByRaw("qc_live_valid")).toEqual({
       userId: "user-1",
       tokenId: "tok-1",
+      scopes: ["read", "write"],
     })
+  })
+
+  it("defaults scopes to [] when the column is null", async () => {
+    const { verifyApiTokenByRaw } = await import("./api-token")
+    lookupRow = {
+      id: "tok-1",
+      user_id: "user-1",
+      revoked_at: null,
+      scopes: null,
+    }
+    const result = await verifyApiTokenByRaw("qc_live_valid")
+    expect(result?.scopes).toEqual([])
+  })
+
+  it("logs a warning and returns null (fail closed) when the lookup errors", async () => {
+    const { verifyApiTokenByRaw } = await import("./api-token")
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {})
+    lookupError = { message: "connection refused" }
+    expect(await verifyApiTokenByRaw("qc_live_valid")).toBeNull()
+    expect(warn).toHaveBeenCalledWith(
+      "api_tokens lookup failed:",
+      "connection refused"
+    )
+    warn.mockRestore()
   })
 
   it("schedules the last_used_at touch via after() on the valid path", async () => {
@@ -187,40 +271,63 @@ describe("verifyApiTokenByRaw", () => {
 })
 
 describe("verifyApiToken return shape", () => {
-  it("forwards { userId, tokenId } for a valid bearer token", async () => {
+  it("forwards { userId, tokenId, scopes } for a valid bearer token", async () => {
     const { verifyApiToken } = await import("./api-token")
-    lookupRow = { id: "tok-1", user_id: "user-1", revoked_at: null }
+    lookupRow = {
+      id: "tok-1",
+      user_id: "user-1",
+      revoked_at: null,
+      scopes: ["read"],
+    }
     const req = new Request("https://x.test", {
       headers: { authorization: "Bearer qc_live_valid" },
     })
     expect(await verifyApiToken(req)).toEqual({
       userId: "user-1",
       tokenId: "tok-1",
+      scopes: ["read"],
     })
   })
 })
 
 describe("consumeRateLimit", () => {
-  it("returns true when the limiter rpc allows the request", async () => {
+  it("maps an allowed v2 row to { allowed, remaining, resetSeconds }", async () => {
     const { consumeRateLimit } = await import("./api-token")
-    rpcResult = { data: true, error: null }
-    expect(await consumeRateLimit("tok-1")).toBe(true)
+    rpcResult = {
+      data: [{ allowed: true, remaining: 41, reset_seconds: 17 }],
+      error: null,
+    }
+    expect(await consumeRateLimit("tok-1")).toEqual({
+      allowed: true,
+      remaining: 41,
+      resetSeconds: 17,
+    })
   })
 
-  it("returns false when the limiter rpc denies the request", async () => {
+  it("maps a denied v2 row to allowed: false", async () => {
     const { consumeRateLimit } = await import("./api-token")
-    rpcResult = { data: false, error: null }
-    expect(await consumeRateLimit("tok-1")).toBe(false)
+    rpcResult = {
+      data: [{ allowed: false, remaining: 0, reset_seconds: 9 }],
+      error: null,
+    }
+    expect(await consumeRateLimit("tok-1")).toEqual({
+      allowed: false,
+      remaining: 0,
+      resetSeconds: 9,
+    })
   })
 
-  it("calls the consume_api_rate_limit rpc with the token id, limit and window", async () => {
+  it("calls the consume_api_rate_limit_v2 rpc with the token id, limit and window", async () => {
     const { consumeRateLimit, RATE_LIMIT, RATE_WINDOW_SECONDS } = await import(
       "./api-token"
     )
-    rpcResult = { data: true, error: null }
+    rpcResult = {
+      data: [{ allowed: true, remaining: 59, reset_seconds: 60 }],
+      error: null,
+    }
     await consumeRateLimit("tok-1")
     expect(rpcCalls).toHaveLength(1)
-    expect(rpcCalls[0].fn).toBe("consume_api_rate_limit")
+    expect(rpcCalls[0].fn).toBe("consume_api_rate_limit_v2")
     expect(rpcCalls[0].params).toEqual({
       p_token_id: "tok-1",
       p_limit: RATE_LIMIT,
@@ -230,9 +337,28 @@ describe("consumeRateLimit", () => {
     expect(RATE_WINDOW_SECONDS).toBe(60)
   })
 
-  it("fails open (returns true) when the rpc errors, so a limiter outage does not break the read API", async () => {
+  it("fails open with nulls when the rpc errors, so a limiter outage does not break the read API", async () => {
     const { consumeRateLimit } = await import("./api-token")
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {})
     rpcResult = { data: null, error: { message: "boom" } }
-    expect(await consumeRateLimit("tok-1")).toBe(true)
+    expect(await consumeRateLimit("tok-1")).toEqual({
+      allowed: true,
+      remaining: null,
+      resetSeconds: null,
+    })
+    expect(warn).toHaveBeenCalled()
+    warn.mockRestore()
+  })
+
+  it("fails open with nulls when the rpc returns no row", async () => {
+    const { consumeRateLimit } = await import("./api-token")
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {})
+    rpcResult = { data: [], error: null }
+    expect(await consumeRateLimit("tok-1")).toEqual({
+      allowed: true,
+      remaining: null,
+      resetSeconds: null,
+    })
+    warn.mockRestore()
   })
 })

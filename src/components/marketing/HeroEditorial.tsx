@@ -1,9 +1,8 @@
 import { BurnRateDemo } from "@/components/marketing/BurnRateDemo"
-import { CanaryCallout } from "@/components/marketing/CanaryCallout"
+import { HeroMascot } from "@/components/marketing/HeroMascot"
 import { LaunchVideoDialog } from "@/components/marketing/LaunchVideoDialog"
 import { APP_SIGNUP_URL } from "@/components/marketing/constants"
 import { COPY } from "@/components/marketing/copy"
-import { MASCOT_LINES } from "@/lib/marketing-mascot"
 
 export function HeroEditorial() {
   return (
@@ -74,13 +73,7 @@ export function HeroEditorial() {
         {/* RIGHT: mascot + demo card */}
         <div style={{ display: "grid", gap: 18, position: "relative" }}>
           <div className="qc-hero-demo-wrap">
-            <CanaryCallout
-              className="qc-hero-mascot"
-              line={MASCOT_LINES.hero}
-              mood="singing"
-              revealOnHover
-              size={132}
-            />
+            <HeroMascot />
             <BurnRateDemo />
           </div>
         </div>

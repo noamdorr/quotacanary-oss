@@ -9,7 +9,9 @@ export type PoolRow = {
 }
 
 // Newest reading timestamp across all of a connection's pools (null = none).
-function newestRecordedAt(connection: ConnectionWithBalance): string | null {
+export function newestRecordedAt(
+  connection: ConnectionWithBalance
+): string | null {
   let newest: string | null = null
   for (const pool of connection.pools) {
     if (newest == null || pool.recorded_at > newest) newest = pool.recorded_at

@@ -30,7 +30,12 @@ export async function POST(request: NextRequest) {
     .from("connections")
     .select("id")
     .eq("connection_type", "api")
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    // Log the detail server-side only: the response body can end up in cron
+    // logs, and the DB message may carry connection/DSN details.
+    console.error("[poll] connections query failed:", error.message)
+    return NextResponse.json({ error: "query failed" }, { status: 500 })
+  }
 
   // Refresh in bounded-concurrency batches so one slow/failing vendor can't
   // stall or abort the rest of the run (a throw is isolated per connection).

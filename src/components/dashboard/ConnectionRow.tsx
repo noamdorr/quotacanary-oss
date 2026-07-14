@@ -61,10 +61,7 @@ export function ConnectionRow({
     (status.level === "low" || status.level === "critical")
 
   return (
-    <button
-      type="button"
-      data-pool-row-key={rowKey}
-      onClick={onOpen}
+    <div
       className={cn(
         ROW_GRID,
         "relative w-full border-l-[3px] px-5 py-3 text-left transition-colors hover:bg-muted/60",
@@ -73,7 +70,15 @@ export function ConnectionRow({
           "bg-[var(--canary-tint)]/35 before:pointer-events-none before:absolute before:inset-1 before:rounded-lg before:border before:border-[var(--canary)]/60 before:bg-[var(--canary-tint)]/20 before:content-['']"
       )}
     >
-      <span className="relative flex h-7 w-7 items-center justify-center rounded-md bg-secondary text-xs font-bold text-secondary-foreground">
+      {/* Overlay button = row-wide click target without nesting the "Get more" link inside a button. */}
+      <button
+        type="button"
+        data-pool-row-key={rowKey}
+        onClick={onOpen}
+        aria-label={`Open ${c.name} details`}
+        className="absolute inset-0 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-inset focus-visible:ring-ring/50"
+      />
+      <span className="pointer-events-none relative flex h-7 w-7 items-center justify-center rounded-md bg-secondary text-xs font-bold text-secondary-foreground">
         {c.tool.logo_url ? (
           <img
             src={c.tool.logo_url}
@@ -138,8 +143,7 @@ export function ConnectionRow({
             href={c.tool.topup_url}
             target="_blank"
             rel="noopener noreferrer"
-            onClick={(e) => e.stopPropagation()}
-            className="inline-flex rounded-md bg-foreground px-3 py-1.5 text-xs font-semibold text-background hover:opacity-90"
+            className="relative inline-flex rounded-md bg-foreground px-3 py-1.5 text-xs font-semibold text-background hover:opacity-90"
           >
             <span className="flex items-center gap-1">
               Get more <ExternalLink className="h-3 w-3" />
@@ -151,6 +155,6 @@ export function ConnectionRow({
           </span>
         )}
       </span>
-    </button>
+    </div>
   )
 }

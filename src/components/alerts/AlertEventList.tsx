@@ -1,6 +1,5 @@
+import { MarkReadButton } from "@/components/alerts/MarkReadButton"
 import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { markAlertEventRead } from "@/lib/actions/alerts"
 import type { AlertEvent } from "@/lib/types"
 
 export function AlertEventList({ events }: { events: AlertEvent[] }) {
@@ -54,14 +53,7 @@ export function AlertEventList({ events }: { events: AlertEvent[] }) {
                 </div>
               )}
             </div>
-            {!event.read_at && (
-              <form action={markAlertEventRead}>
-                <input type="hidden" name="id" value={event.id} />
-                <Button type="submit" size="sm" variant="secondary">
-                  Mark read
-                </Button>
-              </form>
-            )}
+            {!event.read_at && <MarkReadButton eventId={event.id} />}
           </div>
         </article>
       ))}
