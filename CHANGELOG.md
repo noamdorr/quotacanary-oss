@@ -9,6 +9,41 @@ migration under **Upgrade notes**. Always run the migration step after updating.
 
 ## [Unreleased]
 
+## [1.0.5] - 2026-07-16
+
+### Fixed
+- A database error during alert dispatch can no longer suppress alerts. Every
+  lookup in the dispatch path discarded its error, so "the query failed" and
+  "the row isn't there" were indistinguishable, and absence drove decisions
+  that don't retry:
+  - A failed **destination** lookup was read as "no external channel is
+    configured", which satisfied the alert and advanced the connection's
+    high-water mark. The connection then never escalated again until its
+    balance recovered and dropped a second time. This one bites self-hosted
+    installs hardest: without `POSTMARK_SERVER_TOKEN` a webhook is the only
+    channel, so there was nothing else left to deliver the warning.
+  - A failed **event** lookup was read as "this alert is gone", recording a
+    non-retryable pause that only cleared if you edited a destination.
+  - A failed lookup during **recovery** skipped the cancellation, letting a
+    stale low-balance warning fire against a balance that had already
+    recovered.
+  Failed lookups now abort the affected step and retry on the next poll. A
+  failure to record a delivery result is no longer ignored either; unrecorded
+  results are re-sent once the claim lease lapses, so a persistent failure
+  meant duplicate alerts.
+- The poll response reports `alertsDegraded` when the delivery loop cannot
+  run. It previously returned `alertsSent: 0` whether it had nothing to send
+  or was completely broken, so an unreachable delivery loop looked healthy.
+
+### Upgrade notes
+- No new environment variables and no new migrations. Update the code and
+  redeploy.
+- Recommended for every install on 1.0.4 or earlier. A single failed query
+  could permanently silence a connection's alerts, and nothing surfaced it.
+- Watch `alertsDegraded` in the `/api/poll` response. `true` means the delivery
+  loop could not run to completion and alerts are not being delivered; the
+  server log names the step that failed.
+
 ## [1.0.4] - 2026-07-16
 
 ### Fixed
@@ -201,7 +236,8 @@ migration under **Upgrade notes**. Always run the migration step after updating.
 - New optional env var `APP_ONLY` (set `true` for single-domain self-host).
 - Run `supabase db push` (hosted) or `supabase db reset` (local) after pulling.
 
-[unreleased]: https://github.com/noamdorr/quotacanary-oss/compare/v1.0.4...HEAD
+[unreleased]: https://github.com/noamdorr/quotacanary-oss/compare/v1.0.5...HEAD
+[1.0.5]: https://github.com/noamdorr/quotacanary-oss/compare/v1.0.4...v1.0.5
 [1.0.4]: https://github.com/noamdorr/quotacanary-oss/compare/v1.0.3...v1.0.4
 [1.0.3]: https://github.com/noamdorr/quotacanary-oss/compare/v1.0.2...v1.0.3
 [1.0.2]: https://github.com/noamdorr/quotacanary-oss/compare/v1.0.1...v1.0.2

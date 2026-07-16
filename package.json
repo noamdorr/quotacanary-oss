@@ -1,6 +1,6 @@
 {
   "name": "quotacanary",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "See the health of your entire credit-based tool stack in under 5 seconds",
   "private": true,
   "license": "MIT",

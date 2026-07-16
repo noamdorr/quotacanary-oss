@@ -747,6 +747,184 @@ describe("dispatchAlerts retry-safe delivery", () => {
   })
 })
 
+// A query builder whose chain resolves to a Supabase error, the way the real
+// client reports a failed select (data: null alongside the error).
+function failingBuilder(error: { message: string }) {
+  // biome-ignore lint/suspicious/noExplicitAny: test double for the builder
+  const api: any = {
+    select: () => api,
+    insert: () => api,
+    upsert: () => api,
+    update: () => api,
+    eq: () => api,
+    in: () => api,
+    is: () => api,
+    single: () => api,
+    maybeSingle: () => api,
+    // biome-ignore lint/suspicious/noThenProperty: Supabase builders are thenables; the fake must be awaitable the same way.
+    then: (resolve: (v: unknown) => unknown) =>
+      Promise.resolve({ data: null, error }).then(resolve),
+  }
+  return api
+}
+
+// Wrap a fake db so one rpc or one table fails, simulating a transient
+// database error partway through a poll. `times` bounds how many queries
+// against the table fail, so a test can model one bad second rather than a
+// table that is down for the whole poll - the two have different blast radii.
+function withFailure(
+  db: ReturnType<typeof fakeDb>,
+  failure: { rpc?: string; table?: string; times?: number }
+) {
+  const error = { message: "transient database failure" }
+  let remaining = failure.times ?? Number.POSITIVE_INFINITY
+  const base = db.client as unknown as {
+    from: (name: string) => unknown
+    rpc: (fn: string, args: Record<string, unknown>) => Promise<unknown>
+  }
+  return {
+    from: (name: string) => {
+      if (name !== failure.table || remaining <= 0) return base.from(name)
+      remaining--
+      return failingBuilder(error)
+    },
+    rpc: async (fn: string, args: Record<string, unknown>) =>
+      fn === failure.rpc ? { data: null, error } : base.rpc(fn, args),
+  } as unknown as SupabaseClient
+}
+
+describe("dispatchAlerts failure visibility", () => {
+  it("reports a degraded dispatch when the delivery claim fails", async () => {
+    const db = seededDb()
+    const { dispatchAlerts } = await import("./dispatch")
+
+    const res = await dispatchAlerts(
+      withFailure(db, { rpc: "claim_due_alert_deliveries" }),
+      []
+    )
+
+    // Without this the poll reports a healthy 200 {"alertsSent":0} while no
+    // alert can ever be delivered.
+    expect(res.degraded).toBe(true)
+  })
+
+  it("keeps a claimed delivery pending when the event lookup fails, rather than pausing it forever", async () => {
+    const db = seededDb()
+    sendEmail.mockResolvedValue({
+      ok: false,
+      error: "Postmark error 503",
+      retryable: true,
+      // biome-ignore lint/suspicious/noExplicitAny: mock override
+    } as any)
+    await run(db, [evaluation(50, 50)])
+    const delivery = db.tables.alert_deliveries[0]
+    expect(delivery.status).toBe("pending")
+    delivery.next_attempt_at = new Date(Date.now() - 60_000).toISOString()
+
+    const { dispatchAlerts } = await import("./dispatch")
+    const res = await dispatchAlerts(
+      withFailure(db, { table: "alert_events" }),
+      []
+    )
+
+    // A failed lookup must not be read as "the event is gone": that records a
+    // non-retryable pause, which only re-arms if a destination is edited, so a
+    // momentary blip would permanently suppress a real alert.
+    expect(delivery.status).toBe("pending")
+    expect(delivery.attempt_count).toBe(1)
+    expect(res.degraded).toBe(true)
+  })
+
+  it("keeps the high-water mark unarmed when the destination lookup fails on an install with no email channel", async () => {
+    // The self-host default: no Postmark token, so a webhook is the only
+    // channel. POSTMARK_SERVER_TOKEN gates the email delivery row.
+    vi.stubEnv("POSTMARK_SERVER_TOKEN", "")
+    const db = seededDb({ destinations: [webhookDestination()] })
+    const { dispatchAlerts } = await import("./dispatch")
+
+    const res = await dispatchAlerts(
+      withFailure(db, { table: "alert_destinations" }),
+      [evaluation(50, 50)]
+    )
+
+    // A failed lookup must not be read as "no external channel is configured":
+    // that satisfies the event and advances the high-water mark, so the
+    // connection never becomes an escalation candidate again and the webhook
+    // never fires - permanent suppression from one bad second.
+    expect(db.tables.connections[0].notified_level).toBe("none")
+    expect(
+      db.tables.alert_events.filter((e) => e.delivery_satisfied_at !== null)
+    ).toEqual([])
+    expect(res.degraded).toBe(true)
+  })
+
+  it("reports a degraded dispatch when the recipient lookup fails", async () => {
+    const db = seededDb()
+    const { dispatchAlerts } = await import("./dispatch")
+
+    const res = await dispatchAlerts(withFailure(db, { table: "users" }), [
+      evaluation(50, 50),
+    ])
+
+    // Every candidate is skipped when the lookup fails, so no alert is ever
+    // prepared. Nothing is written, so it self-heals - but a persistent
+    // failure (a revoked grant) is silent, reporting alertsSent: 0 forever.
+    expect(db.tables.alert_events).toEqual([])
+    expect(res.degraded).toBe(true)
+  })
+
+  it("does not fire a recovered connection's stale delivery when the active-event probe blips", async () => {
+    const db = seededDb({ destinations: [webhookDestination()] })
+    vi.stubEnv("POSTMARK_SERVER_TOKEN", "")
+    stubWebhookResponse(500)
+    await run(db, [evaluation(50, 50)])
+    // Every channel failed, so the high-water mark never armed: the active
+    // event is the only trace that this alert is still in flight.
+    expect(db.tables.alert_deliveries[0].status).toBe("pending")
+    expect(db.tables.connections[0].notified_level).toBe("none")
+    db.tables.alert_deliveries[0].next_attempt_at = new Date(
+      Date.now() - 60_000
+    ).toISOString()
+
+    const fetchMock = vi.fn(async () => new Response("x", { status: 200 }))
+    vi.stubGlobal("fetch", fetchMock)
+    const { dispatchAlerts } = await import("./dispatch")
+    const res = await dispatchAlerts(
+      withFailure(db, { table: "alert_events", times: 1 }),
+      [evaluation(500, 50, { severity: "healthy" })]
+    )
+
+    // The balance recovered, so this delivery must be canceled, not sent. A
+    // blip on the probe reads as "nothing in flight", and the stale low-balance
+    // webhook then fires against a healthy balance.
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(res.degraded).toBe(true)
+  })
+
+  it("reports a degraded dispatch when recording a delivery result fails", async () => {
+    const db = seededDb()
+    sendEmail.mockResolvedValue({
+      ok: false,
+      error: "Postmark error 503",
+      retryable: true,
+      // biome-ignore lint/suspicious/noExplicitAny: mock override
+    } as any)
+    await run(db, [evaluation(50, 50)])
+    const delivery = db.tables.alert_deliveries[0]
+    delivery.next_attempt_at = new Date(Date.now() - 60_000).toISOString()
+
+    const { dispatchAlerts } = await import("./dispatch")
+    const res = await dispatchAlerts(
+      withFailure(db, { rpc: "record_alert_delivery_result" }),
+      []
+    )
+
+    // An unrecorded result leaves the row claimed until the lease lapses, so
+    // the next poll re-sends it. Silently, that is a duplicate-alert loop.
+    expect(res.degraded).toBe(true)
+  })
+})
+
 describe("retry backoff schedule", () => {
   it("follows the 15m / 1h / 6h / 24h capped schedule", async () => {
     const { retryBackoffMinutes } = await import("./dispatch")

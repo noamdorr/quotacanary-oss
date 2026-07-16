@@ -59,7 +59,12 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  const { sent, failedSends } = await dispatchAlerts(supabase, evaluations)
+  // alertsDegraded is the only signal that alert delivery is broken: a dispatch
+  // that failed outright still reports alertsSent: 0, exactly like a quiet poll.
+  const { sent, failedSends, degraded } = await dispatchAlerts(
+    supabase,
+    evaluations
+  )
 
   // Retention (migration 038): drop readings past 90 days, keeping the newest
   // 50 per pool. Non-fatal - a prune failure must not fail the poll run.
@@ -77,6 +82,7 @@ export async function POST(request: NextRequest) {
     failed,
     alertsSent: sent,
     alertsFailed: failedSends,
+    alertsDegraded: degraded,
     pruned,
   })
 }

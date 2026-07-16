@@ -81,31 +81,46 @@ type SendResult = SendEmailResult | DestinationSendResult
 // no external channel is configured), so a transient email or webhook failure
 // can no longer permanently suppress an alert. Called with the service-role
 // client (bypasses RLS).
+// `degraded` means the delivery loop could not run to completion. Alerts have
+// no other alarm: without it a broken loop still reports alertsSent: 0, which
+// reads exactly like a quiet, healthy poll.
+type DispatchResult = { sent: number; failedSends: number; degraded: boolean }
+
 export async function dispatchAlerts(
   supabase: SupabaseClient,
   evaluations: AlertEvaluation[]
-): Promise<{ sent: number; failedSends: number }> {
-  await handleRecoveries(supabase, evaluations)
-  await prepareEscalations(supabase, evaluations)
-  return processDueDeliveries(supabase)
+): Promise<DispatchResult> {
+  // Recovery cancels deliveries that must NOT go out, so an incomplete run
+  // cannot be followed by a send: whatever it failed to cancel is still due,
+  // and processing it fires the exact stale alert recovery exists to stop.
+  if (!(await handleRecoveries(supabase, evaluations))) {
+    return { sent: 0, failedSends: 0, degraded: true }
+  }
+  // Preparation only creates work. A failure there delays new alerts by a poll
+  // without making the deliveries already due unsafe to process.
+  const prepared = await prepareEscalations(supabase, evaluations)
+  const result = await processDueDeliveries(supabase)
+  return { ...result, degraded: result.degraded || !prepared }
 }
 
 // Recovery re-arms the connection and cancels everything still in flight:
 // unsatisfied events close, and pending/paused deliveries are canceled even
 // when their event was already satisfied, so an old low-balance warning
 // cannot arrive after the balance is healthy.
+// Returns false when a lookup failed, leaving the cancellations incomplete.
 async function handleRecoveries(
   supabase: SupabaseClient,
   evaluations: AlertEvaluation[]
-) {
+): Promise<boolean> {
   const healthy = evaluations.filter((e) => e.severity === "healthy")
-  if (healthy.length === 0) return
+  if (healthy.length === 0) return true
 
   // A connection can hold an active event without ever advancing its
   // high-water mark (every channel failed), so recovery cannot key off
   // notified_level alone. The active-event probe is cheap: it is backed by
-  // the partial unique index.
-  const { data: activeEvents } = await supabase
+  // the partial unique index. Reading a failed probe as "nothing in flight"
+  // skips the cancellation and lets the stale warning fire this same poll.
+  const { data: activeEvents, error: activeError } = await supabase
     .from("alert_events")
     .select("id, connection_id")
     .in(
@@ -114,6 +129,10 @@ async function handleRecoveries(
     )
     .is("delivery_satisfied_at", null)
     .is("delivery_canceled_at", null)
+  if (activeError) {
+    logDegraded("probing active alert events", activeError)
+    return false
+  }
   const withActiveEvent = new Set(
     ((activeEvents ?? []) as { connection_id: string }[]).map(
       (r) => r.connection_id
@@ -131,10 +150,17 @@ async function handleRecoveries(
         .eq("id", e.connectionId)
     }
 
-    const { data: events } = await supabase
+    // Abort before the writes below: closing the events while their deliveries
+    // stay pending strands rows that the claim RPC still picks up, because it
+    // does not filter on the event's canceled state.
+    const { data: events, error: eventsError } = await supabase
       .from("alert_events")
       .select("id")
       .eq("connection_id", e.connectionId)
+    if (eventsError) {
+      logDegraded("loading a recovered connection's events", eventsError)
+      return false
+    }
     const eventIds = ((events ?? []) as { id: string }[]).map((r) => r.id)
     if (eventIds.length > 0) {
       await supabase
@@ -151,28 +177,45 @@ async function handleRecoveries(
       .is("delivery_satisfied_at", null)
       .is("delivery_canceled_at", null)
   }
+
+  return true
 }
 
+// Returns false when a lookup failed, leaving escalations unprepared.
 async function prepareEscalations(
   supabase: SupabaseClient,
   evaluations: AlertEvaluation[]
-) {
+): Promise<boolean> {
   const candidates = evaluations.filter(
     (e) => e.alertEnabled && rank(e.severity) > rank(e.notifiedLevel)
   )
-  if (candidates.length === 0) return
+  if (candidates.length === 0) return true
 
+  // An absent recipient skips the candidate silently, so a failed lookup
+  // prepares nothing while the poll still reports a healthy alertsSent: 0.
   const userIds = [...new Set(candidates.map((e) => e.userId))]
-  const { data: users } = await supabase
+  const { data: users, error: usersError } = await supabase
     .from("users")
     .select("id, email, notify_mode, updated_at")
     .in("id", userIds)
+  if (usersError) {
+    logDegraded("loading escalation recipients", usersError)
+    return false
+  }
   const usersById = new Map(((users ?? []) as UserRow[]).map((u) => [u.id, u]))
 
-  const { data: destinations } = await supabase
+  // Absent destinations are read as "no external channel is configured", which
+  // satisfies the event and advances the high-water mark. That decision is not
+  // retryable: the connection never becomes a candidate again until it
+  // recovers, so a failed lookup here silences a live alert for good.
+  const { data: destinations, error: destinationsError } = await supabase
     .from("alert_destinations")
     .select("id, user_id, kind, min_level, is_enabled, updated_at")
     .in("user_id", userIds)
+  if (destinationsError) {
+    logDegraded("loading escalation destinations", destinationsError)
+    return false
+  }
   const destinationsByUser = new Map<string, DestinationRow[]>()
   for (const destination of (destinations ?? []) as DestinationRow[]) {
     if (destination.is_enabled === false) continue
@@ -195,11 +238,17 @@ async function prepareEscalations(
     // its pending/paused deliveries are canceled (whether or not the low
     // event was already satisfied) and an unsatisfied low event is closed.
     if (level === "critical") {
-      const { data: lowEvents } = await supabase
+      // As in recovery, abort before the writes: a skipped cancel followed by
+      // a closed event strands pending rows that still get claimed and sent.
+      const { data: lowEvents, error: lowEventsError } = await supabase
         .from("alert_events")
         .select("id")
         .eq("connection_id", e.connectionId)
         .eq("level", "low")
+      if (lowEventsError) {
+        logDegraded("loading superseded low events", lowEventsError)
+        return false
+      }
       const lowIds = ((lowEvents ?? []) as { id: string }[]).map((r) => r.id)
       if (lowIds.length > 0) {
         await supabase
@@ -268,6 +317,8 @@ async function prepareEscalations(
       await supabase.from("connections").update(update).eq("id", e.connectionId)
     }
   }
+
+  return true
 }
 
 // Reuse the connection's active event for this level, otherwise insert one.
@@ -345,26 +396,48 @@ function alertPoolsForLevel(
     .filter((p): p is NonNullable<typeof p> => p !== null)
 }
 
+// Log server-side only: the poll response can end up in cron logs, and a DB
+// message may carry connection detail.
+function logDegraded(step: string, error: { message: string }) {
+  console.error(`[alerts] ${step} failed:`, error.message)
+}
+
 // Claim a bounded batch of due deliveries under a five-minute lease and
 // process them sequentially, recording each result through the atomic RPC
 // before moving on. Failed attempts are counted without aborting the poll.
+//
+// A supporting query that ERRORS is never read as "the row is absent": absence
+// records a non-retryable pause, which only re-arms when the target is edited,
+// so treating a transient failure that way would suppress a live alert for
+// good. Abort the batch instead and report it - the claim lease lapses and the
+// next poll picks the same deliveries back up.
 async function processDueDeliveries(
   supabase: SupabaseClient
-): Promise<{ sent: number; failedSends: number }> {
+): Promise<DispatchResult> {
   let sent = 0
   let failedSends = 0
+  let degraded = false
 
-  const { data: claimed } = await supabase.rpc("claim_due_alert_deliveries", {
-    batch_size: DELIVERY_BATCH_SIZE,
-  })
+  const { data: claimed, error: claimError } = await supabase.rpc(
+    "claim_due_alert_deliveries",
+    { batch_size: DELIVERY_BATCH_SIZE }
+  )
+  if (claimError) {
+    logDegraded("claiming due deliveries", claimError)
+    return { sent, failedSends, degraded: true }
+  }
   const deliveries = (claimed ?? []) as DeliveryRow[]
-  if (deliveries.length === 0) return { sent, failedSends }
+  if (deliveries.length === 0) return { sent, failedSends, degraded: false }
 
   const eventIds = [...new Set(deliveries.map((d) => d.event_id))]
-  const { data: events } = await supabase
+  const { data: events, error: eventsError } = await supabase
     .from("alert_events")
     .select("*")
     .in("id", eventIds)
+  if (eventsError) {
+    logDegraded("loading alert events", eventsError)
+    return { sent, failedSends, degraded: true }
+  }
   const eventsById = new Map(
     ((events ?? []) as EventRow[]).map((e) => [e.id, e])
   )
@@ -372,10 +445,14 @@ async function processDueDeliveries(
   const userIds = [
     ...new Set(((events ?? []) as EventRow[]).map((e) => e.user_id)),
   ]
-  const { data: users } = await supabase
+  const { data: users, error: usersError } = await supabase
     .from("users")
     .select("id, email")
     .in("id", userIds)
+  if (usersError) {
+    logDegraded("loading alert recipients", usersError)
+    return { sent, failedSends, degraded: true }
+  }
   const emailByUser = new Map(
     ((users ?? []) as { id: string; email: string | null }[]).map((u) => [
       u.id,
@@ -392,12 +469,16 @@ async function processDueDeliveries(
   ]
   const destinationsById = new Map<string, DestinationRow>()
   if (destinationIds.length > 0) {
-    const { data: destinations } = await supabase
+    const { data: destinations, error: destinationsError } = await supabase
       .from("alert_destinations")
       .select(
         "id, user_id, kind, min_level, is_enabled, encrypted_url, consecutive_failures, updated_at"
       )
       .in("id", destinationIds)
+    if (destinationsError) {
+      logDegraded("loading alert destinations", destinationsError)
+      return { sent, failedSends, degraded: true }
+    }
     for (const destination of (destinations ?? []) as DestinationRow[]) {
       destinationsById.set(destination.id, destination)
     }
@@ -422,25 +503,36 @@ async function processDueDeliveries(
     if (result.ok) sent++
     else failedSends++
 
-    await supabase.rpc("record_alert_delivery_result", {
-      p_delivery_id: delivery.id,
-      p_claim_token: delivery.claim_token,
-      p_outcome: result.ok
-        ? "succeeded"
-        : result.retryable
-          ? "retry"
-          : "paused",
-      p_error: result.ok ? null : result.error,
-      p_next_attempt_at:
-        !result.ok && result.retryable
-          ? new Date(
-              Date.now() + retryBackoffMinutes(delivery.attempt_count) * 60_000
-            ).toISOString()
-          : null,
-    })
+    // An unrecorded result leaves the row claimed until its lease lapses, so
+    // the next poll sends the same alert again. Left silent, a persistently
+    // failing record call is a duplicate-alert loop.
+    const { error: recordError } = await supabase.rpc(
+      "record_alert_delivery_result",
+      {
+        p_delivery_id: delivery.id,
+        p_claim_token: delivery.claim_token,
+        p_outcome: result.ok
+          ? "succeeded"
+          : result.retryable
+            ? "retry"
+            : "paused",
+        p_error: result.ok ? null : result.error,
+        p_next_attempt_at:
+          !result.ok && result.retryable
+            ? new Date(
+                Date.now() +
+                  retryBackoffMinutes(delivery.attempt_count) * 60_000
+              ).toISOString()
+            : null,
+      }
+    )
+    if (recordError) {
+      logDegraded("recording a delivery result", recordError)
+      degraded = true
+    }
   }
 
-  return { sent, failedSends }
+  return { sent, failedSends, degraded }
 }
 
 async function sendEmailDelivery(
