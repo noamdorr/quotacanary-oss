@@ -1,5 +1,6 @@
 import { lookup } from "node:dns/promises"
 import { isIP } from "node:net"
+import { isRetryableHttpStatus } from "@/lib/retryable-http"
 import type { AlertLevel } from "@/lib/types"
 
 export type AlertDestinationKind = "webhook" | "slack_webhook"
@@ -34,7 +35,11 @@ export type AlertDestinationRow = {
   is_enabled?: boolean
 }
 
-export type DestinationSendResult = { ok: true } | { ok: false; error: string }
+// retryable=false means the delivery should pause until the destination's
+// configuration changes; retryable=true means the poller may retry on backoff.
+export type DestinationSendResult =
+  | { ok: true }
+  | { ok: false; error: string; retryable: boolean }
 
 // Hostnames that must never be reachable as a webhook target.
 const BLOCKED_HOSTNAMES = [
@@ -147,12 +152,19 @@ export function renderDestinationPayload(
 export async function postAlertDestination(
   kind: AlertDestinationKind,
   url: string,
-  event: AlertDestinationEvent
+  event: AlertDestinationEvent,
+  deliveryId?: string
 ): Promise<DestinationSendResult> {
   // Re-validate at dispatch, not just at save: the stored URL is decrypted here
   // and the request is about to leave the server.
   const valid = validateDestinationUrl(url)
-  if (!valid.ok) return { ok: false, error: "Webhook target is not allowed." }
+  if (!valid.ok) {
+    return {
+      ok: false,
+      error: "Webhook target is not allowed.",
+      retryable: false,
+    }
+  }
 
   // Resolve the hostname and refuse if it points at internal/metadata space.
   // Catches a public hostname pointed at a private IP (e.g. an A record for
@@ -163,30 +175,48 @@ export async function postAlertDestination(
     try {
       const addresses = await lookup(host, { all: true })
       if (addresses.some((entry) => isBlockedIp(entry.address))) {
-        return { ok: false, error: "Webhook host is not allowed." }
+        return {
+          ok: false,
+          error: "Webhook host is not allowed.",
+          retryable: false,
+        }
       }
     } catch {
-      return { ok: false, error: "Webhook request failed." }
+      // DNS resolution failures can be transient (resolver outage, EAI_AGAIN).
+      return { ok: false, error: "Webhook request failed.", retryable: true }
     }
+  }
+
+  const headers: Record<string, string> = {
+    "content-type": "application/json",
+    "user-agent": "QuotaCanary/1.0",
+  }
+  // Stable per-delivery key lets generic webhook receivers deduplicate the
+  // at-least-once retries. Slack incoming webhooks ignore it, so skip there.
+  if (kind === "webhook" && deliveryId) {
+    headers["idempotency-key"] = deliveryId
   }
 
   try {
     const res = await fetch(valid.url, {
       method: "POST",
       redirect: "manual",
-      headers: {
-        "content-type": "application/json",
-        "user-agent": "QuotaCanary/1.0",
-      },
+      headers,
       body: JSON.stringify(renderDestinationPayload(kind, event)),
       // A hanging user webhook must not stall the whole alert dispatch.
       signal: AbortSignal.timeout(10_000),
     })
 
-    if (!res.ok) return { ok: false, error: `HTTP ${res.status}` }
+    if (!res.ok) {
+      return {
+        ok: false,
+        error: `HTTP ${res.status}`,
+        retryable: isRetryableHttpStatus(res.status),
+      }
+    }
     return { ok: true }
   } catch {
-    return { ok: false, error: "Webhook request failed." }
+    return { ok: false, error: "Webhook request failed.", retryable: true }
   }
 }
 

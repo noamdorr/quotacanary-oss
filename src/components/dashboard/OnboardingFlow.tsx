@@ -79,6 +79,8 @@ export function OnboardingFlow({
   // single-pool case, where no picker is shown).
   const [watched, setWatched] = useState<string[]>([])
   const [credentialValues, setCredentialValues] = useState<CredentialValues>({})
+  // biome-ignore format: source contract requires this initializer verbatim
+  const [createRequestId, setCreateRequestId] = useState(() => crypto.randomUUID())
   const [error, setError] = useState<string | null>(null)
   const [connected, setConnected] = useState<Connected | null>(null)
   const [checkingBalance, setCheckingBalance] = useState(false)
@@ -112,6 +114,7 @@ export function OnboardingFlow({
       fd.set("toolId", tool.id)
       appendCredentialValues(fd, tool.credential_fields, credentialValues)
       fd.set("name", tool.name)
+      fd.set("createRequestId", createRequestId)
       for (const ct of watched) fd.append("watchedCreditTypes", ct)
       // Note: we do NOT mark onboarding complete here. Setting onboarded_at
       // revalidates /dashboard, which would swap this panel for the populated
@@ -222,6 +225,7 @@ export function OnboardingFlow({
                       : []
                   )
                   setCredentialValues({})
+                  setCreateRequestId(crypto.randomUUID())
                   setError(null)
                 }}
                 className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors ${

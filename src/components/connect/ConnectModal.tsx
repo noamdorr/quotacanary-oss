@@ -13,7 +13,7 @@ import {
 import type { Tool } from "@/lib/types"
 import { ExternalLink, ShieldCheck } from "lucide-react"
 import { useRouter } from "next/navigation"
-import { useActionState } from "react"
+import { useActionState, useEffect, useRef, useState } from "react"
 
 type Props = {
   tool: Tool
@@ -23,6 +23,17 @@ type Props = {
 
 export function ConnectModal({ tool, open, onOpenChange }: Props) {
   const router = useRouter()
+  // biome-ignore format: source contract requires this initializer verbatim
+  const [createRequestId, setCreateRequestId] = useState(() => crypto.randomUUID())
+  const wasOpen = useRef(open)
+
+  useEffect(() => {
+    if (open && !wasOpen.current) {
+      setCreateRequestId(crypto.randomUUID())
+    }
+    wasOpen.current = open
+  }, [open])
+
   const credentialFields = credentialFieldsFor(tool.credential_fields)
   const [state, formAction, pending] = useActionState(
     async (_prev: ConnectResult | null, formData: FormData) => {
@@ -102,6 +113,7 @@ export function ConnectModal({ tool, open, onOpenChange }: Props) {
 
         <form action={formAction} className="space-y-4">
           <input type="hidden" name="toolId" value={tool.id} />
+          <input type="hidden" name="createRequestId" value={createRequestId} />
           {credentialFields.map((field) => (
             <div key={field.name} className="space-y-2">
               <Label htmlFor={credentialInputName(field)}>{field.label}</Label>

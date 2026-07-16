@@ -9,6 +9,32 @@ migration under **Upgrade notes**. Always run the migration step after updating.
 
 ## [Unreleased]
 
+## [1.0.4] - 2026-07-16
+
+### Fixed
+- Alert delivery is now retry-safe: a transient email or webhook failure can
+  no longer permanently suppress an alert. Deliveries are tracked per channel
+  in a new `alert_deliveries` table and retried with capped backoff
+  (15m / 1h / 6h / 24h); the connection's alert high-water mark advances only
+  after at least one channel actually delivers (or immediately via the in-app
+  event when no external channel is configured). Recovery cancels pending
+  deliveries so stale warnings can't arrive after a balance is healthy, and a
+  critical escalation supersedes pending low-level deliveries. Generic
+  webhooks now carry an `Idempotency-Key` header, and Postmark requests get a
+  10-second timeout.
+- Burn rates and sparklines now cover the last 7 days instead of the newest
+  30 raw readings (~7.5 hours at the 15-minute poll cadence). Pools that
+  burned credits earlier than that showed "no burn yet" with a flat trend
+  line; history is now sampled in the database (newest reading per 6-hour
+  bucket) via a new `pool_history_sampled` function.
+
+### Upgrade notes
+- Run migrations `047_pool_history_sampled.sql` and
+  `048_retry_safe_alert_delivery.sql` (`supabase db push`) before deploying
+  this version - the dashboard and API read history through the new sampling
+  function, and alert dispatch requires the delivery ledger and its two
+  service-role functions.
+
 ## [1.0.3] - 2026-07-15
 
 ### Added
@@ -175,7 +201,8 @@ migration under **Upgrade notes**. Always run the migration step after updating.
 - New optional env var `APP_ONLY` (set `true` for single-domain self-host).
 - Run `supabase db push` (hosted) or `supabase db reset` (local) after pulling.
 
-[unreleased]: https://github.com/noamdorr/quotacanary-oss/compare/v1.0.3...HEAD
+[unreleased]: https://github.com/noamdorr/quotacanary-oss/compare/v1.0.4...HEAD
+[1.0.4]: https://github.com/noamdorr/quotacanary-oss/compare/v1.0.3...v1.0.4
 [1.0.3]: https://github.com/noamdorr/quotacanary-oss/compare/v1.0.2...v1.0.3
 [1.0.2]: https://github.com/noamdorr/quotacanary-oss/compare/v1.0.1...v1.0.2
 [1.0.1]: https://github.com/noamdorr/quotacanary-oss/compare/v1.0.0...v1.0.1

@@ -283,6 +283,42 @@ describe("webhook SSRF guards", () => {
       expect(fetchMock).not.toHaveBeenCalled()
     })
 
+    it("sends an Idempotency-Key header with the delivery ID on generic webhooks", async () => {
+      lookup.mockResolvedValue([{ address: "93.184.216.34", family: 4 }])
+      const fetchMock = vi.fn(async () => new Response("ok", { status: 200 }))
+      vi.stubGlobal("fetch", fetchMock)
+
+      await postAlertDestination(
+        "webhook",
+        "https://example.com/hook",
+        event,
+        "del-123"
+      )
+
+      const [, opts] = fetchMock.mock.calls[0] as [string, RequestInit]
+      expect((opts.headers as Record<string, string>)["idempotency-key"]).toBe(
+        "del-123"
+      )
+    })
+
+    it("does not add an idempotency header to Slack webhooks", async () => {
+      lookup.mockResolvedValue([{ address: "93.184.216.34", family: 4 }])
+      const fetchMock = vi.fn(async () => new Response("ok", { status: 200 }))
+      vi.stubGlobal("fetch", fetchMock)
+
+      await postAlertDestination(
+        "slack_webhook",
+        "https://hooks.slack.com/services/T/B/X",
+        event,
+        "del-123"
+      )
+
+      const [, opts] = fetchMock.mock.calls[0] as [string, RequestInit]
+      expect(
+        (opts.headers as Record<string, string>)["idempotency-key"]
+      ).toBeUndefined()
+    })
+
     it("delivers when the host resolves to a public IP", async () => {
       lookup.mockResolvedValue([{ address: "93.184.216.34", family: 4 }])
       vi.stubGlobal(
@@ -297,6 +333,92 @@ describe("webhook SSRF guards", () => {
       )
 
       expect(res.ok).toBe(true)
+    })
+  })
+
+  describe("postAlertDestination retry classification", () => {
+    afterEach(() => {
+      vi.clearAllMocks()
+      vi.unstubAllGlobals()
+    })
+
+    async function post(status?: number, error?: Error) {
+      lookup.mockResolvedValue([{ address: "93.184.216.34", family: 4 }])
+      vi.stubGlobal(
+        "fetch",
+        error
+          ? vi.fn(async () => {
+              throw error
+            })
+          : vi.fn(async () => new Response("x", { status }))
+      )
+      return postAlertDestination("webhook", "https://example.com/hook", event)
+    }
+
+    it("marks 5xx and retry-hinting 4xx responses retryable", async () => {
+      for (const status of [500, 503, 408, 425, 429]) {
+        const res = await post(status)
+        expect(res).toEqual({
+          ok: false,
+          error: `HTTP ${status}`,
+          retryable: true,
+        })
+      }
+    })
+
+    it("pauses on other 4xx responses", async () => {
+      const res = await post(404)
+      expect(res).toEqual({ ok: false, error: "HTTP 404", retryable: false })
+    })
+
+    it("marks network failures retryable", async () => {
+      const res = await post(undefined, new Error("socket hang up"))
+      expect(res).toEqual({
+        ok: false,
+        error: "Webhook request failed.",
+        retryable: true,
+      })
+    })
+
+    it("pauses on an invalid or disallowed target", async () => {
+      const res = await postAlertDestination(
+        "webhook",
+        "http://localhost/hook",
+        event
+      )
+      expect(res).toEqual({
+        ok: false,
+        error: "Webhook target is not allowed.",
+        retryable: false,
+      })
+    })
+
+    it("pauses when the host resolves to a blocked address", async () => {
+      lookup.mockResolvedValue([{ address: "169.254.169.254", family: 4 }])
+      const res = await postAlertDestination(
+        "webhook",
+        "https://rebind.example/hook",
+        event
+      )
+      expect(res).toEqual({
+        ok: false,
+        error: "Webhook host is not allowed.",
+        retryable: false,
+      })
+    })
+
+    it("marks a DNS lookup failure retryable", async () => {
+      lookup.mockRejectedValue(new Error("EAI_AGAIN"))
+      const res = await postAlertDestination(
+        "webhook",
+        "https://example.com/hook",
+        event
+      )
+      expect(res).toEqual({
+        ok: false,
+        error: "Webhook request failed.",
+        retryable: true,
+      })
     })
   })
 })

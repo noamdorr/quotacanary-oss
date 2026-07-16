@@ -13,22 +13,11 @@ const pollRoute = readFileSync(
 )
 
 describe("balances retention source", () => {
-  it("caps the embedded balances select instead of fetching wholesale", () => {
-    expect(connectionsDb).toContain(
-      '.limit(BALANCE_FETCH_LIMIT, { foreignTable: "balances" })'
-    )
-  })
-
-  it("keeps the fetch cap above the per-pool history window", () => {
-    const limit = connectionsDb.match(/BALANCE_FETCH_LIMIT = (\d+)/)?.[1]
-    const history = connectionsDb.match(/HISTORY_LIMIT = (\d+)/)?.[1]
-    expect(Number(limit)).toBeGreaterThanOrEqual(Number(history) * 3)
-  })
-
-  it("orders embedded balances newest-first so the cap keeps recent rows", () => {
-    expect(connectionsDb).toContain(
-      '.order("recorded_at", { foreignTable: "balances", ascending: false })'
-    )
+  it("fetches history through the sampled RPC instead of a wholesale select", () => {
+    // pool_history_sampled (migration 047) bounds rows in the DB: newest
+    // reading per bucket over the window, so no client-side fetch cap needed.
+    expect(connectionsDb).toContain('supabase.rpc("pool_history_sampled"')
+    expect(connectionsDb).not.toContain("balances(")
   })
 
   it("prunes balance history from the poll run without failing the poll", () => {

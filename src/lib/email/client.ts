@@ -1,3 +1,4 @@
+import { isRetryableHttpStatus } from "@/lib/retryable-http"
 import { EMAIL_FROM, MESSAGE_STREAM } from "./constants"
 
 export type SendEmailInput = {
@@ -8,7 +9,9 @@ export type SendEmailInput = {
   tag?: string
 }
 
-export type SendEmailResult = { ok: true } | { ok: false; error: string }
+export type SendEmailResult =
+  | { ok: true }
+  | { ok: false; error: string; retryable: boolean }
 
 export async function sendEmail(
   input: SendEmailInput
@@ -16,7 +19,8 @@ export async function sendEmail(
   const token = process.env.POSTMARK_SERVER_TOKEN
   if (!token) {
     console.error("[email] POSTMARK_SERVER_TOKEN is not set; skipping send")
-    return { ok: false, error: "Email not configured." }
+    // Retryable: the send starts working once the operator configures the token.
+    return { ok: false, error: "Email not configured.", retryable: true }
   }
 
   try {
@@ -36,16 +40,22 @@ export async function sendEmail(
         MessageStream: MESSAGE_STREAM,
         Tag: input.tag,
       }),
+      // A hanging Postmark request must not stall the whole alert dispatch.
+      signal: AbortSignal.timeout(10_000),
     })
     if (!res.ok) {
       // Don't read/log the response body: Postmark echoes the recipient
       // address (PII) back in error payloads.
       console.error(`[email] Postmark ${res.status}`)
-      return { ok: false, error: `Postmark error ${res.status}` }
+      return {
+        ok: false,
+        error: `Postmark error ${res.status}`,
+        retryable: isRetryableHttpStatus(res.status),
+      }
     }
     return { ok: true }
   } catch (err) {
     console.error("[email] send failed", err)
-    return { ok: false, error: "Email send failed." }
+    return { ok: false, error: "Email send failed.", retryable: true }
   }
 }

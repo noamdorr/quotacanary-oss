@@ -28,6 +28,8 @@ export type ConnectResult =
   | { ok: false; error: string }
 
 const NAME_TOO_LONG = "That name is too long (80 characters max)."
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
 
 async function requireUser() {
   const supabase = await createClient()
@@ -60,7 +62,16 @@ function buildCredentialFromInput(
 }
 
 export async function connectTool(formData: FormData): Promise<ConnectResult> {
-  const { supabase, user } = await requireUser()
+  const { supabase } = await requireUser()
+  const createRequestId = String(formData.get("createRequestId") ?? "")
+
+  if (!UUID_PATTERN.test(createRequestId)) {
+    return {
+      ok: false,
+      error: "Couldn't start the connection. Please try again.",
+    }
+  }
+
   const toolId = String(formData.get("toolId") ?? "")
   const name = String(formData.get("name") ?? "").trim()
   const tags = parseTags(formData.get("tags"))
@@ -103,37 +114,31 @@ export async function connectTool(formData: FormData): Promise<ConnectResult> {
   const result = await adapter.readBalance(credential.secret)
   if (!result.ok) return { ok: false, error: result.error }
 
-  const { data: connection, error: insertErr } = await supabase
-    .from("connections")
-    .insert({
-      user_id: user.id,
-      tool_id: toolId,
-      connection_type: "api",
-      encrypted_key: encrypt(credential.secret),
-      key_hint: keyHint(credential.hintValue),
-      name,
-      tags,
-      status: "active",
-      alert_enabled: true,
-      watched_credit_types: watched.length > 0 ? watched : null,
-    })
-    .select("id")
-    .single()
-  if (insertErr || !connection)
-    return { ok: false, error: "Couldn't save the connection." }
-
-  const { error: balErr } = await supabase.from("balances").insert(
-    result.balances.map((b) => ({
-      connection_id: connection.id,
-      credit_type: b.creditType,
-      label: b.label,
-      balance: b.balance,
-      balance_limit: b.balanceLimit,
-      unit: b.unit,
-    }))
+  const { data: connectionId, error: insertErr } = await supabase.rpc(
+    "create_connection_with_balances",
+    {
+      p_tool_id: toolId,
+      p_encrypted_key: encrypt(credential.secret),
+      p_key_hint: keyHint(credential.hintValue),
+      p_name: name,
+      p_tags: tags,
+      p_watched_credit_types: watched.length > 0 ? watched : null,
+      p_balances: result.balances.map((balance) => ({
+        credit_type: balance.creditType,
+        label: balance.label,
+        balance: balance.balance,
+        balance_limit: balance.balanceLimit,
+        unit: balance.unit,
+      })),
+      p_create_request_id: createRequestId,
+    }
   )
-  if (balErr)
-    return { ok: false, error: "Connected, but couldn't record the balance." }
+  if (insertErr || typeof connectionId !== "string") {
+    return {
+      ok: false,
+      error: "Couldn't save the connection. Please try again.",
+    }
+  }
 
   revalidatePath("/dashboard")
   revalidatePath(`/tools/${toolId}`)
@@ -146,7 +151,7 @@ export async function connectTool(formData: FormData): Promise<ConnectResult> {
   const summary = watchedReadings.length > 0 ? watchedReadings : result.balances
   return {
     ok: true,
-    connectionId: connection.id,
+    connectionId,
     balances: summary.map((b) => ({
       balance: b.balance,
       label: b.label,

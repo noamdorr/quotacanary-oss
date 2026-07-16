@@ -23,14 +23,21 @@ vi.mock("next/cache", () => ({
 }))
 
 type InsertPayload = Record<string, unknown>
+type RpcCall = { fn: string; params: Record<string, unknown> }
 
 function fakeSupabase(
-  toolRow: Record<string, unknown> = { credential_fields: null }
+  toolRow: Record<string, unknown> = { credential_fields: null },
+  rpcResult: { data: unknown; error: unknown } = {
+    data: "conn-1",
+    error: null,
+  }
 ): {
   client: SupabaseClient
   inserts: Record<string, InsertPayload[]>
+  rpcCalls: RpcCall[]
 } {
   const inserts: Record<string, InsertPayload[]> = {}
+  const rpcCalls: RpcCall[] = []
 
   function builderFor(table: string) {
     const builder = {
@@ -58,9 +65,13 @@ function fakeSupabase(
       getUser: vi.fn(async () => ({ data: { user: { id: "user-1" } } })),
     },
     from: vi.fn((table: string) => builderFor(table)),
+    rpc: vi.fn(async (fn: string, params: Record<string, unknown>) => {
+      rpcCalls.push({ fn, params })
+      return rpcResult
+    }),
   } as unknown as SupabaseClient
 
-  return { client, inserts }
+  return { client, inserts, rpcCalls }
 }
 
 type Filter = [string, unknown]
@@ -239,6 +250,7 @@ function connectForm(overrides: Record<string, string> = {}) {
   formData.set("toolId", "hunter")
   formData.set("name", "Hunter")
   formData.set("apiKey", "hunter-key")
+  formData.set("createRequestId", "00000000-0000-4000-8000-000000000001")
   for (const [key, value] of Object.entries(overrides)) {
     formData.set(key, value)
   }
@@ -256,25 +268,65 @@ describe("connectTool", () => {
     vi.unstubAllEnvs()
   })
 
-  it("enables alerts by default for new API connections", async () => {
+  it("persists and retries one request through the atomic RPC", async () => {
     const db = fakeSupabase()
-    vi.doMock("@/lib/supabase/server", () => ({
-      createClient: async () => db.client,
-    }))
-    const { connectTool } = await import("./connections")
-    const formData = new FormData()
-    formData.set("toolId", "hunter")
-    formData.set("name", "Hunter")
-    formData.set("apiKey", "hunter-key")
+    const { connectTool } = await importWith(db)
+    const requestId = "11111111-1111-4111-8111-111111111111"
+    const formData = connectForm({ createRequestId: requestId })
 
-    const result = await connectTool(formData)
+    const first = await connectTool(formData)
+    const retry = await connectTool(formData)
 
-    expect(result).toMatchObject({ ok: true, connectionId: "conn-1" })
-    expect(db.inserts.connections[0]).toMatchObject({
-      user_id: "user-1",
-      tool_id: "hunter",
-      alert_enabled: true,
+    expect(first).toMatchObject({ ok: true, connectionId: "conn-1" })
+    expect(retry).toMatchObject({ ok: true, connectionId: "conn-1" })
+    expect(db.rpcCalls).toEqual([
+      {
+        fn: "create_connection_with_balances",
+        params: {
+          p_tool_id: "hunter",
+          p_encrypted_key: expect.any(String),
+          p_key_hint: "-key",
+          p_name: "Hunter",
+          p_tags: [],
+          p_watched_credit_types: null,
+          p_balances: [
+            {
+              credit_type: "credits",
+              label: "Credits",
+              balance: 42,
+              balance_limit: 100,
+              unit: "credits",
+            },
+          ],
+          p_create_request_id: requestId,
+        },
+      },
+      expect.objectContaining({
+        fn: "create_connection_with_balances",
+        params: expect.objectContaining({ p_create_request_id: requestId }),
+      }),
+    ])
+    expect(db.inserts.connections).toBeUndefined()
+    expect(db.inserts.balances).toBeUndefined()
+  })
+
+  it("returns a save error without success-side effects when the RPC fails", async () => {
+    const db = fakeSupabase(
+      { credential_fields: null },
+      { data: null, error: { message: "balance insert failed" } }
+    )
+    const { connectTool } = await importWith(db)
+
+    const result = await connectTool(
+      connectForm({ createRequestId: "22222222-2222-4222-8222-222222222222" })
+    )
+
+    expect(result).toEqual({
+      ok: false,
+      error: "Couldn't save the connection. Please try again.",
     })
+    expect(revalidatePath).not.toHaveBeenCalled()
+    expect(db.rpcCalls).toHaveLength(1)
   })
 
   it("rejects a name over 80 characters", async () => {
@@ -297,7 +349,12 @@ describe("connectTool", () => {
     const result = await connectTool(connectForm({ name: "a".repeat(80) }))
 
     expect(result).toMatchObject({ ok: true })
-    expect(db.inserts.connections[0]).toMatchObject({ name: "a".repeat(80) })
+    expect(db.rpcCalls).toEqual([
+      expect.objectContaining({
+        fn: "create_connection_with_balances",
+        params: expect.objectContaining({ p_name: "a".repeat(80) }),
+      }),
+    ])
   })
 
   it("rejects more than 20 tags", async () => {
@@ -322,7 +379,7 @@ describe("connectTool", () => {
     })
   })
 
-  it("passes watched values matching the tool's pools through to the insert", async () => {
+  it("passes watched values matching the tool's pools through to the atomic RPC", async () => {
     const db = fakeSupabase({
       credential_fields: null,
       pools: [
@@ -337,9 +394,14 @@ describe("connectTool", () => {
     const result = await connectTool(formData)
 
     expect(result).toMatchObject({ ok: true })
-    expect(db.inserts.connections[0]).toMatchObject({
-      watched_credit_types: ["credits"],
-    })
+    expect(db.rpcCalls).toEqual([
+      expect.objectContaining({
+        fn: "create_connection_with_balances",
+        params: expect.objectContaining({
+          p_watched_credit_types: ["credits"],
+        }),
+      }),
+    ])
   })
 
   it("rejects a watched value the tool doesn't declare", async () => {
