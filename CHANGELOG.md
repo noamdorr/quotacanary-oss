@@ -9,6 +9,43 @@ migration under **Upgrade notes**. Always run the migration step after updating.
 
 ## [Unreleased]
 
+## [1.0.6] - 2026-07-17
+
+### Fixed
+- A stale "running low" alert could fire after the balance had already
+  recovered, or after a critical alert had superseded it. Both cancellation
+  paths cancel the pending deliveries and close the alert event as two separate
+  writes, and both discarded the first write's error: the deliveries stayed
+  pending under a closed event, where nothing re-armed them and the delivery
+  claim still picked them up and sent them. Cancellation now completes before
+  anything can send, and `claim_due_alert_deliveries` skips canceled events
+  outright, so a delivery left pending by a failed write, a crash between the
+  two writes, or any future caller can no longer be delivered.
+- On an install with no email and no webhook configured, a database error while
+  advancing a connection's alert level created a **fresh in-app alert on every
+  poll** instead of reusing the existing one. The alert event was marked
+  satisfied before the level advanced, and a satisfied event cannot be reused,
+  so each poll inserted a new one - roughly 96 duplicate in-app alerts a day
+  while the error persisted, with every poll still reporting healthy.
+- Alert dispatch no longer hides database errors from its writes. Nine writes
+  discarded their error entirely; the ones that could not repair themselves on
+  the next poll are fixed above, and the rest now report `alertsDegraded` rather
+  than reporting a healthy poll while silently failing.
+- A permanently failing webhook destination (an HTTP 404, or a URL that no
+  longer decrypts) is meant to pause until you edit it. Instead it was retried
+  on **every poll, forever**: each failed attempt stamped the destination's
+  `updated_at`, which is the column the delivery claim reads to decide whether a
+  paused delivery deserves another try. That stamp always landed after the claim
+  had recorded the version it was attempting, so the pause re-armed itself on
+  the next poll and a dead endpoint was re-POSTed every 15 minutes, with the
+  destination's failure count climbing forever. Recording an attempt's health no
+  longer touches `updated_at`, so a paused delivery now waits for a real edit,
+  and editing the destination still re-arms it.
+
+### Upgrade notes
+- **New migration** (`049_claim_skips_canceled_events.sql`). No new environment
+  variables. Run the migration step after updating.
+
 ## [1.0.5] - 2026-07-16
 
 ### Fixed
@@ -236,7 +273,8 @@ migration under **Upgrade notes**. Always run the migration step after updating.
 - New optional env var `APP_ONLY` (set `true` for single-domain self-host).
 - Run `supabase db push` (hosted) or `supabase db reset` (local) after pulling.
 
-[unreleased]: https://github.com/noamdorr/quotacanary-oss/compare/v1.0.5...HEAD
+[unreleased]: https://github.com/noamdorr/quotacanary-oss/compare/v1.0.6...HEAD
+[1.0.6]: https://github.com/noamdorr/quotacanary-oss/compare/v1.0.5...v1.0.6
 [1.0.5]: https://github.com/noamdorr/quotacanary-oss/compare/v1.0.4...v1.0.5
 [1.0.4]: https://github.com/noamdorr/quotacanary-oss/compare/v1.0.3...v1.0.4
 [1.0.3]: https://github.com/noamdorr/quotacanary-oss/compare/v1.0.2...v1.0.3

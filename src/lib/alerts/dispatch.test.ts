@@ -198,6 +198,9 @@ function fakeDb(seed: {
         }
         const event = tables.alert_events.find((e) => e.id === d.event_id)
         if (!event) return false
+        // Migration 049: a canceled event's delivery is never due, however its
+        // row came to be left pending.
+        if (event.delivery_canceled_at) return false
         const dest = d.destination_id
           ? tables.alert_destinations.find((x) => x.id === d.destination_id)
           : null
@@ -745,6 +748,47 @@ describe("dispatchAlerts retry-safe delivery", () => {
     expect(db.tables.alert_destinations[0].last_error).toBe("HTTP 404")
     expect(db.tables.alert_destinations[0].consecutive_failures).toBe(1)
   })
+
+  it("leaves a paused webhook paused on later polls", async () => {
+    const db = seededDb({ destinations: [webhookDestination()] })
+    sendEmail.mockResolvedValue({ ok: true } as never)
+    stubWebhookResponse(404)
+
+    await run(db, [evaluation(50, 50)])
+    const hook = db.tables.alert_deliveries.find(
+      (d) => d.delivery_key === "destination:dest-1"
+    )
+    expect(hook?.attempt_count).toBe(1)
+
+    // A later poll with nothing new to report. The pause re-arms on a
+    // destination edit; the attempt's own health write is not an edit. Assert
+    // attempt_count, not status: a re-armed delivery fails and pauses again,
+    // so status reads "paused" either way.
+    await run(db, [])
+
+    expect(hook?.attempt_count).toBe(1)
+    expect(db.tables.alert_destinations[0].consecutive_failures).toBe(1)
+  })
+
+  it("re-arms a paused webhook once its destination is edited", async () => {
+    const db = seededDb({ destinations: [webhookDestination()] })
+    sendEmail.mockResolvedValue({ ok: true } as never)
+    stubWebhookResponse(404)
+
+    await run(db, [evaluation(50, 50)])
+    const hook = db.tables.alert_deliveries.find(
+      (d) => d.delivery_key === "destination:dest-1"
+    )
+    expect(hook?.attempt_count).toBe(1)
+
+    // What toggleAlertDestination stamps when the user fixes the destination.
+    db.tables.alert_destinations[0].updated_at = new Date(
+      Date.now() + 60_000
+    ).toISOString()
+    await run(db, [])
+
+    expect(hook?.attempt_count).toBe(2)
+  })
 })
 
 // A query builder whose chain resolves to a Supabase error, the way the real
@@ -768,25 +812,81 @@ function failingBuilder(error: { message: string }) {
   return api
 }
 
+// A builder that mirrors the real one until a write is requested, then fails
+// only that write. Failing a table wholesale also blinds its reads: dispatch
+// reads alert_events three times before it ever writes to it, so a wholesale
+// failure aborts the poll on the first read and the write under test never
+// runs at all.
+function writeFailingBuilder(
+  // biome-ignore lint/suspicious/noExplicitAny: test double for the builder
+  real: any,
+  error: { message: string },
+  take: () => boolean
+) {
+  const passthrough =
+    (method: string) =>
+    (...args: unknown[]) => {
+      real[method](...args)
+      return api
+    }
+  const failingWrite =
+    (method: string) =>
+    (...args: unknown[]) => {
+      if (take()) return failingBuilder(error)
+      real[method](...args)
+      return api
+    }
+  // biome-ignore lint/suspicious/noExplicitAny: test double for the builder
+  const api: any = {
+    select: passthrough("select"),
+    eq: passthrough("eq"),
+    in: passthrough("in"),
+    is: passthrough("is"),
+    single: passthrough("single"),
+    maybeSingle: passthrough("maybeSingle"),
+    insert: failingWrite("insert"),
+    update: failingWrite("update"),
+    upsert: failingWrite("upsert"),
+    // biome-ignore lint/suspicious/noThenProperty: Supabase builders are thenables; the fake must be awaitable the same way.
+    then: (resolve: (v: unknown) => unknown, reject: (e: unknown) => unknown) =>
+      real.then(resolve, reject),
+  }
+  return api
+}
+
 // Wrap a fake db so one rpc or one table fails, simulating a transient
 // database error partway through a poll. `times` bounds how many queries
 // against the table fail, so a test can model one bad second rather than a
 // table that is down for the whole poll - the two have different blast radii.
+// `writesOnly` narrows the failure to the table's writes, leaving its reads
+// intact, which is the only way to reach a write whose own table is read first.
 function withFailure(
   db: ReturnType<typeof fakeDb>,
-  failure: { rpc?: string; table?: string; times?: number }
+  failure: {
+    rpc?: string
+    table?: string
+    times?: number
+    writesOnly?: boolean
+  }
 ) {
   const error = { message: "transient database failure" }
   let remaining = failure.times ?? Number.POSITIVE_INFINITY
+  const take = () => {
+    if (remaining <= 0) return false
+    remaining--
+    return true
+  }
   const base = db.client as unknown as {
     from: (name: string) => unknown
     rpc: (fn: string, args: Record<string, unknown>) => Promise<unknown>
   }
   return {
     from: (name: string) => {
-      if (name !== failure.table || remaining <= 0) return base.from(name)
-      remaining--
-      return failingBuilder(error)
+      if (name !== failure.table) return base.from(name)
+      if (failure.writesOnly) {
+        return writeFailingBuilder(base.from(name), error, take)
+      }
+      return take() ? failingBuilder(error) : base.from(name)
     },
     rpc: async (fn: string, args: Record<string, unknown>) =>
       fn === failure.rpc ? { data: null, error } : base.rpc(fn, args),
@@ -922,6 +1022,256 @@ describe("dispatchAlerts failure visibility", () => {
     // An unrecorded result leaves the row claimed until the lease lapses, so
     // the next poll re-sends it. Silently, that is a duplicate-alert loop.
     expect(res.degraded).toBe(true)
+  })
+})
+
+// Every write in dispatch discards its error. A failed write is self-healing by
+// construction - the next poll recomputes the same evaluation from live
+// balances and reissues the same write - EXCEPT where a second write hides the
+// first one's failure. Those pairs, not the site count, are the blast radius.
+describe("dispatchAlerts write failures", () => {
+  const criticalEvaluation = () =>
+    evaluation(5, 50, {
+      severity: "critical",
+      pools: [
+        { label: "Credits", balance: 5, low: 50, critical: 10, unit: null },
+      ],
+    })
+
+  it("never claims a delivery whose event was canceled", async () => {
+    const db = seededDb({ destinations: [webhookDestination()] })
+    vi.stubEnv("POSTMARK_SERVER_TOKEN", "")
+    stubWebhookResponse(500)
+    await run(db, [evaluation(50, 50)])
+    const delivery = db.tables.alert_deliveries[0]
+    expect(delivery.status).toBe("pending")
+    delivery.next_attempt_at = new Date(Date.now() - 60_000).toISOString()
+
+    // The event is canceled but its delivery row was left pending - a failed
+    // cancel write, a crash between the two writes, or any future caller that
+    // closes an event without canceling its deliveries.
+    db.tables.alert_events[0].delivery_canceled_at = new Date().toISOString()
+
+    // claim_due_alert_deliveries joins alert_events but never reads its
+    // canceled state, so the stale low-balance alert is still due.
+    expect(db.claim(50)).toEqual([])
+  })
+
+  it("does not fire a recovered connection's stale delivery when the cancel write fails", async () => {
+    const db = seededDb({ destinations: [webhookDestination()] })
+    vi.stubEnv("POSTMARK_SERVER_TOKEN", "")
+    stubWebhookResponse(500)
+    await run(db, [evaluation(50, 50)])
+    expect(db.tables.alert_deliveries[0].status).toBe("pending")
+    db.tables.alert_deliveries[0].next_attempt_at = new Date(
+      Date.now() - 60_000
+    ).toISOString()
+
+    const fetchMock = vi.fn(async () => new Response("x", { status: 200 }))
+    vi.stubGlobal("fetch", fetchMock)
+    const { dispatchAlerts } = await import("./dispatch")
+    const res = await dispatchAlerts(
+      withFailure(db, {
+        table: "alert_deliveries",
+        writesOnly: true,
+        times: 1,
+      }),
+      [evaluation(500, 50, { severity: "healthy" })]
+    )
+
+    // A failed cancel followed by a successful close strands the delivery under
+    // a canceled event, where nothing re-arms it: the connection is re-armed
+    // and the event is no longer active, so recovery skips it on every later
+    // poll while the claim RPC still picks the row up and sends it.
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(res.degraded).toBe(true)
+  })
+
+  it("reports a degraded dispatch when the recovery close write fails", async () => {
+    const db = seededDb({ destinations: [webhookDestination()] })
+    vi.stubEnv("POSTMARK_SERVER_TOKEN", "")
+    stubWebhookResponse(500)
+    await run(db, [evaluation(50, 50)])
+
+    const { dispatchAlerts } = await import("./dispatch")
+    const res = await dispatchAlerts(
+      withFailure(db, { table: "alert_events", writesOnly: true, times: 1 }),
+      [evaluation(500, 50, { severity: "healthy" })]
+    )
+
+    // The deliveries were canceled before the close failed, so nothing can
+    // fire and the next poll re-finds the still-active event. Self-healing,
+    // but silent: the alarm is the only thing the failure costs.
+    expect(res.degraded).toBe(true)
+    for (const d of db.tables.alert_deliveries)
+      expect(d.status).toBe("canceled")
+  })
+
+  it("reports a degraded dispatch when the recovery re-arm write fails", async () => {
+    const db = seededDb()
+    db.tables.connections[0].notified_level = "low"
+    const healthy = evaluation(500, 50, {
+      severity: "healthy",
+      notifiedLevel: "low",
+    })
+
+    const { dispatchAlerts } = await import("./dispatch")
+    const res = await dispatchAlerts(
+      withFailure(db, { table: "connections", writesOnly: true, times: 1 }),
+      [healthy]
+    )
+
+    expect(res.degraded).toBe(true)
+    expect(db.tables.connections[0].notified_level).toBe("low")
+
+    // Self-healing: the connection is still healthy on the next poll, so the
+    // re-arm is retried.
+    await run(db, [healthy])
+    expect(db.tables.connections[0].notified_level).toBe("none")
+  })
+
+  it("does not fire a superseded low alert when the supersede cancel write fails", async () => {
+    const db = seededDb({ destinations: [webhookDestination()] })
+    vi.stubEnv("POSTMARK_SERVER_TOKEN", "")
+    stubWebhookResponse(500)
+    await run(db, [evaluation(50, 50)])
+    db.tables.alert_deliveries[0].next_attempt_at = new Date(
+      Date.now() - 60_000
+    ).toISOString()
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response("x", { status: 200 }))
+    )
+    const { dispatchAlerts } = await import("./dispatch")
+    const res = await dispatchAlerts(
+      withFailure(db, {
+        table: "alert_deliveries",
+        writesOnly: true,
+        times: 1,
+      }),
+      [criticalEvaluation()]
+    )
+
+    // Same stranding as recovery, reached from the escalation side: once the
+    // critical delivery advances the high-water mark the connection stops
+    // being a candidate, so the supersede never re-runs and the stale
+    // "running low" alert fires after the critical one.
+    const lowSends = vi
+      .mocked(fetch)
+      .mock.calls.filter(([, opts]) =>
+        String((opts as RequestInit).body).includes("quota.alert.low")
+      )
+    expect(lowSends).toEqual([])
+    expect(res.degraded).toBe(true)
+  })
+
+  it("reports a degraded dispatch when the supersede close write fails", async () => {
+    const db = seededDb({ destinations: [webhookDestination()] })
+    vi.stubEnv("POSTMARK_SERVER_TOKEN", "")
+    stubWebhookResponse(500)
+    await run(db, [evaluation(50, 50)])
+
+    const { dispatchAlerts } = await import("./dispatch")
+    const res = await dispatchAlerts(
+      withFailure(db, { table: "alert_events", writesOnly: true, times: 1 }),
+      [criticalEvaluation()]
+    )
+
+    expect(res.degraded).toBe(true)
+  })
+
+  it("reports a degraded dispatch and rebuilds the delivery rows on the next poll when the upsert fails", async () => {
+    const db = seededDb({ destinations: [webhookDestination()] })
+    const { dispatchAlerts } = await import("./dispatch")
+
+    const res = await dispatchAlerts(
+      withFailure(db, {
+        table: "alert_deliveries",
+        writesOnly: true,
+        times: 1,
+      }),
+      [evaluation(50, 50)]
+    )
+
+    expect(db.tables.alert_deliveries).toEqual([])
+    expect(res.degraded).toBe(true)
+
+    // Preparation only creates work: the next poll reuses the active event and
+    // fills the rows it failed to write.
+    await run(db, [evaluation(50, 50)])
+    expect(db.tables.alert_events).toHaveLength(1)
+    expect(db.tables.alert_deliveries.length).toBeGreaterThan(0)
+  })
+
+  it("reuses the in-app event instead of inserting a fresh one when the high-water advance fails", async () => {
+    const db = seededDb({ notifyMode: "off" })
+    const { dispatchAlerts } = await import("./dispatch")
+    const failing = () =>
+      withFailure(db, { table: "connections", writesOnly: true })
+
+    await dispatchAlerts(failing(), [evaluation(50, 50)])
+    const res = await dispatchAlerts(failing(), [evaluation(50, 50)])
+
+    // A satisfied event cannot be reused, so satisfying one whose high-water
+    // mark never advanced makes every later poll insert a fresh in-app alert:
+    // 96 inbox entries a day, with every poll reporting healthy.
+    expect(db.tables.alert_events).toHaveLength(1)
+    expect(db.tables.connections[0].notified_level).toBe("none")
+    expect(res.degraded).toBe(true)
+  })
+
+  it("reports a degraded dispatch when the in-app satisfy write fails", async () => {
+    const db = seededDb({ notifyMode: "off" })
+    // Seed the active event so ensureEvent reuses it and the satisfy is the
+    // only alert_events write in the poll.
+    db.tables.alert_events.push({
+      id: "e1",
+      user_id: "u1",
+      connection_id: "c1",
+      level: "low",
+      tool_name: "Acme",
+      connection_name: "Acme main",
+      title: "t",
+      body: "b",
+      pools: [],
+      dashboard_url: "https://app.example.com/dashboard",
+      topup_url: null,
+      created_at: T0,
+      delivery_satisfied_at: null,
+      delivery_canceled_at: null,
+    })
+
+    const { dispatchAlerts } = await import("./dispatch")
+    const res = await dispatchAlerts(
+      withFailure(db, { table: "alert_events", writesOnly: true, times: 1 }),
+      [evaluation(50, 50)]
+    )
+
+    // The advance landed first, so the next poll no longer sees a candidate
+    // and the unsatisfied event is a phantom until recovery closes it.
+    expect(res.degraded).toBe(true)
+    expect(db.tables.connections[0].notified_level).toBe("low")
+  })
+
+  it("logs but does not degrade when the destination health write fails", async () => {
+    const db = seededDb({ destinations: [webhookDestination()] })
+    vi.stubEnv("POSTMARK_SERVER_TOKEN", "")
+    const errorLog = vi.spyOn(console, "error").mockImplementation(() => {})
+    stubWebhookResponse(200)
+
+    const { dispatchAlerts } = await import("./dispatch")
+    const res = await dispatchAlerts(
+      withFailure(db, { table: "alert_destinations", writesOnly: true }),
+      [evaluation(50, 50)]
+    )
+
+    // The webhook was delivered and only the settings-page health row is
+    // stale. degraded means the delivery loop could not do its job, so a
+    // cosmetic write must not trip the alarm - it logs instead.
+    expect(res.sent).toBe(1)
+    expect(res.degraded).toBe(false)
+    expect(errorLog).toHaveBeenCalled()
   })
 })
 

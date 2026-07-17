@@ -90,10 +90,14 @@ export async function dispatchAlerts(
   supabase: SupabaseClient,
   evaluations: AlertEvaluation[]
 ): Promise<DispatchResult> {
-  // Recovery cancels deliveries that must NOT go out, so an incomplete run
-  // cannot be followed by a send: whatever it failed to cancel is still due,
-  // and processing it fires the exact stale alert recovery exists to stop.
-  if (!(await handleRecoveries(supabase, evaluations))) {
+  // Cancellation runs first and must complete: whatever it fails to cancel is
+  // still due, and processing it fires the exact stale alert the cancellation
+  // exists to stop. Both paths cancel - recovery for a healed connection, and
+  // a critical escalation superseding its own earlier low alert.
+  if (
+    !(await handleRecoveries(supabase, evaluations)) ||
+    !(await supersedeLowAlerts(supabase, evaluations))
+  ) {
     return { sent: 0, failedSends: 0, degraded: true }
   }
   // Preparation only creates work. A failure there delays new alerts by a poll
@@ -107,7 +111,10 @@ export async function dispatchAlerts(
 // unsatisfied events close, and pending/paused deliveries are canceled even
 // when their event was already satisfied, so an old low-balance warning
 // cannot arrive after the balance is healthy.
-// Returns false when a lookup failed, leaving the cancellations incomplete.
+// Returns false when a lookup or write failed, leaving the cancellations
+// incomplete. Every write here is retried by the next poll - the connection is
+// still healthy, and its still-active event keeps the loop entering this
+// branch - so returning early costs one poll and never a lost cancellation.
 async function handleRecoveries(
   supabase: SupabaseClient,
   evaluations: AlertEvaluation[]
@@ -144,15 +151,16 @@ async function handleRecoveries(
     if (!notified && !withActiveEvent.has(e.connectionId)) continue
 
     if (notified) {
-      await supabase
+      const { error: rearmError } = await supabase
         .from("connections")
         .update({ notified_level: "none", alert_fired_at: null })
         .eq("id", e.connectionId)
+      if (rearmError) {
+        logDegraded("re-arming a recovered connection", rearmError)
+        return false
+      }
     }
 
-    // Abort before the writes below: closing the events while their deliveries
-    // stay pending strands rows that the claim RPC still picks up, because it
-    // does not filter on the event's canceled state.
     const { data: events, error: eventsError } = await supabase
       .from("alert_events")
       .select("id")
@@ -163,19 +171,92 @@ async function handleRecoveries(
     }
     const eventIds = ((events ?? []) as { id: string }[]).map((r) => r.id)
     if (eventIds.length > 0) {
-      await supabase
+      const { error: cancelError } = await supabase
         .from("alert_deliveries")
         .update({ status: "canceled", updated_at: new Date().toISOString() })
         .in("event_id", eventIds)
         .in("status", ["pending", "paused"])
+      if (cancelError) {
+        logDegraded(
+          "canceling a recovered connection's deliveries",
+          cancelError
+        )
+        return false
+      }
     }
 
-    await supabase
+    const { error: closeError } = await supabase
       .from("alert_events")
       .update({ delivery_canceled_at: new Date().toISOString() })
       .eq("connection_id", e.connectionId)
       .is("delivery_satisfied_at", null)
       .is("delivery_canceled_at", null)
+    if (closeError) {
+      logDegraded("closing a recovered connection's events", closeError)
+      return false
+    }
+  }
+
+  return true
+}
+
+// A critical escalation supersedes the connection's earlier low event: its
+// pending/paused deliveries are canceled (whether or not the low event was
+// already satisfied) and an unsatisfied low event is closed.
+//
+// This cancels sends, so it belongs with recovery rather than with
+// preparation, which by contract only creates work and may degrade. Nothing
+// retries a skipped supersede: the moment the critical delivery advances the
+// high-water mark the connection stops being a candidate, and the low event's
+// stranded deliveries fire as a "running low" alert after the critical one.
+// Returns false when a lookup or write failed, leaving the cancellation
+// incomplete.
+async function supersedeLowAlerts(
+  supabase: SupabaseClient,
+  evaluations: AlertEvaluation[]
+): Promise<boolean> {
+  const superseding = evaluations.filter(
+    (e) =>
+      e.alertEnabled &&
+      e.severity === "critical" &&
+      rank(e.severity) > rank(e.notifiedLevel)
+  )
+  if (superseding.length === 0) return true
+
+  for (const e of superseding) {
+    const { data: lowEvents, error: lowEventsError } = await supabase
+      .from("alert_events")
+      .select("id")
+      .eq("connection_id", e.connectionId)
+      .eq("level", "low")
+    if (lowEventsError) {
+      logDegraded("loading superseded low events", lowEventsError)
+      return false
+    }
+    const lowIds = ((lowEvents ?? []) as { id: string }[]).map((r) => r.id)
+    if (lowIds.length > 0) {
+      const { error: cancelError } = await supabase
+        .from("alert_deliveries")
+        .update({ status: "canceled", updated_at: new Date().toISOString() })
+        .in("event_id", lowIds)
+        .in("status", ["pending", "paused"])
+      if (cancelError) {
+        logDegraded("canceling superseded low deliveries", cancelError)
+        return false
+      }
+    }
+
+    const { error: closeError } = await supabase
+      .from("alert_events")
+      .update({ delivery_canceled_at: new Date().toISOString() })
+      .eq("connection_id", e.connectionId)
+      .eq("level", "low")
+      .is("delivery_satisfied_at", null)
+      .is("delivery_canceled_at", null)
+    if (closeError) {
+      logDegraded("closing a superseded low event", closeError)
+      return false
+    }
   }
 
   return true
@@ -229,42 +310,11 @@ async function prepareEscalations(
     process.env.NEXT_PUBLIC_APP_URL ?? "https://app.quotacanary.com"
   const dashboardUrl = `${appUrl}/dashboard`
 
+  let ok = true
   for (const e of candidates) {
     const u = usersById.get(e.userId)
     if (!u) continue
     const level = e.severity as AlertDeliveryLevel
-
-    // A critical escalation supersedes the connection's earlier low event:
-    // its pending/paused deliveries are canceled (whether or not the low
-    // event was already satisfied) and an unsatisfied low event is closed.
-    if (level === "critical") {
-      // As in recovery, abort before the writes: a skipped cancel followed by
-      // a closed event strands pending rows that still get claimed and sent.
-      const { data: lowEvents, error: lowEventsError } = await supabase
-        .from("alert_events")
-        .select("id")
-        .eq("connection_id", e.connectionId)
-        .eq("level", "low")
-      if (lowEventsError) {
-        logDegraded("loading superseded low events", lowEventsError)
-        return false
-      }
-      const lowIds = ((lowEvents ?? []) as { id: string }[]).map((r) => r.id)
-      if (lowIds.length > 0) {
-        await supabase
-          .from("alert_deliveries")
-          .update({ status: "canceled", updated_at: new Date().toISOString() })
-          .in("event_id", lowIds)
-          .in("status", ["pending", "paused"])
-      }
-      await supabase
-        .from("alert_events")
-        .update({ delivery_canceled_at: new Date().toISOString() })
-        .eq("connection_id", e.connectionId)
-        .eq("level", "low")
-        .is("delivery_satisfied_at", null)
-        .is("delivery_canceled_at", null)
-    }
 
     const event = await ensureEvent(supabase, e, level, dashboardUrl)
     if (!event) continue
@@ -298,27 +348,52 @@ async function prepareEscalations(
     }
 
     if (rows.length > 0) {
-      await supabase.from("alert_deliveries").upsert(rows, {
-        onConflict: "event_id,delivery_key",
-        ignoreDuplicates: true,
-      })
+      const { error: upsertError } = await supabase
+        .from("alert_deliveries")
+        .upsert(rows, {
+          onConflict: "event_id,delivery_key",
+          ignoreDuplicates: true,
+        })
+      if (upsertError) {
+        logDegraded("recording alert deliveries", upsertError)
+        ok = false
+      }
     } else {
       // No external channel is configured for this event: the durable in-app
       // record satisfies the alert and the high-water mark advances now.
-      await supabase
-        .from("alert_events")
-        .update({ delivery_satisfied_at: new Date().toISOString() })
-        .eq("id", event.id)
-        .is("delivery_satisfied_at", null)
+      //
+      // Advance FIRST. The next poll reuses an unsatisfied event but cannot
+      // reuse a satisfied one, so satisfying ahead of a failed advance leaves
+      // a candidate with no active event and every later poll inserts a fresh
+      // in-app alert. Ordered this way the trailing write is the one whose
+      // failure the next poll can still repair.
       const update: { notified_level: AlertLevel; alert_fired_at?: string } = {
         notified_level: level,
       }
       if (level === "critical") update.alert_fired_at = new Date().toISOString()
-      await supabase.from("connections").update(update).eq("id", e.connectionId)
+      const { error: advanceError } = await supabase
+        .from("connections")
+        .update(update)
+        .eq("id", e.connectionId)
+      if (advanceError) {
+        logDegraded("advancing a connection's alert level", advanceError)
+        ok = false
+        continue
+      }
+
+      const { error: satisfyError } = await supabase
+        .from("alert_events")
+        .update({ delivery_satisfied_at: new Date().toISOString() })
+        .eq("id", event.id)
+        .is("delivery_satisfied_at", null)
+      if (satisfyError) {
+        logDegraded("satisfying an in-app alert event", satisfyError)
+        ok = false
+      }
     }
   }
 
-  return true
+  return ok
 }
 
 // Reuse the connection's active event for this level, otherwise insert one.
@@ -615,21 +690,29 @@ async function updateDestinationHealth(
   destination: DestinationRow,
   result: SendResult
 ) {
+  // Never touch updated_at here. claim_due_alert_deliveries re-arms a paused
+  // delivery when its destination's updated_at moves past the version it last
+  // attempted, and the claim stamps that version BEFORE this write - so a bump
+  // here re-arms the very attempt that just failed, re-firing a dead webhook
+  // every poll forever. Only a user edit may move it.
   const update = result.ok
     ? {
         last_sent_at: new Date().toISOString(),
         last_error: null,
         consecutive_failures: 0,
-        updated_at: new Date().toISOString(),
       }
     : {
         last_error: result.error,
         consecutive_failures: (destination.consecutive_failures ?? 0) + 1,
-        updated_at: new Date().toISOString(),
       }
 
-  await supabase
+  const { error } = await supabase
     .from("alert_destinations")
     .update(update)
     .eq("id", destination.id)
+  // Display-only, and the send already happened: nothing reads these fields to
+  // decide a delivery, so a failure here can neither suppress nor duplicate an
+  // alert. Log it without degrading - `degraded` means the loop could not do
+  // its job, and crying wolf over a cosmetic write blunts the only alarm.
+  if (error) logDegraded("updating destination health", error)
 }
