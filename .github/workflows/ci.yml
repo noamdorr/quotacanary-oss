@@ -17,6 +17,11 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run check
+      # Biome does not typecheck, and `next build` only typechecks what it
+      # builds - not `*.test.ts` or `e2e/`. Runs BEFORE the build because
+      # `tsconfig` includes `.next/types/**/*.ts`; a fresh checkout has no
+      # `.next`, so this sees source only. (QUO-111, mirroring QUO-110.)
+      - run: npx tsc --noEmit
       - run: npm test
       - run: npm run build
         env:
