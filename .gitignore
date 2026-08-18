@@ -45,7 +45,7 @@ next-env.d.ts
 
 # AI tooling (impeccable skills, codex agents, local Claude settings)
 # reinstall with: npx impeccable skills install
-# Exception: our own hand-written skills are tracked (they hold guidance moved out of CLAUDE.md).
+# Exception: our own hand-written skills are tracked.
 .claude/*
 !.claude/skills/
 .claude/skills/*

@@ -4,8 +4,8 @@ export type WelcomeEmailModel = {
   dashboardUrl: string
 }
 
-// Copy picked by Noam on QUO-72: variant C, not A - A's "is watching your
-// credits" is inaccurate before a first tool is connected.
+// The copy deliberately avoids "is watching your credits": that claim is
+// inaccurate before a first tool is connected (QUO-72).
 export function renderWelcomeEmail(model: WelcomeEmailModel): RenderedEmail {
   const subject = "One less thing to check obsessively"
   const lead =
