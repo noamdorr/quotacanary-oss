@@ -1,5 +1,7 @@
 "use client"
 
+import { Canary } from "@/components/brand/Canary"
+import { Button } from "@/components/ui/button"
 import { setViewMode } from "@/lib/actions/connections"
 import { effectiveStatus } from "@/lib/balance-status"
 import { connectionRowsForSuccess } from "@/lib/dashboard-connection-success"
@@ -97,6 +99,13 @@ export function DashboardClient({
     }
   }
 
+  const filtersActive = activeTag !== "All" || statusFilter !== "all"
+
+  function clearFilters() {
+    setActiveTag("All")
+    setStatusFilter("all")
+  }
+
   function dismissSuccess() {
     setDismissedConnectionId(recentConnectionId ?? null)
     router.replace("/dashboard", { scroll: false })
@@ -128,6 +137,9 @@ export function DashboardClient({
           onViewChange={changeView}
           statusFilter={statusFilter}
           onStatusChange={setStatusFilter}
+          sortKey={sortKey}
+          sortDir={sortDir}
+          onSort={toggleSort}
         />
       </div>
 
@@ -141,11 +153,39 @@ export function DashboardClient({
 
       {hero && <BurnRateHero row={hero} />}
 
-      {view === "table" ? (
+      {visible.length === 0 ? (
+        <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed border-border/60 py-16 text-center">
+          <Canary mood="perched" size={48} />
+          {filtersActive ? (
+            <>
+              <p className="font-semibold text-foreground">
+                No balances match these filters
+              </p>
+              <p className="max-w-sm text-sm text-muted-foreground">
+                Nothing here fits the current status and tag. Your connected
+                tools are all still there.
+              </p>
+              <Button variant="secondary" onClick={clearFilters}>
+                Clear filters
+              </Button>
+            </>
+          ) : (
+            <>
+              <p className="font-semibold text-foreground">
+                No balances to show yet
+              </p>
+              <p className="max-w-sm text-sm text-muted-foreground">
+                Your tools are connected but haven&apos;t reported a balance.
+                The next check will fill this in.
+              </p>
+            </>
+          )}
+        </div>
+      ) : view === "table" ? (
         <>
-          {/* The table's fixed columns can't fit narrow screens, so below sm
-              we fall back to the card layout (the designed mobile view). */}
-          <div className="hidden sm:block">
+          {/* The table's fixed columns need the wide desktop canvas. Below xl
+              the card layout keeps every watched pool readable without scroll. */}
+          <div className="hidden xl:block">
             <ConnectionsTable
               rows={visible}
               sortKey={sortKey}
@@ -156,10 +196,12 @@ export function DashboardClient({
               onOpen={(r) => setOpenKey(poolRowKey(r))}
             />
           </div>
-          <div className="grid grid-cols-1 gap-4 sm:hidden">{cards}</div>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:hidden">
+            {cards}
+          </div>
         </>
       ) : (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {cards}
         </div>
       )}

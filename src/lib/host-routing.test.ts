@@ -106,12 +106,15 @@ describe("isProtectedAppPath", () => {
       "/alerts",
       "/connect",
       "/developer",
-      "/security",
       "/settings",
       "/tools",
     ]) {
       expect(isProtectedAppPath(path)).toBe(true)
     }
+  })
+
+  it("leaves /security open - the security model is public (QUO-20)", () => {
+    expect(isProtectedAppPath("/security")).toBe(false)
   })
 
   it("gates nested protected paths (e.g. a tool detail page)", () => {
@@ -121,7 +124,6 @@ describe("isProtectedAppPath", () => {
 
   it("leaves the (auth) routes open to anonymous users", () => {
     expect(isProtectedAppPath("/login")).toBe(false)
-    expect(isProtectedAppPath("/update-password")).toBe(false)
   })
 
   it("leaves the marketing root and non-page routes ungated", () => {
@@ -145,7 +147,6 @@ describe("isAppOnlyPath", () => {
       "/alerts",
       "/connect",
       "/developer",
-      "/security",
       "/settings",
       "/tools",
     ]) {
@@ -153,9 +154,12 @@ describe("isAppOnlyPath", () => {
     }
   })
 
+  it("leaves /security on the marketing host instead of bouncing it to the app", () => {
+    expect(isAppOnlyPath("/security")).toBe(false)
+  })
+
   it("also covers the app's non-(dashboard) surface (auth, api, mcp)", () => {
     expect(isAppOnlyPath("/login")).toBe(true)
-    expect(isAppOnlyPath("/update-password")).toBe(true)
     expect(isAppOnlyPath("/auth/confirm")).toBe(true)
     expect(isAppOnlyPath("/api/poll")).toBe(true)
     expect(isAppOnlyPath("/mcp")).toBe(true)
@@ -172,6 +176,7 @@ describe("isAppOnlyPath", () => {
       "/directory/abc",
       "/docs",
       "/privacy",
+      "/security",
       "/terms",
       "/robots.txt",
       "/sitemap.xml",

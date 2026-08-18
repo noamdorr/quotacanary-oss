@@ -125,7 +125,7 @@ export default async function ToolDirectoryPage({
               ) : null}
               <div>
                 <h1
-                  className="f-display"
+                  className="f-display text-balance"
                   style={{ fontSize: "clamp(26px, 3.4vw, 38px)", margin: 0 }}
                 >
                   {tool.name}
@@ -146,6 +146,7 @@ export default async function ToolDirectoryPage({
             </header>
 
             <p
+              className="text-pretty"
               style={{
                 fontSize: 18,
                 color: "var(--ink-2)",
@@ -157,7 +158,10 @@ export default async function ToolDirectoryPage({
             </p>
 
             {tool.description ? (
-              <p style={{ fontSize: 15, color: "var(--ink-3)", marginTop: 10 }}>
+              <p
+                className="text-pretty"
+                style={{ fontSize: 15, color: "var(--ink-3)", marginTop: 10 }}
+              >
                 {tool.description}
               </p>
             ) : null}
@@ -185,14 +189,20 @@ export default async function ToolDirectoryPage({
 
             {tool.key_instructions ? (
               <Section label="Find your API key">
-                <p style={{ fontSize: 14, color: "var(--ink-2)", margin: 0 }}>
+                <p
+                  className="text-pretty"
+                  style={{ fontSize: 14, color: "var(--ink-2)", margin: 0 }}
+                >
                   {tool.key_instructions}
                 </p>
               </Section>
             ) : null}
 
             <Section label="Balance warnings">
-              <p style={{ fontSize: 14, color: "var(--ink-2)", margin: 0 }}>
+              <p
+                className="text-pretty"
+                style={{ fontSize: 14, color: "var(--ink-2)", margin: 0 }}
+              >
                 QuotaCanary checks your {tool.name} balance in the background
                 and warns you before it gets too close to zero.
               </p>

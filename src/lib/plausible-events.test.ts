@@ -20,4 +20,16 @@ describe("trackPlausibleEvent", () => {
 
     expect(plausible).toHaveBeenCalledWith("Video Complete")
   })
+
+  it("forwards props in Plausible's options shape when given", () => {
+    const plausible = vi.fn()
+
+    vi.stubGlobal("window", { plausible })
+
+    trackPlausibleEvent("Connection Created", { tool: "openai" })
+
+    expect(plausible).toHaveBeenCalledWith("Connection Created", {
+      props: { tool: "openai" },
+    })
+  })
 })

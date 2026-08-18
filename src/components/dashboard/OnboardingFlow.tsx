@@ -2,6 +2,8 @@
 
 import { Canary } from "@/components/brand/Canary"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { completeOnboarding, connectTool } from "@/lib/actions/connections"
 import { effectiveStatus } from "@/lib/balance-status"
 import {
@@ -14,10 +16,11 @@ import {
 } from "@/lib/credentials"
 import type { FeaturedTool } from "@/lib/featured-tools"
 import { formatBalance } from "@/lib/format"
+import { FUNNEL_EVENTS, trackPlausibleEvent } from "@/lib/plausible-events"
 import { Check } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
-import { useState, useTransition } from "react"
+import { useEffect, useState, useTransition } from "react"
 import { FirstToolConfetti } from "./FirstToolConfetti"
 import { StatusPill } from "./StatusPill"
 
@@ -31,6 +34,10 @@ type Connected = {
   critical: number | null
 }
 
+// The "where to find your key" note is the credential fields' help text, so it
+// needs a stable id to hang every field's aria-describedby off.
+const KEY_HELP_ID = "onboarding-key-help"
+
 const STEP_LABELS: { key: Step; label: string }[] = [
   { key: "welcome", label: "Welcome" },
   { key: "connect", label: "Connect a tool" },
@@ -41,11 +48,20 @@ function StepIndicator({ step }: { step: Step }) {
   const order: Step[] = ["welcome", "connect", "success"]
   const idx = order.indexOf(step)
   return (
-    <div className="mb-6 flex items-center gap-2">
+    // An ordered list so assistive tech gets the count and the position, with
+    // aria-current marking where the user is. The connector rules are pure
+    // decoration and cost ~48px, so they sit out the narrow widths where the
+    // three labels are the thing that has to fit.
+    <ol className="mb-6 flex flex-wrap items-center gap-x-2 gap-y-1">
       {STEP_LABELS.map((s, i) => (
-        <div key={s.key} className="flex items-center gap-2">
+        <li
+          key={s.key}
+          aria-current={i === idx ? "step" : undefined}
+          className="flex items-center gap-2"
+        >
           <span
-            className={`flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-bold ${
+            aria-hidden="true"
+            className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px] font-bold ${
               i < idx
                 ? "bg-[var(--canary)] text-[var(--ink)]"
                 : i === idx
@@ -57,11 +73,14 @@ function StepIndicator({ step }: { step: Step }) {
           </span>
           <span className="text-xs text-muted-foreground">{s.label}</span>
           {i < STEP_LABELS.length - 1 && (
-            <span className="h-px w-5 bg-border" />
+            <span
+              aria-hidden="true"
+              className="hidden h-px w-5 bg-border sm:block"
+            />
           )}
-        </div>
+        </li>
       ))}
-    </div>
+    </ol>
   )
 }
 
@@ -79,12 +98,21 @@ export function OnboardingFlow({
   // single-pool case, where no picker is shown).
   const [watched, setWatched] = useState<string[]>([])
   const [credentialValues, setCredentialValues] = useState<CredentialValues>({})
+  // Credential fields the user has left, so a required-field error only shows
+  // after they had a chance to fill it, never on a pristine form.
+  const [touched, setTouched] = useState<string[]>([])
   // biome-ignore format: source contract requires this initializer verbatim
   const [createRequestId, setCreateRequestId] = useState(() => crypto.randomUUID())
   const [error, setError] = useState<string | null>(null)
   const [connected, setConnected] = useState<Connected | null>(null)
   const [checkingBalance, setCheckingBalance] = useState(false)
   const [pending, startTransition] = useTransition()
+
+  // Only never-onboarded users ever see this panel, so mounting it is the
+  // closest client-side observable to "signup completed" (see FUNNEL_EVENTS).
+  useEffect(() => {
+    trackPlausibleEvent(FUNNEL_EVENTS.SIGNUP_COMPLETED)
+  }, [])
 
   // Leave the flow: mark onboarding done, then reveal the dashboard. Used by
   // both "Skip for now" and "Go to my dashboard". On failure we surface the
@@ -96,6 +124,7 @@ export function OnboardingFlow({
         setError(res.error)
         return
       }
+      trackPlausibleEvent(FUNNEL_EVENTS.ONBOARDING_COMPLETED)
       router.refresh()
     })
   }
@@ -126,6 +155,8 @@ export function OnboardingFlow({
         setCheckingBalance(false)
         return
       }
+      trackPlausibleEvent(FUNNEL_EVENTS.CONNECTION_CREATED, { tool: tool.id })
+      trackPlausibleEvent(FUNNEL_EVENTS.FIRST_BALANCE)
       setConnected({
         toolName: tool.name,
         logoUrl: tool.logo_url,
@@ -139,10 +170,14 @@ export function OnboardingFlow({
   }
 
   return (
-    <div className="rounded-xl border border-border bg-card p-8">
+    <div className="rounded-xl border border-border bg-card p-5 sm:p-8">
       <StepIndicator step={step} />
 
-      {error && <p className="mb-4 text-sm text-[var(--dry)]">{error}</p>}
+      {error && (
+        <p role="alert" className="mb-4 text-sm text-[var(--dry)]">
+          {error}
+        </p>
+      )}
 
       {step === "welcome" && (
         <div className="relative">
@@ -159,8 +194,8 @@ export function OnboardingFlow({
             Welcome to QuotaCanary
           </h2>
           <p className="mb-6 max-w-xl text-sm text-muted-foreground">
-            Keep an eye on every credit balance in your outreach stack, and get
-            warned before any of them runs dry.
+            Keep an eye on the credit balances you connect, and get warned
+            before any of them runs dry.
           </p>
           <ul className="mb-7 space-y-3">
             {[
@@ -190,15 +225,24 @@ export function OnboardingFlow({
               </li>
             ))}
           </ul>
-          <Button onClick={() => setStep("connect")}>Get started</Button>
-          <button
-            type="button"
-            onClick={finish}
-            disabled={pending}
-            className="ml-3 text-sm text-muted-foreground underline hover:text-foreground"
-          >
-            Skip for now
-          </button>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
+            <Button
+              onClick={() => {
+                trackPlausibleEvent(FUNNEL_EVENTS.ONBOARDING_STARTED)
+                setStep("connect")
+              }}
+            >
+              Get started
+            </Button>
+            <button
+              type="button"
+              onClick={finish}
+              disabled={pending}
+              className="rounded text-sm text-muted-foreground underline outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50"
+            >
+              Skip for now
+            </button>
+          </div>
         </div>
       )}
 
@@ -217,6 +261,7 @@ export function OnboardingFlow({
               <button
                 key={t.id}
                 type="button"
+                aria-pressed={selected?.id === t.id}
                 onClick={() => {
                   setSelected(t)
                   setWatched(
@@ -225,10 +270,11 @@ export function OnboardingFlow({
                       : []
                   )
                   setCredentialValues({})
+                  setTouched([])
                   setCreateRequestId(crypto.randomUUID())
                   setError(null)
                 }}
-                className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors ${
+                className={`flex items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 ${
                   selected?.id === t.id
                     ? "border-foreground bg-muted/60"
                     : "border-border hover:border-foreground/40"
@@ -259,35 +305,94 @@ export function OnboardingFlow({
           {selected && (
             <div className="mb-4 max-w-md">
               {selected.key_instructions && (
-                <p className="mb-2 rounded-lg bg-[var(--low-bg)] px-3 py-2 text-xs text-[var(--low-text)]">
+                <p
+                  id={KEY_HELP_ID}
+                  className="mb-3 rounded-lg bg-[var(--low-bg)] px-3 py-2 text-xs text-[var(--low-text)]"
+                >
                   {selected.key_instructions}
                 </p>
               )}
-              <div className="space-y-2">
+              <div className="space-y-3">
                 {credentialFieldsFor(selected.credential_fields).map(
-                  (field) => (
-                    <input
-                      key={field.name}
-                      name={credentialInputName(field)}
-                      type={field.type}
-                      autoComplete="off"
-                      value={credentialValues[field.name] ?? ""}
-                      onChange={(e) =>
-                        setCredentialValues((values) => ({
-                          ...values,
-                          [field.name]: e.target.value,
-                        }))
-                      }
-                      placeholder={credentialPlaceholder(selected.name, field)}
-                      className="w-full rounded-lg border border-border px-3 py-2 text-sm"
-                    />
-                  )
+                  (field) => {
+                    const inputId = `onboarding-${credentialInputName(field)}`
+                    const errorId = `${inputId}-error`
+                    const missing =
+                      touched.includes(field.name) &&
+                      !credentialValues[field.name]?.trim()
+                    const describedBy = [
+                      missing ? errorId : null,
+                      selected.key_instructions ? KEY_HELP_ID : null,
+                    ].filter(Boolean)
+                    return (
+                      <div key={field.name} className="space-y-1.5">
+                        <Label htmlFor={inputId}>{field.label}</Label>
+                        <Input
+                          id={inputId}
+                          name={credentialInputName(field)}
+                          type={field.type}
+                          value={credentialValues[field.name] ?? ""}
+                          onChange={(e) =>
+                            setCredentialValues((values) => ({
+                              ...values,
+                              [field.name]: e.target.value,
+                            }))
+                          }
+                          onBlur={() =>
+                            setTouched((names) =>
+                              names.includes(field.name)
+                                ? names
+                                : [...names, field.name]
+                            )
+                          }
+                          placeholder={credentialPlaceholder(
+                            selected.name,
+                            field
+                          )}
+                          // An API key is a secret, not a login. Password
+                          // managers must not offer the user's account
+                          // password here or save this as one, and mobile
+                          // keyboards must not capitalize or "correct" a
+                          // pasted key.
+                          autoComplete="off"
+                          data-1p-ignore
+                          data-lpignore="true"
+                          autoCapitalize="off"
+                          autoCorrect="off"
+                          spellCheck={false}
+                          aria-invalid={missing || undefined}
+                          aria-describedby={
+                            describedBy.length
+                              ? describedBy.join(" ")
+                              : undefined
+                          }
+                        />
+                        {missing && (
+                          <p
+                            id={errorId}
+                            role="alert"
+                            className="text-xs text-[var(--dry)]"
+                          >
+                            {field.label} is required.
+                          </p>
+                        )}
+                      </div>
+                    )
+                  }
                 )}
               </div>
               <p className="mt-2 text-xs text-muted-foreground">
                 Read-only: we check your balance, never spend credits or touch
                 your account. Keys are encrypted at rest. Use a scoped key if
-                your tool offers one.
+                your tool offers one.{" "}
+                <a
+                  href="/security"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="underline underline-offset-2 hover:text-foreground"
+                >
+                  How we handle your key
+                </a>
               </p>
               {selected.pools && selected.pools.length > 1 && (
                 <fieldset className="mt-3 space-y-2">
@@ -341,31 +446,39 @@ export function OnboardingFlow({
             </output>
           )}
 
-          <Button
-            onClick={submit}
-            disabled={
-              pending ||
-              !selected ||
-              !credentialsComplete(selected.credential_fields, credentialValues)
-            }
-          >
-            {checkingBalance ? (
-              <span className="qc-connect-listening">
-                <span className="qc-connect-listening-dot" aria-hidden="true" />
-                Listening for balance…
-              </span>
-            ) : (
-              "Connect & check balance"
-            )}
-          </Button>
-          <button
-            type="button"
-            onClick={finish}
-            disabled={pending}
-            className="ml-3 text-sm text-muted-foreground underline hover:text-foreground"
-          >
-            Skip for now
-          </button>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
+            <Button
+              onClick={submit}
+              disabled={
+                pending ||
+                !selected ||
+                !credentialsComplete(
+                  selected.credential_fields,
+                  credentialValues
+                )
+              }
+            >
+              {checkingBalance ? (
+                <span className="qc-connect-listening">
+                  <span
+                    className="qc-connect-listening-dot"
+                    aria-hidden="true"
+                  />
+                  Listening for balance…
+                </span>
+              ) : (
+                "Connect & check balance"
+              )}
+            </Button>
+            <button
+              type="button"
+              onClick={finish}
+              disabled={pending}
+              className="rounded text-sm text-muted-foreground underline outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50"
+            >
+              Skip for now
+            </button>
+          </div>
         </div>
       )}
 
@@ -420,22 +533,25 @@ export function OnboardingFlow({
             ))}
           </div>
 
-          <Button disabled={pending} onClick={finish}>
-            Go to my dashboard
-          </Button>
-          <button
-            type="button"
-            onClick={() => {
-              setSelected(null)
-              setWatched([])
-              setCredentialValues({})
-              setError(null)
-              setStep("connect")
-            }}
-            className="ml-3 text-sm text-muted-foreground underline hover:text-foreground"
-          >
-            Connect another tool
-          </button>
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
+            <Button disabled={pending} onClick={finish}>
+              Go to my dashboard
+            </Button>
+            <button
+              type="button"
+              onClick={() => {
+                setSelected(null)
+                setWatched([])
+                setCredentialValues({})
+                setTouched([])
+                setError(null)
+                setStep("connect")
+              }}
+              className="rounded text-sm text-muted-foreground underline outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50"
+            >
+              Connect another tool
+            </button>
+          </div>
         </div>
       )}
     </div>

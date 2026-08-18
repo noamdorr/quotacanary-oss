@@ -22,8 +22,8 @@ export function AuthBrandPanel() {
         </h2>
 
         <p className="qc-auth-copy">
-          One dashboard for every tool that bills you by the credit. Connect the
-          keys, then let the canary watch the burn rate.
+          One dashboard for the tools you connect. Paste the keys, then let the
+          canary watch the burn rate.
         </p>
 
         <div className="qc-auth-risk-card" aria-label="Demo credit alert">

@@ -2,6 +2,7 @@ import { encrypt } from "@/lib/crypto"
 import type { SupabaseClient } from "@supabase/supabase-js"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import type { AlertEvaluation } from "./severity"
+import { verifyWebhookSignature } from "./signing"
 
 // Capture the model handed to the email renderer so we can assert which pools
 // land in the email body. sendEmail defaults to success; individual tests
@@ -22,6 +23,14 @@ vi.mock("@/lib/email/render/alert", () => ({
 
 const { lookup } = vi.hoisted(() => ({ lookup: vi.fn() }))
 vi.mock("node:dns/promises", () => ({ lookup }))
+
+// Webhook deliveries go out over the pinned-address transport, which resolves
+// with the response status. Stub it rather than global fetch: the real one
+// opens a TLS socket to the pinned IP.
+const { postToPinnedAddress } = vi.hoisted(() => ({
+  postToPinnedAddress: vi.fn(),
+}))
+vi.mock("./pinned-post", () => ({ postToPinnedAddress }))
 
 // ---------------------------------------------------------------------------
 // Stateful in-memory Supabase fake. The query-builder side implements the
@@ -288,8 +297,21 @@ function fakeDb(seed: {
         const conn = tables.connections.find(
           (c) => c.id === event.connection_id
         )
-        if (conn && rankOf(conn.notified_level) < rankOf(event.level)) {
-          conn.notified_level = event.level
+        // Migration 056: advance only the pools the event named, and only
+        // upward, then recompute the connection-level rollup.
+        if (conn) {
+          const levels = { ...((conn.notified_levels as Row) ?? {}) }
+          for (const ct of (event.credit_types as string[] | null) ?? []) {
+            if (rankOf(levels[ct]) < rankOf(event.level)) {
+              levels[ct] = event.level
+            }
+          }
+          conn.notified_levels = levels
+          conn.notified_level = Object.values(levels).reduce(
+            (highest: unknown, level) =>
+              rankOf(level) > rankOf(highest) ? level : highest,
+            "none"
+          )
           if (event.level === "critical") conn.alert_fired_at = nowIso
         }
       }
@@ -329,17 +351,32 @@ function fakeDb(seed: {
 // Seed helpers
 // ---------------------------------------------------------------------------
 
-function seededDb(opts: { notifyMode?: string; destinations?: Row[] } = {}) {
+// Pass `email: null` for the webhook-only shape: no address on file is the
+// only condition that leaves email out of a sendable escalation.
+function seededDb(
+  opts: {
+    notifyMode?: string
+    destinations?: Row[]
+    email?: string | null
+  } = {}
+) {
   return fakeDb({
     users: [
       {
         id: "u1",
-        email: "a@b.com",
+        email: opts.email !== undefined ? opts.email : "a@b.com",
         notify_mode: opts.notifyMode ?? "low_and_critical",
         updated_at: T0,
       },
     ],
-    connections: [{ id: "c1", notified_level: "none", alert_fired_at: null }],
+    connections: [
+      {
+        id: "c1",
+        notified_level: "none",
+        notified_levels: {},
+        alert_fired_at: null,
+      },
+    ],
     destinations: opts.destinations ?? [],
   })
 }
@@ -373,17 +410,29 @@ function evaluation(
     alertEnabled: true,
     severity: "low",
     notifiedLevel: "none",
+    notifiedLevels: {},
     pools: [
-      { label: "Credits", balance, low, critical: null, unit: "credits" },
+      {
+        creditType: "credits",
+        label: "Credits",
+        balance,
+        low,
+        critical: null,
+        unit: "credits",
+      },
     ],
     ...overrides,
   }
 }
 
 function stubWebhookResponse(status: number) {
-  vi.stubGlobal(
-    "fetch",
-    vi.fn(async () => new Response("x", { status }))
+  postToPinnedAddress.mockResolvedValue({ status })
+}
+
+function webhookSends() {
+  return postToPinnedAddress.mock.calls.map(
+    ([opts]) =>
+      opts as { url: string; headers: Record<string, string>; body: string }
   )
 }
 
@@ -398,6 +447,9 @@ async function run(
 beforeEach(() => {
   vi.stubEnv("POSTMARK_SERVER_TOKEN", "tok")
   vi.stubEnv("ENCRYPTION_KEY", "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=")
+  // clearAllMocks does not drop implementations, so a failure override would
+  // otherwise leak into every later test and make them pass for a false reason.
+  sendEmail.mockResolvedValue({ ok: true })
   lookup.mockResolvedValue([{ address: "93.184.216.34", family: 4 }])
   stubWebhookResponse(200)
 })
@@ -431,11 +483,42 @@ describe("dispatchAlerts pool-body filter", () => {
 
   it("excludes a pool whose balance is strictly above its threshold", async () => {
     const db = seededDb()
-    const res = await run(db, [evaluation(60, 50)])
+    const res = await run(db, [
+      evaluation(50, 50, {
+        pools: [
+          {
+            creditType: "credits",
+            label: "Credits",
+            balance: 50,
+            low: 50,
+            critical: null,
+            unit: null,
+          },
+          {
+            creditType: "proxy_gb",
+            label: "Proxy GB",
+            balance: 60,
+            low: 50,
+            critical: null,
+            unit: null,
+          },
+        ],
+      }),
+    ])
 
     expect(res.sent).toBe(1)
-    const model = renderAlertEmail.mock.calls[0][0] as { pools: unknown[] }
-    expect(model.pools).toHaveLength(0)
+    const model = renderAlertEmail.mock.calls[0][0] as {
+      pools: { label: string }[]
+    }
+    expect(model.pools.map((p) => p.label)).toEqual(["Credits"])
+  })
+
+  it("leaves a connection alone when no pool has crossed", async () => {
+    const db = seededDb()
+    const res = await run(db, [evaluation(60, 50, { severity: "healthy" })])
+
+    expect(res.sent).toBe(0)
+    expect(db.tables.alert_events).toHaveLength(0)
   })
 })
 
@@ -462,18 +545,65 @@ describe("dispatchAlerts retry-safe delivery", () => {
     const db = seededDb({ destinations: [webhookDestination()] })
     await run(db, [evaluation(50, 50)])
 
-    expect(fetch).toHaveBeenCalledWith(
-      "https://example.com/hook",
+    expect(postToPinnedAddress).toHaveBeenCalledWith(
       expect.objectContaining({
-        method: "POST",
+        url: "https://example.com/hook",
         body: expect.stringContaining("quota.alert.low"),
       })
     )
-    const [, opts] = vi.mocked(fetch).mock.calls[0] as [string, RequestInit]
-    const deliveryId = (opts.headers as Record<string, string>)[
-      "idempotency-key"
-    ]
+    const deliveryId = webhookSends()[0].headers["idempotency-key"]
     expect(db.tables.alert_deliveries.map((d) => d.id)).toContain(deliveryId)
+  })
+
+  it("signs the delivery with the destination's stored secret", async () => {
+    const db = seededDb({
+      destinations: [
+        webhookDestination({
+          encrypted_signing_secret: encrypt("qcwh_stored"),
+          signing_secret_set_at: T0,
+        }),
+      ],
+    })
+    await run(db, [evaluation(50, 50)])
+
+    const sent = webhookSends()[0]
+    expect(
+      verifyWebhookSignature({
+        secret: "qcwh_stored",
+        header: sent.headers["quotacanary-signature"],
+        body: sent.body,
+        nowSeconds: Math.floor(Date.now() / 1000),
+      })
+    ).toEqual({ ok: true })
+  })
+
+  it("sends unsigned when the destination predates signing secrets", async () => {
+    const db = seededDb({ destinations: [webhookDestination()] })
+    await run(db, [evaluation(50, 50)])
+
+    expect(webhookSends()[0].headers["quotacanary-signature"]).toBeUndefined()
+    expect(db.tables.alert_deliveries[0].status).toBe("succeeded")
+  })
+
+  // Falling back to an unsigned send would be worse than not delivering: a
+  // receiver that skips verification would accept a delivery its owner believes
+  // is signed.
+  it("pauses rather than sending unsigned when the stored secret cannot be decrypted", async () => {
+    const db = seededDb({
+      destinations: [
+        webhookDestination({
+          encrypted_signing_secret: "not-a-ciphertext",
+          signing_secret_set_at: T0,
+        }),
+      ],
+      email: null,
+    })
+    await run(db, [evaluation(50, 50)])
+
+    expect(postToPinnedAddress).not.toHaveBeenCalled()
+    const delivery = db.tables.alert_deliveries[0]
+    expect(delivery.status).toBe("paused")
+    expect(delivery.last_error).toContain("signing secret")
   })
 
   it("keeps the high-water mark unarmed and schedules retries when every channel fails", async () => {
@@ -542,12 +672,12 @@ describe("dispatchAlerts retry-safe delivery", () => {
 
     // Second poll while nothing is due: the event is reused, nothing resends.
     sendEmail.mockClear()
-    vi.mocked(fetch).mockClear()
+    postToPinnedAddress.mockClear()
     await run(db, [evaluation(50, 50)])
     expect(db.tables.alert_events).toHaveLength(1)
     expect(db.tables.alert_deliveries).toHaveLength(2)
     expect(sendEmail).not.toHaveBeenCalled()
-    expect(fetch).not.toHaveBeenCalled()
+    expect(postToPinnedAddress).not.toHaveBeenCalled()
 
     // Age only the email delivery; the next poll retries just that one.
     sendEmail.mockResolvedValue({ ok: true } as never)
@@ -559,7 +689,7 @@ describe("dispatchAlerts retry-safe delivery", () => {
 
     await run(db, [evaluation(50, 50)])
     expect(sendEmail).toHaveBeenCalledTimes(1)
-    expect(fetch).not.toHaveBeenCalled()
+    expect(postToPinnedAddress).not.toHaveBeenCalled()
     expect(email.status).toBe("succeeded")
     expect(db.tables.alert_events[0].delivery_satisfied_at).not.toBeNull()
     expect(db.tables.connections[0].notified_level).toBe("low")
@@ -579,16 +709,21 @@ describe("dispatchAlerts retry-safe delivery", () => {
     // Age the failed email delivery and poll again with the (now satisfied)
     // connection: only the email goes out, the webhook is never re-posted.
     sendEmail.mockResolvedValue({ ok: true } as never)
-    vi.mocked(fetch).mockClear()
+    postToPinnedAddress.mockClear()
     const email = db.tables.alert_deliveries.find(
       (d) => d.delivery_key === "email"
     )
     if (!email) throw new Error("missing email delivery")
     email.next_attempt_at = new Date(Date.now() - 60_000).toISOString()
 
-    await run(db, [evaluation(50, 50, { notifiedLevel: "low" })])
+    await run(db, [
+      evaluation(50, 50, {
+        notifiedLevel: "low",
+        notifiedLevels: { credits: "low" },
+      }),
+    ])
 
-    expect(fetch).not.toHaveBeenCalled()
+    expect(postToPinnedAddress).not.toHaveBeenCalled()
     expect(email.status).toBe("succeeded")
     expect(
       db.tables.alert_deliveries.find(
@@ -611,6 +746,31 @@ describe("dispatchAlerts retry-safe delivery", () => {
     expect(res.failedSends).toBe(0)
   })
 
+  it("prepares the email delivery even when Postmark is not configured yet", async () => {
+    vi.stubEnv("POSTMARK_SERVER_TOKEN", "")
+    // Mirrors the real client, which treats a missing token as retryable.
+    sendEmail.mockResolvedValue({
+      ok: false,
+      error: "Email not configured.",
+      retryable: true,
+      // biome-ignore lint/suspicious/noExplicitAny: mock override
+    } as any)
+    const db = seededDb()
+
+    const res = await run(db, [evaluation(50, 50)])
+
+    // Skipping the row instead reads as "no external channel is configured",
+    // which satisfies the event and advances the high-water mark. Configuring
+    // the token later never resurrects the alert: the connection is not a
+    // candidate again until it deteriorates to critical or fully recovers.
+    expect(db.tables.alert_deliveries).toHaveLength(1)
+    expect(db.tables.alert_deliveries[0].delivery_key).toBe("email")
+    expect(db.tables.alert_deliveries[0].status).toBe("pending")
+    expect(db.tables.alert_events[0].delivery_satisfied_at).toBeNull()
+    expect(db.tables.connections[0].notified_level).toBe("none")
+    expect(res.failedSends).toBe(1)
+  })
+
   it("cancels pending low deliveries when a critical escalation supersedes them", async () => {
     const db = seededDb({ destinations: [webhookDestination()] })
     sendEmail.mockResolvedValue({
@@ -630,7 +790,14 @@ describe("dispatchAlerts retry-safe delivery", () => {
       evaluation(5, 50, {
         severity: "critical",
         pools: [
-          { label: "Credits", balance: 5, low: 50, critical: 10, unit: null },
+          {
+            creditType: "credits",
+            label: "Credits",
+            balance: 5,
+            low: 50,
+            critical: 10,
+            unit: null,
+          },
         ],
       }),
     ])
@@ -936,10 +1103,9 @@ describe("dispatchAlerts failure visibility", () => {
   })
 
   it("keeps the high-water mark unarmed when the destination lookup fails on an install with no email channel", async () => {
-    // The self-host default: no Postmark token, so a webhook is the only
-    // channel. POSTMARK_SERVER_TOKEN gates the email delivery row.
-    vi.stubEnv("POSTMARK_SERVER_TOKEN", "")
-    const db = seededDb({ destinations: [webhookDestination()] })
+    // No address on file, so a webhook is the only channel and the no-channel
+    // branch is genuinely reachable for this user.
+    const db = seededDb({ destinations: [webhookDestination()], email: null })
     const { dispatchAlerts } = await import("./dispatch")
 
     const res = await dispatchAlerts(
@@ -974,8 +1140,7 @@ describe("dispatchAlerts failure visibility", () => {
   })
 
   it("does not fire a recovered connection's stale delivery when the active-event probe blips", async () => {
-    const db = seededDb({ destinations: [webhookDestination()] })
-    vi.stubEnv("POSTMARK_SERVER_TOKEN", "")
+    const db = seededDb({ destinations: [webhookDestination()], email: null })
     stubWebhookResponse(500)
     await run(db, [evaluation(50, 50)])
     // Every channel failed, so the high-water mark never armed: the active
@@ -986,8 +1151,8 @@ describe("dispatchAlerts failure visibility", () => {
       Date.now() - 60_000
     ).toISOString()
 
-    const fetchMock = vi.fn(async () => new Response("x", { status: 200 }))
-    vi.stubGlobal("fetch", fetchMock)
+    stubWebhookResponse(200)
+    postToPinnedAddress.mockClear()
     const { dispatchAlerts } = await import("./dispatch")
     const res = await dispatchAlerts(
       withFailure(db, { table: "alert_events", times: 1 }),
@@ -997,7 +1162,7 @@ describe("dispatchAlerts failure visibility", () => {
     // The balance recovered, so this delivery must be canceled, not sent. A
     // blip on the probe reads as "nothing in flight", and the stale low-balance
     // webhook then fires against a healthy balance.
-    expect(fetchMock).not.toHaveBeenCalled()
+    expect(postToPinnedAddress).not.toHaveBeenCalled()
     expect(res.degraded).toBe(true)
   })
 
@@ -1034,13 +1199,19 @@ describe("dispatchAlerts write failures", () => {
     evaluation(5, 50, {
       severity: "critical",
       pools: [
-        { label: "Credits", balance: 5, low: 50, critical: 10, unit: null },
+        {
+          creditType: "credits",
+          label: "Credits",
+          balance: 5,
+          low: 50,
+          critical: 10,
+          unit: null,
+        },
       ],
     })
 
   it("never claims a delivery whose event was canceled", async () => {
-    const db = seededDb({ destinations: [webhookDestination()] })
-    vi.stubEnv("POSTMARK_SERVER_TOKEN", "")
+    const db = seededDb({ destinations: [webhookDestination()], email: null })
     stubWebhookResponse(500)
     await run(db, [evaluation(50, 50)])
     const delivery = db.tables.alert_deliveries[0]
@@ -1058,8 +1229,7 @@ describe("dispatchAlerts write failures", () => {
   })
 
   it("does not fire a recovered connection's stale delivery when the cancel write fails", async () => {
-    const db = seededDb({ destinations: [webhookDestination()] })
-    vi.stubEnv("POSTMARK_SERVER_TOKEN", "")
+    const db = seededDb({ destinations: [webhookDestination()], email: null })
     stubWebhookResponse(500)
     await run(db, [evaluation(50, 50)])
     expect(db.tables.alert_deliveries[0].status).toBe("pending")
@@ -1067,8 +1237,8 @@ describe("dispatchAlerts write failures", () => {
       Date.now() - 60_000
     ).toISOString()
 
-    const fetchMock = vi.fn(async () => new Response("x", { status: 200 }))
-    vi.stubGlobal("fetch", fetchMock)
+    stubWebhookResponse(200)
+    postToPinnedAddress.mockClear()
     const { dispatchAlerts } = await import("./dispatch")
     const res = await dispatchAlerts(
       withFailure(db, {
@@ -1083,13 +1253,12 @@ describe("dispatchAlerts write failures", () => {
     // a canceled event, where nothing re-arms it: the connection is re-armed
     // and the event is no longer active, so recovery skips it on every later
     // poll while the claim RPC still picks the row up and sends it.
-    expect(fetchMock).not.toHaveBeenCalled()
+    expect(postToPinnedAddress).not.toHaveBeenCalled()
     expect(res.degraded).toBe(true)
   })
 
   it("reports a degraded dispatch when the recovery close write fails", async () => {
-    const db = seededDb({ destinations: [webhookDestination()] })
-    vi.stubEnv("POSTMARK_SERVER_TOKEN", "")
+    const db = seededDb({ destinations: [webhookDestination()], email: null })
     stubWebhookResponse(500)
     await run(db, [evaluation(50, 50)])
 
@@ -1131,18 +1300,15 @@ describe("dispatchAlerts write failures", () => {
   })
 
   it("does not fire a superseded low alert when the supersede cancel write fails", async () => {
-    const db = seededDb({ destinations: [webhookDestination()] })
-    vi.stubEnv("POSTMARK_SERVER_TOKEN", "")
+    const db = seededDb({ destinations: [webhookDestination()], email: null })
     stubWebhookResponse(500)
     await run(db, [evaluation(50, 50)])
     db.tables.alert_deliveries[0].next_attempt_at = new Date(
       Date.now() - 60_000
     ).toISOString()
 
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () => new Response("x", { status: 200 }))
-    )
+    stubWebhookResponse(200)
+    postToPinnedAddress.mockClear()
     const { dispatchAlerts } = await import("./dispatch")
     const res = await dispatchAlerts(
       withFailure(db, {
@@ -1157,18 +1323,15 @@ describe("dispatchAlerts write failures", () => {
     // critical delivery advances the high-water mark the connection stops
     // being a candidate, so the supersede never re-runs and the stale
     // "running low" alert fires after the critical one.
-    const lowSends = vi
-      .mocked(fetch)
-      .mock.calls.filter(([, opts]) =>
-        String((opts as RequestInit).body).includes("quota.alert.low")
-      )
+    const lowSends = webhookSends().filter((opts) =>
+      opts.body.includes("quota.alert.low")
+    )
     expect(lowSends).toEqual([])
     expect(res.degraded).toBe(true)
   })
 
   it("reports a degraded dispatch when the supersede close write fails", async () => {
-    const db = seededDb({ destinations: [webhookDestination()] })
-    vi.stubEnv("POSTMARK_SERVER_TOKEN", "")
+    const db = seededDb({ destinations: [webhookDestination()], email: null })
     stubWebhookResponse(500)
     await run(db, [evaluation(50, 50)])
 
@@ -1235,6 +1398,7 @@ describe("dispatchAlerts write failures", () => {
       title: "t",
       body: "b",
       pools: [],
+      credit_types: ["credits"],
       dashboard_url: "https://app.example.com/dashboard",
       topup_url: null,
       created_at: T0,
@@ -1255,8 +1419,7 @@ describe("dispatchAlerts write failures", () => {
   })
 
   it("logs but does not degrade when the destination health write fails", async () => {
-    const db = seededDb({ destinations: [webhookDestination()] })
-    vi.stubEnv("POSTMARK_SERVER_TOKEN", "")
+    const db = seededDb({ destinations: [webhookDestination()], email: null })
     const errorLog = vi.spyOn(console, "error").mockImplementation(() => {})
     stubWebhookResponse(200)
 
@@ -1283,5 +1446,199 @@ describe("retry backoff schedule", () => {
     expect(retryBackoffMinutes(2)).toBe(360)
     expect(retryBackoffMinutes(3)).toBe(1440)
     expect(retryBackoffMinutes(12)).toBe(1440)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Per-pool high-water marks (QUO-61)
+//
+// Multi-pool vendors are a large share of the catalog. With one mark per
+// connection, the second pool to cross a level was silent until it
+// deteriorated to critical or the whole connection recovered.
+// ---------------------------------------------------------------------------
+
+describe("dispatchAlerts per-pool high-water marks", () => {
+  // Mirrors what refresh-connection hands dispatch: readings plus the marks as
+  // they stand in the connection row right now.
+  function poll(db: ReturnType<typeof fakeDb>, balances: [string, number][]) {
+    const conn = db.tables.connections[0]
+    return run(db, [
+      evaluation(0, 50, {
+        severity: balances.some(([, b]) => b <= 50) ? "low" : "healthy",
+        notifiedLevel: conn.notified_level as "none" | "low" | "critical",
+        notifiedLevels: (conn.notified_levels ?? {}) as Record<
+          string,
+          "low" | "critical"
+        >,
+        pools: balances.map(([creditType, balance]) => ({
+          creditType,
+          label: creditType,
+          balance,
+          low: 50,
+          critical: null,
+          unit: null,
+        })),
+      }),
+    ])
+  }
+
+  const emailedPools = () =>
+    renderAlertEmail.mock.calls.map(([model]) =>
+      (model as { pools: { label: string }[] }).pools.map((p) => p.label)
+    )
+
+  it("alerts a second pool crossing the same level on a later poll", async () => {
+    const db = seededDb()
+
+    // Day 1: compute units drops below its low threshold.
+    expect(
+      (
+        await poll(db, [
+          ["compute", 40],
+          ["proxy", 90],
+        ])
+      ).sent
+    ).toBe(1)
+    expect(db.tables.connections[0].notified_levels).toEqual({ compute: "low" })
+
+    // Day 5: proxy GB drops below ITS low threshold. The connection's overall
+    // severity is unchanged, which is exactly what used to silence this.
+    expect(
+      (
+        await poll(db, [
+          ["compute", 40],
+          ["proxy", 40],
+        ])
+      ).sent
+    ).toBe(1)
+    expect(db.tables.connections[0].notified_levels).toEqual({
+      compute: "low",
+      proxy: "low",
+    })
+
+    expect(db.tables.alert_events).toHaveLength(2)
+    // Each alert names only the pool that was news that day.
+    expect(emailedPools()).toEqual([["compute"], ["proxy"]])
+  })
+
+  it("does not resend for a pool that already alerted", async () => {
+    const db = seededDb()
+    await poll(db, [
+      ["compute", 40],
+      ["proxy", 90],
+    ])
+    const res = await poll(db, [
+      ["compute", 40],
+      ["proxy", 90],
+    ])
+
+    expect(res.sent).toBe(0)
+    expect(db.tables.alert_events).toHaveLength(1)
+  })
+
+  it("re-arms only the pool that recovered", async () => {
+    const db = seededDb()
+    await poll(db, [
+      ["compute", 40],
+      ["proxy", 40],
+    ])
+    await poll(db, [
+      ["compute", 40],
+      ["proxy", 40],
+    ])
+    expect(db.tables.connections[0].notified_levels).toEqual({
+      compute: "low",
+      proxy: "low",
+    })
+
+    // compute recovers; proxy is still low, so the connection has not.
+    await poll(db, [
+      ["compute", 90],
+      ["proxy", 40],
+    ])
+    expect(db.tables.connections[0].notified_levels).toEqual({ proxy: "low" })
+    expect(db.tables.connections[0].notified_level).toBe("low")
+
+    // compute crossing again is news again, and proxy still is not.
+    const res = await poll(db, [
+      ["compute", 40],
+      ["proxy", 40],
+    ])
+    expect(res.sent).toBe(1)
+    expect(emailedPools().at(-1)).toEqual(["compute"])
+  })
+
+  it("adopts credit types on an event created before the migration", async () => {
+    // A pre-056 event already lists its pools but has no credit_types, so it
+    // takes the keys without re-appending pools that are already on it.
+    const db = seededDb({ destinations: [webhookDestination()], email: null })
+    stubWebhookResponse(500)
+    db.tables.alert_events.push({
+      id: "legacy",
+      user_id: "u1",
+      connection_id: "c1",
+      level: "low",
+      tool_name: "Acme",
+      connection_name: "Acme main",
+      title: "t",
+      body: "b",
+      pools: [{ label: "compute", balance: 40, threshold: 50, unit: null }],
+      credit_types: null,
+      dashboard_url: "https://app.example.com/dashboard",
+      topup_url: null,
+      created_at: T0,
+      delivery_satisfied_at: null,
+      delivery_canceled_at: null,
+    })
+
+    await poll(db, [["compute", 40]])
+    const event = db.tables.alert_events[0]
+    expect(db.tables.alert_events).toHaveLength(1)
+    expect(event.credit_types).toEqual(["compute"])
+    expect(event.pools).toHaveLength(1)
+
+    // And the adopted keys are what the delivery then advances.
+    stubWebhookResponse(200)
+    db.tables.alert_deliveries[0].next_attempt_at = new Date(
+      Date.now() - 60_000
+    ).toISOString()
+    await poll(db, [["compute", 40]])
+    expect(db.tables.connections[0].notified_levels).toEqual({
+      compute: "low",
+    })
+  })
+
+  it("folds a newly crossing pool into an event still waiting on delivery", async () => {
+    // Without the merge the second pool sits behind a stuck delivery forever:
+    // one active event per (connection, level) means it can neither reuse the
+    // event nor open its own.
+    const db = seededDb({ destinations: [webhookDestination()], email: null })
+    stubWebhookResponse(500)
+    await poll(db, [
+      ["compute", 40],
+      ["proxy", 90],
+    ])
+    const event = db.tables.alert_events[0]
+    expect(event.credit_types).toEqual(["compute"])
+
+    await poll(db, [
+      ["compute", 40],
+      ["proxy", 40],
+    ])
+    expect(db.tables.alert_events).toHaveLength(1)
+    expect(event.credit_types).toEqual(["compute", "proxy"])
+
+    // When the webhook finally lands, both pools' marks advance together.
+    stubWebhookResponse(200)
+    const delivery = db.tables.alert_deliveries[0]
+    delivery.next_attempt_at = new Date(Date.now() - 60_000).toISOString()
+    await poll(db, [
+      ["compute", 40],
+      ["proxy", 40],
+    ])
+    expect(db.tables.connections[0].notified_levels).toEqual({
+      compute: "low",
+      proxy: "low",
+    })
   })
 })

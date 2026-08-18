@@ -6,9 +6,19 @@ export const firecrawlAdapter: ToolAdapter = {
   async readBalance(apiKey: string): Promise<AdapterResult> {
     let res: Response
     try {
-      res = await timedFetch("https://api.firecrawl.dev/v2/team/credit-usage", {
-        headers: { Authorization: `Bearer ${apiKey}` },
-      })
+      // This endpoint intermittently takes >10s (observed TimeoutError flaps
+      // on prod, 2026-07-17), so it gets extra headroom over the default.
+      // Budget: the poll refreshes in chunks of 8 under maxDuration = 60.
+      // 20s does not eliminate the flap - ~2% of polls still time out, and
+      // they cluster at the top of the hour, so the residual is Firecrawl's
+      // latency rather than this number. Accepted 2026-07-17: a failure
+      // self-heals on the next poll. Don't raise it further; the budget is
+      // the constraint.
+      res = await timedFetch(
+        "https://api.firecrawl.dev/v2/team/credit-usage",
+        { headers: { Authorization: `Bearer ${apiKey}` } },
+        20000
+      )
     } catch {
       return { ok: false, error: "Couldn't reach Firecrawl." }
     }

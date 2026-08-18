@@ -27,7 +27,7 @@ export const metadata: Metadata = {
   metadataBase: new URL("https://quotacanary.com"),
   title: "QuotaCanary",
   description:
-    "The bird that sings before the credits die. Credit-balance monitoring for your whole API stack.",
+    "The bird that sings before the credits die. Credit-balance monitoring for the API tools you connect.",
   icons: {
     icon: [{ url: "/favicon.svg", type: "image/svg+xml" }],
     apple: [{ url: "/apple-touch-icon.png" }],
@@ -37,7 +37,7 @@ export const metadata: Metadata = {
     siteName: "QuotaCanary",
     title: "QuotaCanary",
     description:
-      "The bird that sings before the credits die. Credit-balance monitoring for your whole API stack.",
+      "The bird that sings before the credits die. Credit-balance monitoring for the API tools you connect.",
     url: "/",
     images: [
       {
@@ -52,7 +52,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "QuotaCanary",
     description:
-      "The bird that sings before the credits die. Credit-balance monitoring for your whole API stack.",
+      "The bird that sings before the credits die. Credit-balance monitoring for the API tools you connect.",
     images: [
       {
         url: "/og.jpg",

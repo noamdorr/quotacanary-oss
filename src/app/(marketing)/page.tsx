@@ -12,11 +12,11 @@ import type { Metadata } from "next"
 export const metadata: Metadata = {
   title: "QuotaCanary - credit monitoring for your API stack",
   description:
-    "The bird that sings before the credits die. Watch every credit balance in your stack and get warned before any of them runs dry.",
+    "The bird that sings before the credits die. Watch the credit balances you connect and get warned before any of them runs dry.",
   openGraph: {
     title: "QuotaCanary",
     description:
-      "The bird that sings before the credits die. Credit monitoring for your whole API stack.",
+      "The bird that sings before the credits die. Credit monitoring for the API tools you connect.",
     type: "website",
     images: [
       {

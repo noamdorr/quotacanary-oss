@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 
 export default function PrivacyPage() {
   return (
-    <LegalPage title="Privacy policy" updated="June 14, 2026">
+    <LegalPage title="Privacy policy" updated="August 12, 2026">
       <p style={{ fontSize: 16, lineHeight: 1.65, margin: 0 }}>
         QuotaCanary watches credit balances so you don&apos;t have to. Doing
         that requires holding a small amount of your data. This page lists all
@@ -45,9 +45,9 @@ export default function PrivacyPage() {
 
       <LegalSection heading="What we collect">
         <p>
-          <strong>Account.</strong> Your email address and a password. The
-          password is hashed by Supabase Auth; we never see or store it in plain
-          text.
+          <strong>Account.</strong> Your email address. Sign-in is passwordless:
+          Supabase Auth emails you a one-time link, so there is no password for
+          us to store, hash, or leak.
         </p>
         <p>
           <strong>Connections.</strong> The API credentials you paste when
@@ -147,6 +147,12 @@ export default function PrivacyPage() {
           it, email <a href="mailto:hey@quotacanary.com">hey@quotacanary.com</a>{" "}
           and we&apos;ll do it within 30 days, usually much faster. Self-serve
           account deletion is on the roadmap; until then, a human handles it.
+        </p>
+        <p>
+          Balance readings are pruned after 90 days, keeping the most recent 50
+          per watched balance. <a href="/security">The security page</a> spells
+          out what is kept, what is deleted, and what survives a connection
+          delete.
         </p>
       </LegalSection>
 

@@ -1,7 +1,11 @@
+import { randomUUID } from "node:crypto"
+import type { LookupAddress } from "node:dns"
 import { lookup } from "node:dns/promises"
 import { isIP } from "node:net"
 import { isRetryableHttpStatus } from "@/lib/retryable-http"
 import type { AlertLevel } from "@/lib/types"
+import { postToPinnedAddress } from "./pinned-post"
+import { SIGNATURE_HEADER, buildSignatureHeader } from "./signing"
 
 export type AlertDestinationKind = "webhook" | "slack_webhook"
 export type AlertDeliveryLevel = Exclude<AlertLevel, "none">
@@ -23,6 +27,10 @@ export type AlertDestinationEvent = {
   dashboardUrl: string
   topupUrl: string | null
   createdAt: string
+  // Set only by the Settings "Send test" button. It is what keeps a receiver
+  // from paging a human over a probe: the generic payload's `event` field
+  // reads `quota.alert.test` instead of `quota.alert.low`.
+  isTest?: boolean
 }
 
 export type AlertDestinationRow = {
@@ -141,6 +149,34 @@ export function destinationUrlHint(raw: string): string {
   return new URL(raw).host
 }
 
+// The synthetic event behind the Settings "Send test" button. It carries the
+// real payload shape so a receiver's parser is exercised, but nothing about it
+// claims a balance is low: the generic body's event is `quota.alert.test`, and
+// the Slack message says so in its title.
+export function testDestinationEvent(
+  dashboardUrl: string
+): AlertDestinationEvent {
+  return {
+    id: randomUUID(),
+    level: "low",
+    isTest: true,
+    toolName: "QuotaCanary",
+    // No connection is involved in a test, and the payload's connection.id is
+    // documented as a uuid, so send the nil uuid rather than inventing one that
+    // looks resolvable.
+    connectionId: "00000000-0000-0000-0000-000000000000",
+    connectionName: "Test destination",
+    title: "Test alert from QuotaCanary",
+    body: "This is a test delivery. No balance is actually low.",
+    pools: [
+      { label: "Test credits", balance: 42, threshold: 100, unit: "credits" },
+    ],
+    dashboardUrl,
+    topupUrl: null,
+    createdAt: new Date().toISOString(),
+  }
+}
+
 export function renderDestinationPayload(
   kind: AlertDestinationKind,
   event: AlertDestinationEvent
@@ -153,7 +189,8 @@ export async function postAlertDestination(
   kind: AlertDestinationKind,
   url: string,
   event: AlertDestinationEvent,
-  deliveryId?: string
+  deliveryId?: string,
+  signingSecret?: string | null
 ): Promise<DestinationSendResult> {
   // Re-validate at dispatch, not just at save: the stored URL is decrypted here
   // and the request is about to leave the server.
@@ -166,21 +203,28 @@ export async function postAlertDestination(
     }
   }
 
-  // Resolve the hostname and refuse if it points at internal/metadata space.
-  // Catches a public hostname pointed at a private IP (e.g. an A record for
-  // 169.254.169.254). A DNS-rebinding attacker can still vary the answer between
-  // this lookup and fetch's own resolution; fully closing that needs IP pinning.
+  // Resolve the hostname once and refuse if it points at internal/metadata
+  // space. Catches a public hostname pointed at a private IP (e.g. an A record
+  // for 169.254.169.254). The address that passed this check is the one the
+  // request connects to, so a rebinding answer arriving afterwards is never
+  // used.
   const host = new URL(valid.url).hostname.replace(/^\[|\]$/g, "")
-  if (!isIP(host)) {
+  const literal = isIP(host)
+  let pinned: LookupAddress[] = [{ address: host, family: literal }]
+  if (!literal) {
     try {
       const addresses = await lookup(host, { all: true })
-      if (addresses.some((entry) => isBlockedIp(entry.address))) {
+      if (
+        addresses.length === 0 ||
+        addresses.some((entry) => isBlockedIp(entry.address))
+      ) {
         return {
           ok: false,
           error: "Webhook host is not allowed.",
           retryable: false,
         }
       }
+      pinned = addresses
     } catch {
       // DNS resolution failures can be transient (resolver outage, EAI_AGAIN).
       return { ok: false, error: "Webhook request failed.", retryable: true }
@@ -191,23 +235,40 @@ export async function postAlertDestination(
     "content-type": "application/json",
     "user-agent": "QuotaCanary/1.0",
   }
+  // Serialize once and sign that exact string. Signing a re-serialization
+  // would let the two drift, and the receiver verifies the bytes it received.
+  const body = JSON.stringify(renderDestinationPayload(kind, event))
   // Stable per-delivery key lets generic webhook receivers deduplicate the
   // at-least-once retries. Slack incoming webhooks ignore it, so skip there.
   if (kind === "webhook" && deliveryId) {
     headers["idempotency-key"] = deliveryId
   }
+  // Slack has no signature to verify, and a destination created before QUO-9
+  // has no secret until its owner generates one - both send unsigned, exactly
+  // as they did before.
+  if (kind === "webhook" && signingSecret) {
+    headers[SIGNATURE_HEADER] = buildSignatureHeader({
+      secret: signingSecret,
+      body,
+      timestampSeconds: Math.floor(Date.now() / 1000),
+    })
+  }
 
   try {
-    const res = await fetch(valid.url, {
-      method: "POST",
-      redirect: "manual",
+    const res = await postToPinnedAddress({
+      url: valid.url,
+      addresses: pinned,
       headers,
-      body: JSON.stringify(renderDestinationPayload(kind, event)),
+      body,
       // A hanging user webhook must not stall the whole alert dispatch.
-      signal: AbortSignal.timeout(10_000),
+      timeoutMs: 10_000,
     })
 
-    if (!res.ok) {
+    if (!res) {
+      return { ok: false, error: "Webhook request failed.", retryable: true }
+    }
+    // Redirects are not followed, so a 3xx is reported as a failed delivery.
+    if (res.status < 200 || res.status >= 300) {
       return {
         ok: false,
         error: `HTTP ${res.status}`,
@@ -222,7 +283,7 @@ export async function postAlertDestination(
 
 function renderWebhookPayload(event: AlertDestinationEvent) {
   return {
-    event: `quota.alert.${event.level}`,
+    event: event.isTest ? "quota.alert.test" : `quota.alert.${event.level}`,
     id: event.id,
     level: event.level,
     title: event.title,

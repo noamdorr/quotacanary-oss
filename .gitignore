@@ -45,7 +45,12 @@ next-env.d.ts
 
 # AI tooling (impeccable skills, codex agents, local Claude settings)
 # reinstall with: npx impeccable skills install
-.claude/
+# Exception: our own hand-written skills are tracked (they hold guidance moved out of CLAUDE.md).
+.claude/*
+!.claude/skills/
+.claude/skills/*
+!.claude/skills/local-setup/
+!.claude/skills/releasing/
 .codex/
 .agents/
 .firecrawl/
@@ -54,3 +59,9 @@ next-env.d.ts
 supabase/.temp/
 supabase/.branches/
 .playwright-mcp/
+
+# Playwright
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/

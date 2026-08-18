@@ -75,7 +75,7 @@ export function HowItWorks() {
             <span
               aria-hidden="true"
               style={{
-                color: "var(--canary-deep)",
+                color: "var(--canary-ink)",
                 fontFamily: "var(--f-mono)",
               }}
             >
@@ -85,7 +85,7 @@ export function HowItWorks() {
               className="f-mono"
               style={{
                 background: "rgba(255,196,0,0.12)",
-                color: "var(--canary-deep)",
+                color: "var(--canary-ink)",
                 border: "1px solid rgba(255,196,0,0.4)",
                 padding: "6px 10px",
                 borderRadius: 6,

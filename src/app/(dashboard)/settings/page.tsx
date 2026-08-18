@@ -4,6 +4,7 @@ import { AlertDestinations } from "@/components/settings/AlertDestinations"
 import { ApiTokens } from "@/components/settings/ApiTokens"
 import { NotificationPrefs } from "@/components/settings/NotificationPrefs"
 import { Button } from "@/components/ui/button"
+import { QueryError } from "@/components/ui/query-error"
 import { createClient } from "@/lib/supabase/server"
 import type { AlertDestination, NotifyMode } from "@/lib/types"
 import { redirect } from "next/navigation"
@@ -17,19 +18,23 @@ export default async function SettingsPage() {
   } = await supabase.auth.getUser()
   if (!user) redirect("/login")
 
-  const { data: profile } = await supabase
+  // Each query backs one section, so each failure is scoped to that section:
+  // a dead token query should not cost you the notification toggle.
+  // `maybeSingle` keeps an absent profile row a null (the default applies)
+  // rather than an error, so only a real failure reaches QueryError.
+  const { data: profile, error: profileError } = await supabase
     .from("users")
     .select("notify_mode")
     .eq("id", user.id)
-    .single()
-  const { data: destinations } = await supabase
+    .maybeSingle()
+  const { data: destinations, error: destinationsError } = await supabase
     .from("alert_destinations")
     .select(
-      "id, user_id, kind, name, url_hint, min_level, is_enabled, last_sent_at, last_error, consecutive_failures, created_at, updated_at"
+      "id, user_id, kind, name, url_hint, min_level, is_enabled, signing_secret_set_at, last_attempt_at, last_sent_at, last_error, consecutive_failures, created_at, updated_at"
     )
     .eq("user_id", user.id)
     .order("created_at", { ascending: false })
-  const { data: tokens } = await supabase
+  const { data: tokens, error: tokensError } = await supabase
     .from("api_tokens")
     .select("id, name, token_hint, last_used_at, revoked_at, created_at")
     .eq("user_id", user.id)
@@ -37,7 +42,7 @@ export default async function SettingsPage() {
     .order("created_at", { ascending: false })
 
   return (
-    <main className="flex-1 p-6 sm:p-8">
+    <main className="flex-1 p-4 sm:p-8">
       <div className="mx-auto w-full max-w-3xl space-y-6">
         <h1 className="text-2xl font-bold">Settings</h1>
 
@@ -50,9 +55,15 @@ export default async function SettingsPage() {
               Choose whether low, critical, or no email alerts get through.
             </p>
           </div>
-          <NotificationPrefs
-            current={(profile?.notify_mode ?? "low_and_critical") as NotifyMode}
-          />
+          {profileError ? (
+            <QueryError what="your email notification setting" />
+          ) : (
+            <NotificationPrefs
+              current={
+                (profile?.notify_mode ?? "low_and_critical") as NotifyMode
+              }
+            />
+          )}
         </section>
 
         <section id="integrations" className="card space-y-5 p-5 sm:p-6">
@@ -72,9 +83,13 @@ export default async function SettingsPage() {
               Send alerts to Slack incoming webhooks or any public HTTPS
               endpoint.
             </p>
-            <AlertDestinations
-              destinations={(destinations ?? []) as AlertDestination[]}
-            />
+            {destinationsError ? (
+              <QueryError what="your webhook destinations" />
+            ) : (
+              <AlertDestinations
+                destinations={(destinations ?? []) as AlertDestination[]}
+              />
+            )}
           </div>
 
           <div className="space-y-2 border-t border-border/60 pt-5">
@@ -91,7 +106,11 @@ export default async function SettingsPage() {
                 Read the API &amp; MCP docs →
               </a>
             </p>
-            <ApiTokens tokens={tokens ?? []} />
+            {tokensError ? (
+              <QueryError what="your API tokens" />
+            ) : (
+              <ApiTokens tokens={tokens ?? []} />
+            )}
           </div>
         </section>
 

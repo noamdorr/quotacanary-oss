@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest"
 import {
   categoryLabel,
   sortToolsForDirectory,
+  toolMatchesQuery,
   toolSubheading,
   toolWebsiteUrl,
 } from "./tool-directory"
@@ -37,6 +38,20 @@ describe("categoryLabel", () => {
   })
   it("returns Other for null", () => {
     expect(categoryLabel(null)).toBe("Other")
+  })
+})
+
+describe("toolMatchesQuery", () => {
+  const hunter = tool("hunter", "Hunter", "email_finding")
+
+  it("matches tool names and human-readable category labels", () => {
+    expect(toolMatchesQuery(hunter, "hunt")).toBe(true)
+    expect(toolMatchesQuery(hunter, "email finding")).toBe(true)
+  })
+
+  it("normalizes separators and rejects unrelated queries", () => {
+    expect(toolMatchesQuery(hunter, "email_finding")).toBe(true)
+    expect(toolMatchesQuery(hunter, "web data")).toBe(false)
   })
 })
 

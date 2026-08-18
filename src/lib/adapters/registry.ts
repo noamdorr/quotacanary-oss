@@ -13,6 +13,7 @@ import { dataforseoAdapter } from "./dataforseo"
 import { debounceAdapter } from "./debounce"
 import { deepseekAdapter } from "./deepseek"
 import { dropcontactAdapter } from "./dropcontact"
+import { E2E_MOCK_TOOL_ID, e2eMockAdapter } from "./e2e-mock"
 import { emailableAdapter } from "./emailable"
 import { emailhippoAdapter } from "./emailhippo"
 import { emaillistverifyAdapter } from "./emaillistverify"
@@ -132,5 +133,11 @@ const ADAPTERS: Record<string, ToolAdapter> = {
 }
 
 export function getAdapter(toolId: string): ToolAdapter | undefined {
+  // The browser smoke suite's vendor-free adapter, kept out of the table above so
+  // it can never be reached without the flag. Inert when E2E_MOCK_TOOL is unset,
+  // which is every environment except a local or CI e2e run.
+  if (toolId === E2E_MOCK_TOOL_ID) {
+    return process.env.E2E_MOCK_TOOL === "true" ? e2eMockAdapter : undefined
+  }
   return ADAPTERS[toolId]
 }

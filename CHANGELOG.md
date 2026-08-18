@@ -9,6 +9,121 @@ migration under **Upgrade notes**. Always run the migration step after updating.
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-08-18
+
+### Added
+- Navigating between dashboard pages now shows a loading skeleton instead of
+  a frozen screen while the next page's data loads. Static (no animation)
+  when your system asks for reduced motion.
+- Two optional alarms for a poll run that goes wrong, so a broken schedule
+  reaches you without watching a dashboard. `POLL_HEARTBEAT_URL` makes every
+  run ping an external cron monitor (Healthchecks.io and friends), with a
+  failed run pinging `<url>/fail` - the only signal that survives your instance
+  being down, since a run that never happens cannot report itself.
+  `POLL_ALERT_EMAIL` mails the run's counts on a failed run, on a gap in the
+  schedule, or on a second consecutive unhealthy run. Both are unset by
+  default, and unset means silent.
+- An in-app feedback and bug-report button in the dashboard header. Submissions
+  are stored (rate-limited to 5/hour per user); mailing a copy is opt-in via
+  `FEEDBACK_NOTIFY_EMAIL`.
+- A send-test button and delivery health on each alert destination
+  (webhook/Slack/email), so a broken URL or a revoked hook shows up before a
+  real low-credit alert needs it.
+- The public security page (`/security`) no longer requires sign-in, and is
+  now linked from every place you enter a credential: the connect modal,
+  onboarding, and the rekey drawer.
+- A welcome email on signup, sent via Postmark.
+- Clicking "Connect X" from the tool directory before signing in now reopens
+  that tool's credential modal right after sign-in, instead of dropping you
+  on a blank dashboard.
+- Poll runs are now classified ok/degraded/failed and logged; a fully-failed
+  run returns an HTTP 5xx so external cron monitoring actually notices.
+- Eight acquisition-funnel events (signup started/completed, onboarding
+  started/completed, connection created, first balance, alert destination
+  created, tool requested) fire to Plausible when analytics is enabled. This
+  sends nothing unless you've already set `PLAUSIBLE_SCRIPT_SRC`; see
+  `FUNNEL_EVENTS` in `src/lib/plausible-events.ts` for exact names.
+
+### Changed
+- Sign-in is now magic-link only; the password login/signup/reset flow is
+  removed. Existing password users just request a link - no migration needed,
+  nothing to do on your end.
+- A failed balance refresh now names the failing connection (tool + id) and
+  the underlying cause in the server log. Before, the poll reported only a
+  failure count, and the row's error status healed on the next successful
+  poll, so an intermittent vendor failure was unattributable.
+- Dashboard and marketing pages are now responsive down to mobile/tablet
+  widths, with calmer ambient motion and hardened shared controls (buttons,
+  dialogs, tabs).
+- A failed read from the database now shows a retryable error instead of
+  silently rendering as "no data" or an empty state.
+- The homepage and FAQ no longer claim universal tool coverage; they show the
+  real catalog count and a path to request a missing tool.
+- An alert's high-water mark is now tracked per pool instead of per
+  connection, so a second pool on the same multi-pool tool crossing its own
+  threshold is no longer silenced by the first pool's alert.
+
+### Fixed
+- Firecrawl connections flap to an error status far less often when Firecrawl's
+  credit-usage endpoint responds slowly: its timeout is now 20s (the shared
+  default is 10s, which that endpoint often exceeds). Measured on the hosted
+  app: roughly half of polls showed a Firecrawl failure before, 1 of 41 after.
+  The endpoint can still exceed 20s, and a failed poll self-heals on the next
+  one.
+- Burn rate and "most at risk" ranking compared only the first and last
+  reading in the trailing window, so a mid-window top-up understated burn or
+  dropped a pool out of the ranking entirely. Consumption is now summed
+  across every reading in the window.
+- Poll and history queries were silently capped at PostgREST's 1000-row
+  limit; installs with enough connections or pools past that ceiling stopped
+  getting refreshed or alerted on. Both are now paginated.
+- A missing `POSTMARK_SERVER_TOKEN` permanently silenced an alert instead of
+  retrying once the token was configured.
+- Plausible analytics is no longer loaded by default. It was hardcoded onto
+  every production build regardless of self-host status, sending authenticated
+  dashboard paths to a third-party origin; it's now opt-in via
+  `PLAUSIBLE_SCRIPT_SRC`.
+- The FAQ's collapsed answers were keyboard-focusable while visually hidden,
+  and Canary Gold text on cream measured below WCAG AA contrast in one spot.
+  Both fixed.
+- Onboarding, rekey, and connect credential fields now carry persistent labels
+  and secret-field hardening (password-manager compatibility, mobile
+  autocapitalize).
+
+### Security
+- Generic webhook deliveries are now HMAC-signed per destination.
+- Hardened webhook delivery to stay consistent with the address our SSRF
+  guard already validated, rather than re-resolving the destination at send
+  time.
+- Tightened the `authenticated` role's database write permissions on `users`
+  and `api_tokens` to only the columns the app itself writes.
+- The rate limiter now fails closed on a misconfigured or missing RPC instead
+  of open, and API tokens are capped at 10 per user, atomically.
+- Added a real CSP `script-src` (previously only `frame-ancestors` was set).
+
+### Upgrade notes
+- **Ten new database migrations (050-059).** Run `supabase db push` (hosted
+  Supabase) or `supabase db reset` (local stack; wipes data) after pulling.
+  050 drops the dead `users.display_mode` column; 051 makes API token
+  creation atomic; 052 narrows the `authenticated` UPDATE grants and adds a
+  `revoke_api_token` RPC; 053 adds the poll-run metrics table; 054 restores a
+  drifted `WITH CHECK` on two RLS policies; 055 adds per-destination webhook
+  signing secrets; 056 moves the alert high-water mark to per-pool; 057 adds
+  alert test-delivery tracking; 058 adds the welcome-email dedupe flag; 059
+  adds the feedback-submissions table.
+- **Four new optional environment variables** (see `.env.local.example`):
+  `POLL_HEARTBEAT_URL`, `POLL_ALERT_EMAIL`, `FEEDBACK_NOTIFY_EMAIL`, and
+  `PLAUSIBLE_SCRIPT_SRC`. All unset by default; unset keeps the current
+  (analytics-free, silent-poll-failure) behavior.
+- Password-based sign-in is gone. If you scripted around
+  `/login`+password or the old signup/reset routes, switch to the magic-link
+  flow - existing user rows and sessions are unaffected.
+- `tsc --noEmit` now runs as a required CI step alongside `next build`, and an
+  authenticated Playwright browser-smoke suite is required on `master`
+  (`e2e/`, vendor-free via a mock tool adapter - no live vendor keys needed).
+  Neither affects a deployed instance; both only matter if you run this
+  repo's own CI.
+
 ## [1.0.6] - 2026-07-17
 
 ### Fixed
@@ -273,7 +388,8 @@ migration under **Upgrade notes**. Always run the migration step after updating.
 - New optional env var `APP_ONLY` (set `true` for single-domain self-host).
 - Run `supabase db push` (hosted) or `supabase db reset` (local) after pulling.
 
-[unreleased]: https://github.com/noamdorr/quotacanary-oss/compare/v1.0.6...HEAD
+[unreleased]: https://github.com/noamdorr/quotacanary-oss/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/noamdorr/quotacanary-oss/compare/v1.0.6...v1.1.0
 [1.0.6]: https://github.com/noamdorr/quotacanary-oss/compare/v1.0.5...v1.0.6
 [1.0.5]: https://github.com/noamdorr/quotacanary-oss/compare/v1.0.4...v1.0.5
 [1.0.4]: https://github.com/noamdorr/quotacanary-oss/compare/v1.0.3...v1.0.4

@@ -645,8 +645,10 @@ export default function DocsPage() {
                 <code style={INLINE_CODE}>content-type: application/json</code>{" "}
                 and a{" "}
                 <code style={INLINE_CODE}>user-agent: QuotaCanary/1.0</code>{" "}
-                header. There is no signature header - the endpoint URL is the
-                secret, so keep it private.
+                header. Generic webhooks also carry an{" "}
+                <code style={INLINE_CODE}>idempotency-key</code> - a stable
+                per-delivery id you can dedupe on, since retries mean deliveries
+                are at-least-once.
               </p>
               <p>A generic webhook receives this JSON body:</p>
               <pre style={CODE_BLOCK}>{`{
@@ -675,6 +677,103 @@ export default function DocsPage() {
                 not know the vendor billing page. Slack incoming webhooks get a
                 natively formatted message instead of this payload - no setup
                 beyond pasting the webhook URL.
+              </p>
+              <p>
+                The Send test button in Settings posts the same body with{" "}
+                <code style={INLINE_CODE}>event</code> set to{" "}
+                <code style={INLINE_CODE}>quota.alert.test</code>. Route on{" "}
+                <code style={INLINE_CODE}>event</code> if a test should not page
+                anyone.
+              </p>
+
+              <h3 style={H3_STYLE}>Verifying the signature</h3>
+              <p>
+                Every generic webhook gets its own signing secret (
+                <code style={INLINE_CODE}>qcwh_...</code>), shown once when you
+                add the destination under Settings → Integrations. Each delivery
+                is signed with it:
+              </p>
+              <pre
+                style={{
+                  ...CODE_BLOCK,
+                  whiteSpace: "pre-wrap",
+                  wordBreak: "break-word",
+                }}
+              >
+                {"quotacanary-signature: t=1780000000,v1=5e1b...c93a"}
+              </pre>
+              <p>
+                <code style={INLINE_CODE}>t</code> is the Unix timestamp in
+                seconds and <code style={INLINE_CODE}>v1</code> is the
+                hex-encoded HMAC-SHA256 of{" "}
+                <code style={INLINE_CODE}>
+                  {"<t>"}.{"<raw body>"}
+                </code>{" "}
+                under your secret. Sign the <strong>bytes you received</strong>,
+                not a re-serialized copy of the parsed JSON - key order and
+                whitespace both change the digest. We send exactly one{" "}
+                <code style={INLINE_CODE}>v1</code> today; parse the elements as
+                a list and accept the delivery if any of them matches, so a
+                receiver you write now keeps working if that ever changes.
+              </p>
+              <pre style={CODE_BLOCK}>{`const crypto = require("node:crypto")
+
+const TOLERANCE_SECONDS = 300
+
+function verify(rawBody, header, secret) {
+  if (!header) return false
+
+  let timestamp = null
+  const signatures = []
+  for (const part of header.split(",")) {
+    const [key, value] = part.trim().split("=")
+    if (key === "t") timestamp = Number(value)
+    if (key === "v1") signatures.push(value)
+  }
+  if (!timestamp || signatures.length === 0) return false
+
+  // Replay protection: refuse anything outside the clock tolerance.
+  const now = Math.floor(Date.now() / 1000)
+  if (Math.abs(now - timestamp) > TOLERANCE_SECONDS) return false
+
+  const expected = crypto
+    .createHmac("sha256", secret)
+    .update(timestamp + "." + rawBody)
+    .digest("hex")
+
+  return signatures.some(
+    (s) =>
+      /^[0-9a-f]{64}$/.test(s) &&
+      crypto.timingSafeEqual(
+        Buffer.from(s, "hex"),
+        Buffer.from(expected, "hex")
+      )
+  )
+}`}</pre>
+
+              <h3 style={H3_STYLE}>Replay protection</h3>
+              <p>
+                The timestamp is inside the signed string, so a captured
+                delivery cannot be re-sent under a fresh{" "}
+                <code style={INLINE_CODE}>t</code> without breaking the digest.
+                Reject any delivery whose timestamp is more than{" "}
+                <strong>300 seconds</strong> from your own clock, in either
+                direction, and compare digests in constant time (
+                <code style={INLINE_CODE}>timingSafeEqual</code>, not{" "}
+                <code style={INLINE_CODE}>===</code>). Retries reuse the same{" "}
+                <code style={INLINE_CODE}>idempotency-key</code>, so dedupe on
+                that rather than treating a repeat as an attack.
+              </p>
+
+              <h3 style={H3_STYLE}>Rotating a secret</h3>
+              <p>
+                Settings → Integrations → Webhooks has a{" "}
+                <strong>Rotate secret</strong> button on every generic webhook.
+                Rotation is immediate and has no overlap window: the old secret
+                stops signing the moment you rotate, so update your receiver in
+                the same sitting. Webhooks added before signing existed show{" "}
+                <strong>Generate secret</strong> instead and keep sending
+                unsigned until you press it.
               </p>
             </div>
           </section>

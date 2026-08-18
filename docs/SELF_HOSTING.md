@@ -31,8 +31,12 @@ cp .env.local.example .env.local
 | `NEXT_PUBLIC_SITE_URL` | yes | Origin used for auth redirects (local: `http://localhost:3000`) |
 | `NEXT_PUBLIC_APP_URL` | yes | App origin (single-domain: same as your site URL) |
 | `APP_ONLY` | recommended | Set to `true` for a single-domain instance (no marketing/app split) |
-| `POSTMARK_SERVER_TOKEN` | no | Postmark token for email alerts. Omit it and email is skipped; the dashboard and in-app alerts still work. |
+| `POSTMARK_SERVER_TOKEN` | no | Postmark token for email alerts. Omit it and email alerts queue instead of sending; the dashboard and in-app alerts still work, and queued alerts go out once you set the token. |
+| `FEEDBACK_NOTIFY_EMAIL` | no | Where in-app feedback is emailed. Unset (the default) means no notification is sent - submissions are still stored in your own `feedback_submissions` table, and nothing leaves your instance. |
+| `POLL_HEARTBEAT_URL` | no | Ping URL of an external cron monitor (Healthchecks.io and friends). Every poll run pings it, a failed run pings `<url>/fail`, and the ping body carries run counts only. Unset means no ping. |
+| `POLL_ALERT_EMAIL` | no | Where a failed poll run is emailed. Needs `POSTMARK_SERVER_TOKEN`. Unset means no mail; `poll_runs` records every run either way. |
 | `NEXT_PUBLIC_MARKETING_URL` | no | Only relevant if you run the marketing surface separately |
+| `PLAUSIBLE_SCRIPT_SRC` | no | Analytics script URL. Unset by default, and unset means no third-party analytics is loaded. |
 
 Generate the encryption key now and paste it in:
 
@@ -73,7 +77,7 @@ Open http://localhost:3000, sign up (email confirmation is off locally), and add
    ```
 
 4. From the Supabase dashboard (Project Settings -> API), copy the project URL, anon key, and service-role key into `.env.local`.
-5. In Supabase Auth settings, set the Site URL and redirect allowlist to your app origin, or email confirmation and password reset links will break.
+5. In Supabase Auth settings, set the Site URL and redirect allowlist to your app origin, or the magic-link sign-in and email confirmation links will break.
 
 ## Single-domain mode
 

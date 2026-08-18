@@ -1,5 +1,6 @@
 import { AlertEventList } from "@/components/alerts/AlertEventList"
 import { AlertRow } from "@/components/alerts/AlertRow"
+import { QueryError } from "@/components/ui/query-error"
 import { listConnectionsWithBalance } from "@/lib/db/connections"
 import { createClient } from "@/lib/supabase/server"
 import type { AlertEvent } from "@/lib/types"
@@ -16,7 +17,9 @@ export default async function AlertsPage() {
   if (!user) redirect("/login")
 
   const connections = await listConnectionsWithBalance(supabase, user.id)
-  const { data: events } = await supabase
+  // Swallowing this one was the worst of the bunch: a failed read rendered the
+  // inbox's "No alerts yet. A quiet bird is good news." reassurance.
+  const { data: events, error: eventsError } = await supabase
     .from("alert_events")
     .select(
       "id, user_id, connection_id, level, tool_name, connection_name, title, body, pools, dashboard_url, topup_url, read_at, created_at"
@@ -26,7 +29,7 @@ export default async function AlertsPage() {
     .limit(25)
 
   return (
-    <main className="flex-1 space-y-8 p-8">
+    <main className="mx-auto w-full min-w-0 max-w-[1200px] flex-1 space-y-8 p-4 sm:p-8">
       <section>
         <h1 className="mb-2 text-2xl font-bold">Alerts</h1>
         <p className="text-sm text-muted-foreground">
@@ -46,7 +49,11 @@ export default async function AlertsPage() {
         <h2 className="text-sm font-semibold text-muted-foreground">
           Alert inbox
         </h2>
-        <AlertEventList events={(events ?? []) as AlertEvent[]} />
+        {eventsError ? (
+          <QueryError what="your alert inbox" />
+        ) : (
+          <AlertEventList events={(events ?? []) as AlertEvent[]} />
+        )}
       </section>
 
       <section className="space-y-3">

@@ -10,6 +10,7 @@ import {
   credentialInputName,
   credentialPlaceholder,
 } from "@/lib/credentials"
+import { FUNNEL_EVENTS, trackPlausibleEvent } from "@/lib/plausible-events"
 import type { Tool } from "@/lib/types"
 import { ExternalLink, ShieldCheck } from "lucide-react"
 import { useRouter } from "next/navigation"
@@ -19,9 +20,12 @@ type Props = {
   tool: Tool
   open: boolean
   onOpenChange: (open: boolean) => void
+  // Fired once the connection is created, before this modal's caller navigates
+  // away. Lets the caller attribute the completion.
+  onConnected?: (toolId: string) => void
 }
 
-export function ConnectModal({ tool, open, onOpenChange }: Props) {
+export function ConnectModal({ tool, open, onOpenChange, onConnected }: Props) {
   const router = useRouter()
   // biome-ignore format: source contract requires this initializer verbatim
   const [createRequestId, setCreateRequestId] = useState(() => crypto.randomUUID())
@@ -39,6 +43,10 @@ export function ConnectModal({ tool, open, onOpenChange }: Props) {
     async (_prev: ConnectResult | null, formData: FormData) => {
       const result = await connectTool(formData)
       if (result.ok) {
+        trackPlausibleEvent(FUNNEL_EVENTS.CONNECTION_CREATED, {
+          tool: tool.id,
+        })
+        onConnected?.(tool.id)
         onOpenChange(false)
         router.push(
           `/dashboard?connected=${encodeURIComponent(result.connectionId)}`
@@ -87,7 +95,15 @@ export function ConnectModal({ tool, open, onOpenChange }: Props) {
               </p>
               <p className="mt-1 text-muted-foreground">
                 QuotaCanary reads balances only. Credentials are encrypted
-                before storage.
+                before storage.{" "}
+                <a
+                  href="/security"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="underline underline-offset-2 hover:text-foreground"
+                >
+                  How we handle your key
+                </a>
               </p>
             </div>
           </div>
@@ -122,7 +138,15 @@ export function ConnectModal({ tool, open, onOpenChange }: Props) {
                 name={credentialInputName(field)}
                 type={field.type}
                 required
+                // A secret, not a login: keep password managers out and
+                // stop mobile keyboards from capitalizing or "correcting"
+                // a pasted key.
                 autoComplete="off"
+                data-1p-ignore
+                data-lpignore="true"
+                autoCapitalize="off"
+                autoCorrect="off"
+                spellCheck={false}
                 placeholder={credentialPlaceholder(tool.name, field)}
               />
             </div>

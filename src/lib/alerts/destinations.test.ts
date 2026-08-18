@@ -6,11 +6,34 @@ import {
   isDestinationLevelAllowed,
   postAlertDestination,
   renderDestinationPayload,
+  testDestinationEvent,
   validateDestinationUrl,
 } from "./destinations"
+import { verifyWebhookSignature } from "./signing"
 
 const { lookup } = vi.hoisted(() => ({ lookup: vi.fn() }))
 vi.mock("node:dns/promises", () => ({ lookup }))
+
+const { postToPinnedAddress } = vi.hoisted(() => ({
+  postToPinnedAddress: vi.fn(),
+}))
+vi.mock("./pinned-post", () => ({ postToPinnedAddress }))
+
+// The transport POSTs to a pre-resolved address; see pinned-post.test.ts for
+// the pinning itself. Here it only stands in for "the webhook answered X".
+function stubResponse(status: number) {
+  postToPinnedAddress.mockResolvedValue({ status })
+}
+
+function sentOptions() {
+  return postToPinnedAddress.mock.calls[0][0] as {
+    url: string
+    addresses: { address: string; family: number }[]
+    headers: Record<string, string>
+    body: string
+    timeoutMs: number
+  }
+}
 
 const event: AlertDestinationEvent = {
   id: "evt-1",
@@ -223,55 +246,33 @@ describe("webhook SSRF guards", () => {
   describe("postAlertDestination network guards", () => {
     afterEach(() => {
       vi.clearAllMocks()
-      vi.unstubAllGlobals()
     })
 
-    it("does not follow redirects toward internal targets", async () => {
+    it("connects to the address it validated, not to a re-resolved one", async () => {
       lookup.mockResolvedValue([{ address: "93.184.216.34", family: 4 }])
-      const fetchMock = vi.fn(
-        async () =>
-          new Response(null, {
-            status: 302,
-            headers: { location: "http://169.254.169.254/" },
-          })
-      )
-      vi.stubGlobal("fetch", fetchMock)
+      stubResponse(200)
 
       const res = await postAlertDestination(
         "webhook",
-        "https://example.com/hook",
+        "https://rebind.example/hook",
         event
       )
 
-      expect(res.ok).toBe(false)
-      expect(fetchMock).toHaveBeenCalledWith(
-        "https://example.com/hook",
-        expect.objectContaining({ redirect: "manual" })
-      )
-    })
-
-    it("sends deliveries with a timeout so a hanging webhook can't stall dispatch", async () => {
-      lookup.mockResolvedValue([{ address: "93.184.216.34", family: 4 }])
-      const fetchMock = vi.fn(async () => new Response("ok", { status: 200 }))
-      vi.stubGlobal("fetch", fetchMock)
-
-      const res = await postAlertDestination(
-        "webhook",
-        "https://example.com/hook",
-        event
-      )
-
+      // One resolution, and its answer is what the request connects to. A
+      // second lookup here is the DNS-rebinding hole this closes.
       expect(res.ok).toBe(true)
-      expect(fetchMock).toHaveBeenCalledWith(
-        "https://example.com/hook",
-        expect.objectContaining({ signal: expect.any(AbortSignal) })
-      )
+      expect(lookup).toHaveBeenCalledTimes(1)
+      expect(sentOptions().addresses).toEqual([
+        { address: "93.184.216.34", family: 4 },
+      ])
+      expect(sentOptions().url).toBe("https://rebind.example/hook")
     })
 
-    it("blocks a public hostname that resolves to a private IP", async () => {
-      lookup.mockResolvedValue([{ address: "169.254.169.254", family: 4 }])
-      const fetchMock = vi.fn(async () => new Response("ok", { status: 200 }))
-      vi.stubGlobal("fetch", fetchMock)
+    it("refuses when any resolved address is internal, not just the first", async () => {
+      lookup.mockResolvedValue([
+        { address: "93.184.216.34", family: 4 },
+        { address: "169.254.169.254", family: 4 },
+      ])
 
       const res = await postAlertDestination(
         "webhook",
@@ -280,51 +281,43 @@ describe("webhook SSRF guards", () => {
       )
 
       expect(res.ok).toBe(false)
-      expect(fetchMock).not.toHaveBeenCalled()
+      expect(postToPinnedAddress).not.toHaveBeenCalled()
     })
 
-    it("sends an Idempotency-Key header with the delivery ID on generic webhooks", async () => {
-      lookup.mockResolvedValue([{ address: "93.184.216.34", family: 4 }])
-      const fetchMock = vi.fn(async () => new Response("ok", { status: 200 }))
-      vi.stubGlobal("fetch", fetchMock)
+    it("pins an IP-literal target to the literal itself", async () => {
+      stubResponse(200)
 
-      await postAlertDestination(
+      await postAlertDestination("webhook", "https://8.8.8.8/hook", event)
+
+      expect(lookup).not.toHaveBeenCalled()
+      expect(sentOptions().addresses).toEqual([
+        { address: "8.8.8.8", family: 4 },
+      ])
+    })
+
+    it("does not follow redirects toward internal targets", async () => {
+      lookup.mockResolvedValue([{ address: "93.184.216.34", family: 4 }])
+      stubResponse(302)
+
+      const res = await postAlertDestination(
         "webhook",
         "https://example.com/hook",
-        event,
-        "del-123"
+        event
       )
 
-      const [, opts] = fetchMock.mock.calls[0] as [string, RequestInit]
-      expect((opts.headers as Record<string, string>)["idempotency-key"]).toBe(
-        "del-123"
-      )
+      // The transport never follows a redirect, so the 302 that would have
+      // aimed at 169.254.169.254 is reported as a failed delivery instead.
+      expect(res).toEqual({
+        ok: false,
+        error: "HTTP 302",
+        retryable: false,
+      })
+      expect(postToPinnedAddress).toHaveBeenCalledTimes(1)
     })
 
-    it("does not add an idempotency header to Slack webhooks", async () => {
+    it("sends deliveries with a timeout so a hanging webhook can't stall dispatch", async () => {
       lookup.mockResolvedValue([{ address: "93.184.216.34", family: 4 }])
-      const fetchMock = vi.fn(async () => new Response("ok", { status: 200 }))
-      vi.stubGlobal("fetch", fetchMock)
-
-      await postAlertDestination(
-        "slack_webhook",
-        "https://hooks.slack.com/services/T/B/X",
-        event,
-        "del-123"
-      )
-
-      const [, opts] = fetchMock.mock.calls[0] as [string, RequestInit]
-      expect(
-        (opts.headers as Record<string, string>)["idempotency-key"]
-      ).toBeUndefined()
-    })
-
-    it("delivers when the host resolves to a public IP", async () => {
-      lookup.mockResolvedValue([{ address: "93.184.216.34", family: 4 }])
-      vi.stubGlobal(
-        "fetch",
-        vi.fn(async () => new Response("ok", { status: 200 }))
-      )
+      stubResponse(200)
 
       const res = await postAlertDestination(
         "webhook",
@@ -333,25 +326,153 @@ describe("webhook SSRF guards", () => {
       )
 
       expect(res.ok).toBe(true)
+      expect(sentOptions().timeoutMs).toBe(10_000)
+    })
+
+    it("blocks a public hostname that resolves to a private IP", async () => {
+      lookup.mockResolvedValue([{ address: "169.254.169.254", family: 4 }])
+      stubResponse(200)
+
+      const res = await postAlertDestination(
+        "webhook",
+        "https://rebind.example/hook",
+        event
+      )
+
+      expect(res.ok).toBe(false)
+      expect(postToPinnedAddress).not.toHaveBeenCalled()
+    })
+
+    it("sends an Idempotency-Key header with the delivery ID on generic webhooks", async () => {
+      lookup.mockResolvedValue([{ address: "93.184.216.34", family: 4 }])
+      stubResponse(200)
+
+      await postAlertDestination(
+        "webhook",
+        "https://example.com/hook",
+        event,
+        "del-123"
+      )
+
+      expect(sentOptions().headers["idempotency-key"]).toBe("del-123")
+    })
+
+    it("does not add an idempotency header to Slack webhooks", async () => {
+      lookup.mockResolvedValue([{ address: "93.184.216.34", family: 4 }])
+      stubResponse(200)
+
+      await postAlertDestination(
+        "slack_webhook",
+        "https://hooks.slack.com/services/T/B/X",
+        event,
+        "del-123"
+      )
+
+      expect(sentOptions().headers["idempotency-key"]).toBeUndefined()
+    })
+
+    it("delivers when the host resolves to a public IP", async () => {
+      lookup.mockResolvedValue([{ address: "93.184.216.34", family: 4 }])
+      stubResponse(200)
+
+      const res = await postAlertDestination(
+        "webhook",
+        "https://example.com/hook",
+        event
+      )
+
+      expect(res.ok).toBe(true)
+      expect(sentOptions().body).toContain("quota.alert.critical")
+    })
+  })
+
+  describe("postAlertDestination signing", () => {
+    afterEach(() => {
+      vi.clearAllMocks()
+      vi.useRealTimers()
+    })
+
+    async function post(
+      kind: "webhook" | "slack_webhook",
+      secret: string | null
+    ) {
+      lookup.mockResolvedValue([{ address: "93.184.216.34", family: 4 }])
+      stubResponse(200)
+      await postAlertDestination(
+        kind,
+        kind === "webhook"
+          ? "https://example.com/hook"
+          : "https://hooks.slack.com/services/T/B/X",
+        event,
+        "del-123",
+        secret
+      )
+      return sentOptions()
+    }
+
+    it("signs the exact bytes it sends, verifiable with the destination secret", async () => {
+      vi.useFakeTimers()
+      vi.setSystemTime(new Date("2026-06-10T10:00:00.000Z"))
+
+      const sent = await post("webhook", "qcwh_secret")
+
+      expect(
+        verifyWebhookSignature({
+          secret: "qcwh_secret",
+          header: sent.headers["quotacanary-signature"],
+          body: sent.body,
+          nowSeconds: Math.floor(Date.parse("2026-06-10T10:00:00.000Z") / 1000),
+        })
+      ).toEqual({ ok: true })
+    })
+
+    it("stamps the signature with the current time", async () => {
+      vi.useFakeTimers()
+      vi.setSystemTime(new Date("2026-06-10T10:00:00.000Z"))
+
+      const sent = await post("webhook", "qcwh_secret")
+
+      const t = Math.floor(Date.parse("2026-06-10T10:00:00.000Z") / 1000)
+      expect(sent.headers["quotacanary-signature"]).toMatch(
+        new RegExp(`^t=${t},v1=[0-9a-f]{64}$`)
+      )
+    })
+
+    it("produces a signature the wrong secret cannot verify", async () => {
+      const sent = await post("webhook", "qcwh_secret")
+
+      expect(
+        verifyWebhookSignature({
+          secret: "qcwh_other",
+          header: sent.headers["quotacanary-signature"],
+          body: sent.body,
+          nowSeconds: Math.floor(Date.now() / 1000),
+        })
+      ).toEqual({ ok: false, reason: "mismatch" })
+    })
+
+    it("sends unsigned when the destination has no secret", async () => {
+      const sent = await post("webhook", null)
+
+      expect(sent.headers["quotacanary-signature"]).toBeUndefined()
+    })
+
+    it("never signs Slack deliveries", async () => {
+      const sent = await post("slack_webhook", "qcwh_secret")
+
+      expect(sent.headers["quotacanary-signature"]).toBeUndefined()
     })
   })
 
   describe("postAlertDestination retry classification", () => {
     afterEach(() => {
       vi.clearAllMocks()
-      vi.unstubAllGlobals()
     })
 
-    async function post(status?: number, error?: Error) {
+    async function post(status?: number, failed?: boolean) {
       lookup.mockResolvedValue([{ address: "93.184.216.34", family: 4 }])
-      vi.stubGlobal(
-        "fetch",
-        error
-          ? vi.fn(async () => {
-              throw error
-            })
-          : vi.fn(async () => new Response("x", { status }))
-      )
+      // The transport reports a request that never answered as null.
+      postToPinnedAddress.mockResolvedValue(failed ? null : { status })
       return postAlertDestination("webhook", "https://example.com/hook", event)
     }
 
@@ -372,7 +493,7 @@ describe("webhook SSRF guards", () => {
     })
 
     it("marks network failures retryable", async () => {
-      const res = await post(undefined, new Error("socket hang up"))
+      const res = await post(undefined, true)
       expect(res).toEqual({
         ok: false,
         error: "Webhook request failed.",
@@ -419,6 +540,34 @@ describe("webhook SSRF guards", () => {
         error: "Webhook request failed.",
         retryable: true,
       })
+    })
+  })
+})
+
+describe("test deliveries", () => {
+  it("marks the generic payload so a receiver can skip paging anyone", () => {
+    const payload = renderDestinationPayload(
+      "webhook",
+      testDestinationEvent("https://app.quotacanary.com/dashboard")
+    ) as { event: string; level: string }
+
+    expect(payload.event).toBe("quota.alert.test")
+    // The shape is otherwise a real alert, so a receiver's parser is exercised.
+    expect(payload.level).toBe("low")
+  })
+
+  it("says it is a test in the Slack message itself", () => {
+    const payload = renderDestinationPayload(
+      "slack_webhook",
+      testDestinationEvent("https://app.quotacanary.com/dashboard")
+    ) as { text: string }
+
+    expect(payload.text).toContain("Test alert from QuotaCanary")
+  })
+
+  it("keeps the untested payloads on their real event name", () => {
+    expect(renderDestinationPayload("webhook", event)).toMatchObject({
+      event: "quota.alert.critical",
     })
   })
 })

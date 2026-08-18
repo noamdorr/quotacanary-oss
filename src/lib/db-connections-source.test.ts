@@ -15,8 +15,9 @@ const pollRoute = readFileSync(
 describe("balances retention source", () => {
   it("fetches history through the sampled RPC instead of a wholesale select", () => {
     // pool_history_sampled (migration 047) bounds rows in the DB: newest
-    // reading per bucket over the window, so no client-side fetch cap needed.
-    expect(connectionsDb).toContain('supabase.rpc("pool_history_sampled"')
+    // reading per bucket over the window. That bound is per POOL though, so the
+    // response still has to be paged past PostgREST's max_rows (QUO-60).
+    expect(connectionsDb).toContain('.rpc("pool_history_sampled"')
     expect(connectionsDb).not.toContain("balances(")
   })
 

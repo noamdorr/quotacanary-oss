@@ -31,7 +31,7 @@ function formatPoolBalance(
 }
 
 export const ROW_GRID =
-  "grid grid-cols-[34px_minmax(220px,1.05fr)_minmax(170px,0.75fr)_132px_minmax(190px,0.85fr)_140px] items-center gap-4"
+  "grid grid-cols-[32px_minmax(180px,1.15fr)_minmax(120px,0.75fr)_112px_minmax(160px,0.9fr)_112px] items-center gap-3"
 
 export function ConnectionRow({
   row,

@@ -24,5 +24,23 @@ export function timedFetch(
   init?: RequestInit,
   timeoutMs = 10000
 ): Promise<Response> {
-  return fetch(input, { ...init, signal: AbortSignal.timeout(timeoutMs) })
+  return fetch(input, {
+    ...init,
+    signal: AbortSignal.timeout(timeoutMs),
+  }).catch((err: unknown) => {
+    // Every adapter catches this throw and maps it to a generic
+    // "Couldn't reach X." that renders in the UI, so the real cause
+    // (timeout vs DNS vs reset) survives only here. Log the host, never
+    // the URL - some vendors carry the API key in query params.
+    let host = "unknown-host"
+    try {
+      host = new URL(input instanceof Request ? input.url : String(input)).host
+    } catch {}
+    const cause =
+      err instanceof Error
+        ? ((err.cause as { code?: string } | undefined)?.code ?? err.name)
+        : String(err)
+    console.error(`[fetch] ${host} failed: ${cause}`)
+    throw err
+  })
 }

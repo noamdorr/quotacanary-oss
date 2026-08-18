@@ -18,4 +18,21 @@ describe("public docs", () => {
     expect(source).toContain('id="webhooks"')
     expect(source).toContain("quota.alert.")
   })
+
+  it("documents the signature contract rather than the retired no-signature note", () => {
+    expect(source).toContain("quotacanary-signature")
+    expect(source).toContain("HMAC-SHA256")
+    expect(source).toContain("timingSafeEqual")
+    // The old contract told readers the URL was the only secret. Shipping that
+    // sentence alongside a signed delivery is worse than either alone.
+    expect(source).not.toContain("There is no signature header")
+  })
+
+  it("documents replay protection and the rotation path", () => {
+    expect(source).toContain("Replay protection")
+    expect(source).toContain("Rotating a secret")
+    expect(source).toContain("idempotency-key")
+    // The tolerance the sender actually stamps against; see lib/alerts/signing.
+    expect(source).toContain("300")
+  })
 })

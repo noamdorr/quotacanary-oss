@@ -1,7 +1,9 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
+import { DialogClose } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import {
   refreshConnection,
   removeConnection,
@@ -97,12 +99,12 @@ export function ConnectionDrawer({
             <DialogPrimitive.Title className="text-lg font-bold text-foreground">
               {c.name}
             </DialogPrimitive.Title>
-            <DialogPrimitive.Close
-              className="ml-auto inline-flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+            <DialogClose
+              className="ml-auto text-muted-foreground"
               aria-label="Close"
             >
               <X className="h-4 w-4" />
-            </DialogPrimitive.Close>
+            </DialogClose>
           </div>
           <div className="mb-4 flex items-center gap-2">
             <p className="text-xs text-muted-foreground">
@@ -315,28 +317,53 @@ export function ConnectionDrawer({
                   })
                 }}
               >
-                {credentialFields.map((field) => (
-                  <Input
-                    key={field.name}
-                    name={credentialInputName(field)}
-                    value={credentialValues[field.name] ?? ""}
-                    onChange={(event) => {
-                      setCredentialValues((values) => ({
-                        ...values,
-                        [field.name]: event.target.value,
-                      }))
-                      setError(null)
-                      setKeySaved(false)
-                    }}
-                    type={field.type}
-                    placeholder={credentialPlaceholder(c.tool.name, field)}
-                    autoComplete="off"
-                    disabled={pending}
-                  />
-                ))}
+                {credentialFields.map((field) => {
+                  const inputId = `rekey-${credentialInputName(field)}`
+                  return (
+                    <div key={field.name} className="space-y-1.5">
+                      <Label htmlFor={inputId}>{field.label}</Label>
+                      <Input
+                        id={inputId}
+                        name={credentialInputName(field)}
+                        value={credentialValues[field.name] ?? ""}
+                        onChange={(event) => {
+                          setCredentialValues((values) => ({
+                            ...values,
+                            [field.name]: event.target.value,
+                          }))
+                          setError(null)
+                          setKeySaved(false)
+                        }}
+                        type={field.type}
+                        placeholder={credentialPlaceholder(c.tool.name, field)}
+                        // A secret, not a login: keep password managers out
+                        // and stop mobile keyboards from capitalizing or
+                        // "correcting" a pasted key.
+                        autoComplete="off"
+                        data-1p-ignore
+                        data-lpignore="true"
+                        autoCapitalize="off"
+                        autoCorrect="off"
+                        spellCheck={false}
+                        disabled={pending}
+                      />
+                    </div>
+                  )
+                })}
                 <Button type="submit" className="w-full" disabled={pending}>
                   {pending ? "Checking credentials..." : "Save new credentials"}
                 </Button>
+                <p className="text-xs text-muted-foreground">
+                  Encrypted at rest, read-only, and the old key is overwritten.{" "}
+                  <a
+                    href="/security"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="underline underline-offset-2 hover:text-foreground"
+                  >
+                    How we handle your key
+                  </a>
+                </p>
               </form>
             )}
 

@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { type ActionResult, requestTool } from "@/lib/actions/connections"
+import { FUNNEL_EVENTS, trackPlausibleEvent } from "@/lib/plausible-events"
 import { Check } from "lucide-react"
 import { useActionState, useEffect, useState } from "react"
 
@@ -20,7 +21,10 @@ export function RequestToolDialog({
   const [state, formAction, pending] = useActionState(
     async (_prev: ActionResult | null, formData: FormData) => {
       const result = await requestTool(formData)
-      if (result.ok) setSubmitted(true)
+      if (result.ok) {
+        trackPlausibleEvent(FUNNEL_EVENTS.TOOL_REQUESTED)
+        setSubmitted(true)
+      }
       return result
     },
     null

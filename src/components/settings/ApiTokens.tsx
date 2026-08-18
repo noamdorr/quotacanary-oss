@@ -1,5 +1,6 @@
 "use client"
 
+import { CopyButton } from "@/components/settings/CopyButton"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
@@ -9,7 +10,7 @@ import {
   createApiToken,
   revokeApiToken,
 } from "@/lib/actions/api-tokens"
-import { Check, Copy, KeyRound } from "lucide-react"
+import { KeyRound } from "lucide-react"
 import { useActionState, useEffect, useState } from "react"
 import { useFormStatus } from "react-dom"
 
@@ -27,38 +28,6 @@ function CreateSubmitButton() {
   return (
     <Button type="submit" disabled={pending}>
       {pending ? "Creating..." : "Create token"}
-    </Button>
-  )
-}
-
-function CopyButton({ value }: { value: string }) {
-  const [copied, setCopied] = useState(false)
-
-  function handleCopy() {
-    navigator.clipboard
-      .writeText(value)
-      .then(() => {
-        setCopied(true)
-        setTimeout(() => setCopied(false), 2000)
-      })
-      .catch(() => {
-        // clipboard unavailable; the user can select the token and copy manually
-      })
-  }
-
-  return (
-    <Button type="button" variant="secondary" size="sm" onClick={handleCopy}>
-      {copied ? (
-        <>
-          <Check className="h-3.5 w-3.5" aria-hidden />
-          Copied
-        </>
-      ) : (
-        <>
-          <Copy className="h-3.5 w-3.5" aria-hidden />
-          Copy
-        </>
-      )}
     </Button>
   )
 }

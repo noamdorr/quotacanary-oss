@@ -19,17 +19,21 @@ export default async function ToolDetailPage({
   } = await supabase.auth.getUser()
   if (!user) redirect("/login")
 
-  const { data: tool } = await supabase
+  const { data: tool, error: toolError } = await supabase
     .from("tools")
     .select("*")
     .eq("id", toolId)
     .single()
+  // PGRST116 is `.single()` finding no row, which is a real 404. Anything else
+  // is a failed lookup, and telling someone their tool does not exist because
+  // the query broke is the same lie as an empty list.
+  if (toolError && toolError.code !== "PGRST116") throw toolError
   if (!tool) notFound()
 
   const connections = await listConnectionsForTool(supabase, user.id, toolId)
 
   return (
-    <main className="flex-1 p-8">
+    <main className="flex-1 p-4 sm:p-8">
       <div className="mb-6 flex items-center justify-between">
         <h1 className="text-2xl font-bold">{tool.name}</h1>
         <AddConnectionButton tool={tool as Tool} />

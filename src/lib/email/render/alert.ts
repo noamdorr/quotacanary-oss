@@ -23,7 +23,8 @@ function fmt(n: number): string {
 // All catalog/adapter strings currently reaching this template are trusted,
 // but escape at the boundary anyway so one future field-add (e.g. a
 // user-named connection) can't become stored XSS in the email client.
-function esc(value: string): string {
+// Shared with the feedback template, where the body genuinely is free text.
+export function esc(value: string): string {
   return value
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")

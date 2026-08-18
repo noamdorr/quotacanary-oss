@@ -37,7 +37,8 @@ export function SupportedTools() {
               marginInline: "auto",
             }}
           >
-            If a tool bills you by the credit, the canary is watching it.
+            If it&apos;s in the directory, the canary is watching it. If it
+            isn&apos;t, tell us and we&apos;ll take a look.
           </p>
         </div>
       </div>
@@ -48,6 +49,21 @@ export function SupportedTools() {
         <a href="/directory" className="btn btn-ghost">
           See all tools
         </a>
+        <p style={{ fontSize: 14, color: "var(--ink-3)", marginTop: 16 }}>
+          Don&apos;t see yours?{" "}
+          <a href="mailto:hey@quotacanary.com?subject=Tool%20request">
+            Ask for it
+          </a>
+          , or{" "}
+          <a
+            href="https://github.com/noamdorr/quotacanary-oss/blob/master/CONTRIBUTING.md"
+            target="_blank"
+            rel="noreferrer noopener"
+          >
+            add it yourself
+          </a>{" "}
+          - an adapter is three small files.
+        </p>
       </div>
     </section>
   )

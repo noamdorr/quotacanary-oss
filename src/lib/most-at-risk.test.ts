@@ -98,4 +98,30 @@ describe("mostAtRisk()", () => {
     const result = mostAtRisk([countdown, dry])
     expect(result?.connection.id).toBe("dry")
   })
+
+  it("case 5: a pool topped up mid-window and still burning is surfaced, not excluded (QUO-59)", () => {
+    // Decline, mid-window top-up, partial decline - the refill outweighs the
+    // second decline, so the window's first and last readings show a net
+    // increase (1000 -> 1100). Pre-fix, burnRate saw that net increase and
+    // returned null, so urgency() scored this row Infinity and mostAtRisk
+    // excluded it entirely, even though it was burning faster than "safe".
+    const toppedUp = makeRow(
+      "toppedUp",
+      makePool(1100, [
+        { balance: 1000, recorded_at: daysAgo(8) },
+        { balance: 100, recorded_at: daysAgo(3) },
+        { balance: 1200, recorded_at: daysAgo(2) },
+        { balance: 1100, recorded_at: daysAgo(0) },
+      ])
+    )
+    const safe = makeRow(
+      "safe",
+      makePool(900, [
+        { balance: 1000, recorded_at: daysAgo(10) },
+        { balance: 900, recorded_at: daysAgo(0) },
+      ])
+    )
+    const result = mostAtRisk([safe, toppedUp])
+    expect(result?.connection.id).toBe("toppedUp")
+  })
 })

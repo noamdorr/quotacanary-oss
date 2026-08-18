@@ -24,6 +24,14 @@ export function generateApiToken(): {
 export const RATE_LIMIT = 60
 export const RATE_WINDOW_SECONDS = 60
 
+// Tokens are the rate-limit key above: with no ceiling, minting and rotating
+// tokens multiplies one account's effective request budget (QUO-62). Lives
+// here rather than actions/api-tokens.ts because that file is "use server" -
+// every export from one must be an async function, so a plain constant there
+// silently drops the module's exports at build time (see QUO-63 for the same
+// constraint biting a different export).
+export const MAX_ACTIVE_TOKENS_PER_USER = 10
+
 // Looks up a raw token via the service-role admin client (the caller has no
 // Supabase session, so RLS would hide the row). Returns the owning user id,
 // token id and scopes, or null if the token is unknown or revoked.
@@ -70,6 +78,19 @@ export async function verifyApiToken(
   return verifyApiTokenByRaw(raw)
 }
 
+// Whether an RPC error means the limiter itself is misconfigured, not merely
+// hiccuping. PGRST202 is PostgREST's own "function not found in schema cache"
+// (an unapplied 042 migration). SQLSTATE class 42 ("Syntax Error or Access
+// Rule Violation") covers the raw Postgres side of the same failure mode -
+// 42883 undefined_function, 42501 insufficient_privilege, 42P01
+// undefined_table, 42703 undefined_column, and siblings - all structural,
+// never transient (unlike class 08 connection or 57 operator-intervention
+// errors). Either means a self-hoster's deployment is wrong, not that the DB
+// blipped - fail closed instead of silently removing the cap.
+function isMisconfiguredRpcError(code: string | undefined): boolean {
+  return code === "PGRST202" || (code?.startsWith("42") ?? false)
+}
+
 // Atomically consumes one unit of the per-token fixed-window budget via the
 // Postgres limiter, keyed on token id. Returns whether the request is allowed
 // plus the remaining budget and seconds until the window resets (null when the
@@ -89,10 +110,19 @@ export async function consumeRateLimit(tokenId: string): Promise<{
   // The function returns a set, which Supabase surfaces as an array of rows.
   const row = Array.isArray(data) ? data[0] : data
 
+  if (error && isMisconfiguredRpcError(error.code)) {
+    console.error(
+      "consume_api_rate_limit_v2 rpc misconfigured; denying request:",
+      error.code,
+      error.message
+    )
+    return { allowed: false, remaining: 0, resetSeconds: RATE_WINDOW_SECONDS }
+  }
+
   // Fail open: a DB/limiter hiccup should not 429 the entire read API. The
   // tradeoff is that an outage temporarily removes the cap rather than blocking
-  // all traffic. We log so a persistent outage (or an unapplied 042 migration)
-  // is observable in logs rather than a silent no-op.
+  // all traffic. We log so a persistent outage is observable rather than a
+  // silent no-op.
   if (error || !row) {
     console.warn(
       "consume_api_rate_limit_v2 rpc failed; allowing request:",

@@ -28,7 +28,7 @@ export function ToolsDirectory({ tools }: { tools: Tool[] }) {
             Tool directory
           </div>
           <h1
-            className="f-display"
+            className="f-display text-balance"
             style={{
               fontSize: "clamp(28px, 3.6vw, 44px)",
               margin: 0,
@@ -39,6 +39,7 @@ export function ToolsDirectory({ tools }: { tools: Tool[] }) {
             Every tool QuotaCanary watches.
           </h1>
           <p
+            className="text-pretty"
             style={{
               fontSize: 15,
               color: "var(--ink-3)",
@@ -48,7 +49,11 @@ export function ToolsDirectory({ tools }: { tools: Tool[] }) {
             }}
           >
             Click any one to see how to check its balance and what it bills you
-            on.
+            on. This is the whole list; if yours isn&apos;t on it,{" "}
+            <a href="mailto:hey@quotacanary.com?subject=Tool%20request">
+              ask for it
+            </a>
+            .
           </p>
         </div>
 
@@ -68,6 +73,7 @@ export function ToolsDirectory({ tools }: { tools: Tool[] }) {
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search tools..."
             aria-label="Search tools"
+            className="min-w-0 outline-none transition-[border-color,box-shadow] duration-150 ease-out focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
             style={{
               flex: "1 1 220px",
               maxWidth: 320,
@@ -95,7 +101,7 @@ export function ToolsDirectory({ tools }: { tools: Tool[] }) {
         </div>
 
         <p
-          className="f-mono"
+          className="f-mono tabular-nums"
           style={{
             fontSize: 11,
             color: "var(--ink-3)",
@@ -121,17 +127,7 @@ export function ToolsDirectory({ tools }: { tools: Tool[] }) {
             <li key={t.id}>
               <a
                 href={`/directory/${t.id}`}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 10,
-                  padding: "10px 14px",
-                  background: "var(--cream)",
-                  border: "1px solid var(--hairline)",
-                  borderRadius: 10,
-                  textDecoration: "none",
-                  color: "inherit",
-                }}
+                className="flex min-h-11 items-center gap-2.5 rounded-[10px] border border-[var(--hairline)] bg-[var(--cream)] px-3.5 py-2.5 text-inherit no-underline outline-none transition-[background-color,border-color,box-shadow,scale] duration-150 ease-out hover:border-foreground/20 hover:bg-[var(--cream-2)] hover:shadow-sm focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:scale-[0.96] active:border-foreground/30 active:bg-[var(--cream-3)] active:shadow-none motion-reduce:active:scale-100"
               >
                 {t.logo_url ? (
                   <img
@@ -190,18 +186,13 @@ function FilterChip({
   return (
     <button
       type="button"
+      aria-pressed={active}
       onClick={onClick}
-      style={{
-        minHeight: 40,
-        padding: "6px 14px",
-        borderRadius: 999,
-        border: "1px solid var(--hairline)",
-        background: active ? "var(--canary)" : "var(--cream)",
-        color: "var(--ink)",
-        fontSize: 13,
-        fontWeight: 500,
-        cursor: "pointer",
-      }}
+      className={`min-h-10 cursor-pointer rounded-full border px-3.5 py-1.5 text-[13px] font-medium text-[var(--ink)] outline-none transition-[background-color,border-color,box-shadow,scale] duration-150 ease-out focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 active:scale-[0.96] active:shadow-none motion-reduce:active:scale-100 ${
+        active
+          ? "border-[var(--canary-deep)] bg-[var(--canary)] shadow-sm hover:bg-[var(--canary-deep)] active:bg-[var(--canary-deep)]"
+          : "border-[var(--hairline)] bg-[var(--cream)] hover:border-foreground/20 hover:bg-[var(--cream-2)] active:border-foreground/30 active:bg-[var(--cream-3)]"
+      }`}
     >
       {label}
     </button>

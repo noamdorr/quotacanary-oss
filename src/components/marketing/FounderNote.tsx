@@ -32,9 +32,9 @@ export function FounderNote() {
           }}
         >
           QuotaCanary is the thing I kept wishing existed: one page that watches
-          every balance and says something while there&apos;s still time. I run
-          it on my own stack every day. If it saves one of your campaigns, tell
-          someone. That&apos;s the entire growth strategy.
+          the balances I care about and says something while there&apos;s still
+          time. I run it on my own stack every day. If it saves one of your
+          campaigns, tell someone. That&apos;s the entire growth strategy.
         </p>
         <div
           style={{

@@ -5,7 +5,7 @@ import { type ReactNode, useState } from "react"
 const FAQS = [
   {
     q: "What can you do that the tool's own dashboard can't?",
-    a: 'Three things. We translate balances into deadlines ("burns out next Thursday," not "120 left"), watch every tool at once instead of making you check seven tabs, and warn you before the credits hit zero. That\'s the whole product.',
+    a: 'Three things. We translate balances into deadlines ("burns out next Thursday," not "120 left"), watch all your connected tools at once instead of making you check seven tabs, and warn you before the credits hit zero. That\'s the whole product.',
   },
   {
     q: "Will it send me notifications I don't want?",
@@ -13,11 +13,30 @@ const FAQS = [
   },
   {
     q: "Does it touch my data, sends, or campaigns?",
-    a: "No. We only read the usage endpoint. We don't ingest contacts, see message bodies, or touch outbound. Read-only on the smallest possible scope, every time.",
+    a: (
+      <>
+        No. We only read the usage endpoint. We don&apos;t ingest contacts, see
+        message bodies, or touch outbound. Use a scoped key where your tool
+        offers one; plenty only issue an all-or-nothing key, and we won&apos;t
+        pretend otherwise. <a href="/security">The whole security model</a> is
+        public.
+      </>
+    ),
   },
   {
     q: "Which tools don't you track?",
-    a: "QuotaCanary tracks tools that expose quota through a simple read-only API call. We don't track dashboard-only or traffic-header-only platforms like RapidAPI and Apollo today, because that turns a free tool into a science project. If they add a clean quota endpoint, we'll add them.",
+    a: (
+      <>
+        QuotaCanary tracks tools that expose quota through a simple read-only
+        API call. We don&apos;t track dashboard-only or traffic-header-only
+        platforms like RapidAPI and Apollo today, because that turns a free tool
+        into a science project. If they add a clean quota endpoint, we&apos;ll
+        add them. <a href="/directory">The directory</a> is the full list; if
+        yours is missing,{" "}
+        <a href="mailto:hey@quotacanary.com?subject=Tool%20request">ask</a>
+        {" and we'll take a look."}
+      </>
+    ),
   },
   {
     q: "Can I pull my balances into my own scripts or agent?",
@@ -64,18 +83,24 @@ function FaqItem({
   a,
   open,
   onToggle,
+  id,
 }: {
   q: string
   a: ReactNode
   open: boolean
   onToggle: () => void
+  id: string
 }) {
+  const panelId = `faq-panel-${id}`
+  const buttonId = `faq-button-${id}`
   return (
     <div style={{ borderBottom: "1px solid var(--hairline)" }}>
       <button
         type="button"
+        id={buttonId}
         onClick={onToggle}
         aria-expanded={open}
+        aria-controls={panelId}
         style={{
           appearance: "none",
           border: 0,
@@ -118,8 +143,15 @@ function FaqItem({
           </svg>
         </span>
       </button>
-      <div
-        aria-hidden={!open}
+      {/* `inert` (not aria-hidden) is what makes a collapsed answer really
+          collapsed: aria-hidden hid it from screen readers while its links
+          stayed in the tab order, so a keyboard user could focus a link they
+          could not see. inert removes it from BOTH the focus order and the
+          accessibility tree, keeping the two in sync. */}
+      <section
+        id={panelId}
+        aria-labelledby={buttonId}
+        inert={!open}
         style={{
           maxHeight: open ? 1000 : 0,
           overflow: "hidden",
@@ -140,7 +172,7 @@ function FaqItem({
         >
           {a}
         </p>
-      </div>
+      </section>
     </div>
   )
 }
@@ -169,6 +201,7 @@ export function Faq() {
         {FAQS.map((f, i) => (
           <FaqItem
             key={f.q}
+            id={String(i)}
             q={f.q}
             a={f.a}
             open={open === i}

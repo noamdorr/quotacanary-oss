@@ -84,11 +84,14 @@ export function MarketingNav() {
             aria-controls="qc-mobile-menu"
             onClick={() => setOpen((o) => !o)}
           >
-            {open ? (
-              <X className="h-5 w-5" aria-hidden />
-            ) : (
-              <Menu className="h-5 w-5" aria-hidden />
-            )}
+            <span className="qc-state-icon h-5 w-5" aria-hidden="true">
+              <span className="qc-state-icon__glyph" data-visible={!open}>
+                <Menu className="h-5 w-5" />
+              </span>
+              <span className="qc-state-icon__glyph" data-visible={open}>
+                <X className="h-5 w-5" />
+              </span>
+            </span>
           </button>
         </div>
       </div>

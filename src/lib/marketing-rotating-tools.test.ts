@@ -86,13 +86,37 @@ describe("marketing rotating tool logos", () => {
     expect(decoded).toEqual(["/logos/one.webp", "/logos/two.webp"])
   })
 
-  it("does not fade the logo icon in from transparent", () => {
+  it("changes tools at a calm cadence with an opacity-led crossfade", () => {
+    const component = readFileSync(
+      resolve(process.cwd(), "src/components/marketing/RotatingToolLogos.tsx"),
+      "utf8"
+    )
     const css = readFileSync(
       resolve(process.cwd(), "src/app/globals.css"),
       "utf8"
     )
-    const logoPopKeyframes = css.match(/@keyframes qc-logo-pop \{[\s\S]*?\n\}/)
 
-    expect(logoPopKeyframes?.[0]).not.toContain("opacity: 0")
+    expect(component).toContain("const ADVANCE_MS = 4500")
+    expect(component).toContain("qc-rotating-tool-face--previous")
+    expect(component).toContain("qc-rotating-tool-face--current")
+    expect(component).toContain('closest("section")')
+    expect(component).toContain('root.current?.matches(":hover")')
+    expect(component).toContain("section?.contains(document.activeElement)")
+    expect(component).toContain("void preloadRotatingToolLogos()")
+    expect(component).toContain("if (reducedMotion)")
+    expect(component).not.toContain("logosReady")
+    expect(component).not.toContain("hoverPaused")
+    expect(component).not.toContain("focusPaused")
+    expect(css).toContain("@keyframes qc-tool-crossfade-in")
+    expect(css).toContain("@keyframes qc-tool-crossfade-out")
+    expect(css).not.toContain("@keyframes qc-logo-pop")
+    expect(css).not.toContain("@keyframes qc-logo-name-pop")
+
+    const reducedMotionBlock = css.slice(
+      css.indexOf("@media (prefers-reduced-motion: reduce)")
+    )
+
+    expect(reducedMotionBlock).toContain(".qc-rotating-tool-face--previous")
+    expect(reducedMotionBlock).toContain("opacity: 0 !important")
   })
 })

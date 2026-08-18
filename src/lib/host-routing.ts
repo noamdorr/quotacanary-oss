@@ -39,8 +39,12 @@ export function isIpLiteralHost(host: string): boolean {
 // auth boundary is enforced in one place (defense in depth alongside each
 // page's own getUser() guard). `(\/|$)` anchors on a full path segment, so
 // `/settings` matches but `/settings-export` does not.
+// `/security` is deliberately absent: the security model is a public marketing
+// page (QUO-20), because people evaluate it BEFORE they have an account to log
+// into. It lives in the (marketing) group and the route tree is shared across
+// both hosts, so the app surface still serves it for self-hosters.
 const PROTECTED_APP_PATHS =
-  /^\/(dashboard|alerts|connect|developer|security|settings|tools)(\/|$)/
+  /^\/(dashboard|alerts|connect|developer|settings|tools)(\/|$)/
 
 export function isProtectedAppPath(pathname: string): boolean {
   return PROTECTED_APP_PATHS.test(pathname)
@@ -49,7 +53,7 @@ export function isProtectedAppPath(pathname: string): boolean {
 // App-surface paths that do NOT require a logged-in user (so they're absent
 // from isProtectedAppPath) but still belong to the app subdomain: the auth
 // pages, the email-confirm callback, the REST API, and the MCP endpoint.
-const APP_PUBLIC_PATHS = /^\/(login|update-password|auth|api|mcp)(\/|$)/
+const APP_PUBLIC_PATHS = /^\/(login|auth|api|mcp)(\/|$)/
 
 // Whether a path belongs to the app surface at all, so the marketing host can
 // bounce it to the app subdomain. Built on top of isProtectedAppPath so a new

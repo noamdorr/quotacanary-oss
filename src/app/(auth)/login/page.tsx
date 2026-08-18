@@ -1,16 +1,17 @@
-import { AuthTabs } from "@/components/auth/AuthTabs"
-import { resolveAuthTab } from "@/lib/auth-tab"
-import { loginErrorNotice, loginMessageNotice } from "@/lib/login-notice"
+import { MagicLinkForm } from "@/components/auth/MagicLinkForm"
+import { loginErrorNotice } from "@/lib/login-notice"
+import { sanitizeToolId } from "@/lib/tool-intent"
 
 interface LoginPageProps {
-  searchParams: Promise<{ error?: string; message?: string; tab?: string }>
+  searchParams: Promise<{ error?: string; tool?: string }>
 }
 
 export default async function LoginPage({ searchParams }: LoginPageProps) {
   const params = await searchParams
   const errorNotice = loginErrorNotice(params.error)
-  const messageNotice = loginMessageNotice(params.message)
-  const initialTab = resolveAuthTab(params.tab)
+  // Set by the directory CTAs (`?tool=<id>`). Carried into the form so it can
+  // ride the magic-link round trip; dropped here if it is not a bare slug.
+  const toolId = sanitizeToolId(params.tool)
 
   return (
     <>
@@ -22,12 +23,7 @@ export default async function LoginPage({ searchParams }: LoginPageProps) {
           {errorNotice}
         </div>
       )}
-      {messageNotice && (
-        <output className="mb-4 block rounded-md border border-[var(--healthy)] bg-[var(--healthy-bg)] px-4 py-3 text-sm text-[var(--healthy-text)]">
-          {messageNotice}
-        </output>
-      )}
-      <AuthTabs initialTab={initialTab} />
+      <MagicLinkForm toolId={toolId} />
     </>
   )
 }

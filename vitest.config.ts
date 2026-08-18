@@ -9,8 +9,9 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": resolve(__dirname, "./src"),
-      // crypto.ts/admin.ts import "server-only" as a client-bundle tripwire;
-      // the real module throws outside React Server, so stub it for node.
+      // crypto.ts/admin.ts/refresh-connection.ts import "server-only" as a
+      // client-bundle tripwire; the real module throws outside React
+      // Server, so stub it for node.
       "server-only": resolve(__dirname, "./src/test-stubs/server-only.ts"),
     },
   },

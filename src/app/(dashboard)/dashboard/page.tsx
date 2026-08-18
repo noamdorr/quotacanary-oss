@@ -24,11 +24,17 @@ export default async function DashboardPage({
   } = await supabase.auth.getUser()
   if (!user) redirect("/login")
 
-  const { data: profile } = await supabase
+  // This row decides whether the page is onboarding or the dashboard, so a
+  // failure has no honest scoped rendering: coalescing it to `undefined` walks
+  // an onboarded user back through first-run setup. Let the boundary retry it.
+  // `maybeSingle` so a genuinely absent profile stays a null (a new signup
+  // whose handle_new_user row is missing belongs in onboarding, not an error).
+  const { data: profile, error: profileError } = await supabase
     .from("users")
     .select("view_mode, onboarded_at")
     .eq("id", user.id)
-    .single()
+    .maybeSingle()
+  if (profileError) throw profileError
 
   const connections = await listConnectionsWithBalance(supabase, user.id)
   const recentConnectionId =
@@ -40,7 +46,11 @@ export default async function DashboardPage({
   // at least one connection is implicitly onboarded, so we never bounce someone
   // who left onboarding via "See all tools", connected a tool, then came back.
   if (!profile?.onboarded_at && connections.length === 0) {
-    const { data: tools, count } = await supabase
+    const {
+      data: tools,
+      count,
+      error: toolsError,
+    } = await supabase
       .from("tools")
       .select(
         "id, name, logo_url, key_instructions, default_low_threshold, default_alert_threshold, pools, credential_fields",
@@ -48,16 +58,18 @@ export default async function DashboardPage({
       )
       .eq("is_active", true)
       .order("name")
+    // Onboarding with zero featured tools is a dead end, not an empty state.
+    if (toolsError) throw toolsError
     const featured = resolveFeaturedTools((tools ?? []) as FeaturedTool[])
     return (
-      <main className="flex-1 p-8">
+      <main className="min-w-0 flex-1 p-4 sm:p-8">
         <OnboardingFlow featured={featured} totalToolCount={count ?? 0} />
       </main>
     )
   }
 
   return (
-    <main className="mx-auto w-full max-w-[1520px] flex-1 p-8">
+    <main className="mx-auto w-full min-w-0 max-w-[1520px] flex-1 p-4 sm:p-8">
       <h1 className="mb-6 text-2xl font-bold">Dashboard</h1>
       {connections.length === 0 ? (
         <div className="flex flex-col items-center gap-4 rounded-lg border border-dashed border-border/60 py-20 text-center">

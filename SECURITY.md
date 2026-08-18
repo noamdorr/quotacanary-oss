@@ -2,6 +2,8 @@
 
 QuotaCanary stores third-party API keys so it can read your credit balances. This document explains exactly how those keys are handled, and is honest about what hosting model protects against what.
 
+The same model is published for non-developers at [quotacanary.com/security](https://quotacanary.com/security). Keep the two in step when you change either.
+
 ## How keys are stored
 
 - Keys are encrypted with **AES-256-GCM** before they are written to the database. GCM is authenticated encryption: a random 12-byte IV per value and an auth tag that is verified on decrypt, so tampered ciphertext is rejected. See [`src/lib/crypto.ts`](src/lib/crypto.ts).

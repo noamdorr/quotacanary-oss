@@ -4,7 +4,7 @@ import {
   type AlertEmailModel,
   renderAlertEmail,
 } from "@/lib/email/render/alert"
-import type { AlertLevel, NotifyMode } from "@/lib/types"
+import type { AlertLevel, NotifiedLevels, NotifyMode } from "@/lib/types"
 import type { SupabaseClient } from "@supabase/supabase-js"
 import {
   type AlertDeliveryLevel,
@@ -14,7 +14,15 @@ import {
   isDestinationLevelAllowed,
   postAlertDestination,
 } from "./destinations"
-import { type AlertEvaluation, nextAlertAction, rank } from "./severity"
+import {
+  type AlertEvaluation,
+  type Escalation,
+  advancedNotifiedLevels,
+  escalation,
+  rearmedNotifiedLevels,
+  rollupNotifiedLevel,
+  shouldSendEmail,
+} from "./severity"
 
 const DELIVERY_BATCH_SIZE = 50
 
@@ -43,6 +51,7 @@ type DestinationRow = {
   min_level: AlertDeliveryLevel
   is_enabled: boolean
   encrypted_url: string
+  encrypted_signing_secret: string | null
   consecutive_failures: number
   updated_at: string
 }
@@ -57,6 +66,7 @@ type EventRow = {
   title: string
   body: string
   pools: AlertDestinationEvent["pools"]
+  credit_types: string[] | null
   dashboard_url: string
   topup_url: string | null
   created_at: string
@@ -96,7 +106,8 @@ export async function dispatchAlerts(
   // a critical escalation superseding its own earlier low alert.
   if (
     !(await handleRecoveries(supabase, evaluations)) ||
-    !(await supersedeLowAlerts(supabase, evaluations))
+    !(await supersedeLowAlerts(supabase, evaluations)) ||
+    !(await rearmRecoveredPools(supabase, evaluations))
   ) {
     return { sent: 0, failedSends: 0, degraded: true }
   }
@@ -147,13 +158,18 @@ async function handleRecoveries(
   )
 
   for (const e of healthy) {
-    const notified = e.notifiedLevel !== "none"
+    const notified =
+      e.notifiedLevel !== "none" || Object.keys(e.notifiedLevels).length > 0
     if (!notified && !withActiveEvent.has(e.connectionId)) continue
 
     if (notified) {
       const { error: rearmError } = await supabase
         .from("connections")
-        .update({ notified_level: "none", alert_fired_at: null })
+        .update({
+          notified_level: "none",
+          notified_levels: {},
+          alert_fired_at: null,
+        })
         .eq("id", e.connectionId)
       if (rearmError) {
         logDegraded("re-arming a recovered connection", rearmError)
@@ -200,6 +216,50 @@ async function handleRecoveries(
   return true
 }
 
+// Partial recovery: a connection where SOME pools healed while others are
+// still below threshold. handleRecoveries above owns the fully-healthy case
+// (it also cancels what is still in flight); this pass only drops the marks of
+// the pools that healed, so each of them can alert again on its next crossing.
+//
+// Marks are per pool, but events and their cancellation stay per connection:
+// one event can name several pools, and it is only stale once the whole
+// connection has recovered. So nothing is canceled here.
+// Returns false when a write failed, leaving marks unpruned - the next poll
+// recomputes the same desired map from fresh readings and retries.
+async function rearmRecoveredPools(
+  supabase: SupabaseClient,
+  evaluations: AlertEvaluation[]
+): Promise<boolean> {
+  for (const e of evaluations) {
+    if (e.severity === "healthy") continue
+    const next = rearmedNotifiedLevels(e)
+    if (sameNotifiedLevels(next, e.notifiedLevels)) continue
+
+    const { error } = await supabase
+      .from("connections")
+      .update({
+        notified_levels: next,
+        notified_level: rollupNotifiedLevel(next),
+      })
+      .eq("id", e.connectionId)
+    if (error) {
+      logDegraded("re-arming recovered pools", error)
+      return false
+    }
+  }
+  return true
+}
+
+function sameNotifiedLevels(
+  a: AlertEvaluation["notifiedLevels"],
+  b: AlertEvaluation["notifiedLevels"]
+): boolean {
+  const keys = Object.keys(a)
+  return (
+    keys.length === Object.keys(b).length && keys.every((k) => a[k] === b[k])
+  )
+}
+
 // A critical escalation supersedes the connection's earlier low event: its
 // pending/paused deliveries are canceled (whether or not the low event was
 // already satisfied) and an unsatisfied low event is closed.
@@ -216,10 +276,7 @@ async function supersedeLowAlerts(
   evaluations: AlertEvaluation[]
 ): Promise<boolean> {
   const superseding = evaluations.filter(
-    (e) =>
-      e.alertEnabled &&
-      e.severity === "critical" &&
-      rank(e.severity) > rank(e.notifiedLevel)
+    (e) => e.alertEnabled && escalation(e)?.level === "critical"
   )
   if (superseding.length === 0) return true
 
@@ -267,14 +324,17 @@ async function prepareEscalations(
   supabase: SupabaseClient,
   evaluations: AlertEvaluation[]
 ): Promise<boolean> {
-  const candidates = evaluations.filter(
-    (e) => e.alertEnabled && rank(e.severity) > rank(e.notifiedLevel)
-  )
+  // A pool that newly crossed its own threshold is news even when the
+  // connection's overall severity is unchanged, which is exactly the case the
+  // old connection-level high-water mark swallowed.
+  const candidates = evaluations
+    .map((e) => ({ e, esc: e.alertEnabled ? escalation(e) : null }))
+    .filter((c): c is { e: AlertEvaluation; esc: Escalation } => c.esc !== null)
   if (candidates.length === 0) return true
 
   // An absent recipient skips the candidate silently, so a failed lookup
   // prepares nothing while the poll still reports a healthy alertsSent: 0.
-  const userIds = [...new Set(candidates.map((e) => e.userId))]
+  const userIds = [...new Set(candidates.map((c) => c.e.userId))]
   const { data: users, error: usersError } = await supabase
     .from("users")
     .select("id, email, notify_mode, updated_at")
@@ -311,24 +371,29 @@ async function prepareEscalations(
   const dashboardUrl = `${appUrl}/dashboard`
 
   let ok = true
-  for (const e of candidates) {
+  for (const { e, esc } of candidates) {
     const u = usersById.get(e.userId)
     if (!u) continue
-    const level = e.severity as AlertDeliveryLevel
+    const level: AlertDeliveryLevel = esc.level
 
-    const event = await ensureEvent(supabase, e, level, dashboardUrl)
+    const event = await ensureEvent(supabase, e, esc, dashboardUrl)
     if (!event) continue
 
     // Preparation is restart-safe: the unique (event_id, delivery_key)
     // boundary means rerunning fills missing rows without duplicating any.
-    const action = nextAlertAction({
-      severity: e.severity,
-      notifiedLevel: e.notifiedLevel,
+    const sendEmailRow = shouldSendEmail({
+      level,
       notifyMode: u.notify_mode,
       alertEnabled: e.alertEnabled,
     })
     const rows: Record<string, unknown>[] = []
-    if (u.email && action.send && process.env.POSTMARK_SERVER_TOKEN) {
+    // Deliberately not gated on POSTMARK_SERVER_TOKEN. A missing token is a
+    // send-time condition the send path already treats as retryable, so the
+    // row pauses and resumes once the operator configures it. Skipping the row
+    // here instead falls through to the no-channel branch below, which
+    // satisfies the event and advances the high-water mark - suppressing the
+    // alert for good.
+    if (u.email && sendEmailRow) {
       rows.push({
         event_id: event.id,
         delivery_key: "email",
@@ -367,8 +432,18 @@ async function prepareEscalations(
       // a candidate with no active event and every later poll inserts a fresh
       // in-app alert. Ordered this way the trailing write is the one whose
       // failure the next poll can still repair.
-      const update: { notified_level: AlertLevel; alert_fired_at?: string } = {
-        notified_level: level,
+      //
+      // Only the pools this event names advance. A pool left out (it crossed
+      // a lower level in the same poll) keeps its mark and alerts on its own
+      // next time round.
+      const levels = advancedNotifiedLevels(e, esc)
+      const update: {
+        notified_level: AlertLevel
+        notified_levels: NotifiedLevels
+        alert_fired_at?: string
+      } = {
+        notified_level: rollupNotifiedLevel(levels),
+        notified_levels: levels,
       }
       if (level === "critical") update.alert_fired_at = new Date().toISOString()
       const { error: advanceError } = await supabase
@@ -399,35 +474,34 @@ async function prepareEscalations(
 // Reuse the connection's active event for this level, otherwise insert one.
 // The partial unique index makes the insert race-safe: a concurrent poll's
 // duplicate insert fails with 23505 and we re-read the winner's row.
+//
+// One active event per (connection, level) still holds, so a second pool
+// crossing while the first pool's event is still undelivered MERGES into it
+// rather than waiting for it. Reusing the row untouched would leave the new
+// pool off the event, off its credit_types, and therefore never marked - the
+// pool would stay a candidate forever behind a stuck delivery.
 async function ensureEvent(
   supabase: SupabaseClient,
   e: AlertEvaluation,
-  level: AlertDeliveryLevel,
+  esc: Escalation,
   dashboardUrl: string
 ): Promise<{ id: string; created_at: string } | null> {
+  const level = esc.level
   const findActive = () =>
     supabase
       .from("alert_events")
-      .select("id, created_at")
+      .select("id, created_at, pools, credit_types")
       .eq("connection_id", e.connectionId)
       .eq("level", level)
       .is("delivery_satisfied_at", null)
       .is("delivery_canceled_at", null)
       .maybeSingle()
 
-  const { data: active } = await findActive()
-  if (active?.id) return active
+  const pools = alertEventPools(esc)
+  const creditTypes = esc.pools.map((p) => p.creditType)
 
-  const pools = alertPoolsForLevel(e, level)
-  const title = `${e.toolName} is ${
-    level === "critical" ? "critically low" : "running low"
-  }`
-  const body =
-    pools.length > 0
-      ? `${e.connectionName} crossed ${level} threshold for ${pools
-          .map((p) => p.label)
-          .join(", ")}.`
-      : `${e.connectionName} crossed a ${level} threshold.`
+  const { data: active } = await findActive()
+  if (active?.id) return mergeIntoEvent(supabase, e, esc, active)
 
   const { data: inserted, error } = await supabase
     .from("alert_events")
@@ -437,9 +511,10 @@ async function ensureEvent(
       level,
       tool_name: e.toolName,
       connection_name: e.connectionName,
-      title,
-      body,
+      title: eventTitle(e, level),
+      body: eventBody(e, level, pools),
       pools,
+      credit_types: creditTypes,
       dashboard_url: dashboardUrl,
       topup_url: e.topupUrl,
     })
@@ -449,26 +524,79 @@ async function ensureEvent(
   if (inserted?.id) return inserted
   if (error?.code === "23505") {
     const { data: raced } = await findActive()
-    return raced?.id ? raced : null
+    return raced?.id ? mergeIntoEvent(supabase, e, esc, raced) : null
   }
   return null
 }
 
-function alertPoolsForLevel(
-  evaluation: AlertEvaluation,
-  level: AlertDeliveryLevel
-): AlertDestinationEvent["pools"] {
-  return evaluation.pools
-    .map((p) => {
-      const threshold = level === "critical" ? p.critical : p.low
-      // Inclusive `<=` to match the severity evaluator (severity.ts) and the
-      // dashboard pill: a pool sitting exactly on its threshold triggers the
-      // alert, so it must also appear in notifications.
-      return threshold != null && p.balance <= threshold
-        ? { label: p.label, balance: p.balance, threshold, unit: p.unit }
-        : null
+// Fold pools the active event does not already name into it. A failed merge
+// returns the event unchanged: the alert still goes out for the pools already
+// on it, and the missing pool is still a candidate next poll.
+async function mergeIntoEvent(
+  supabase: SupabaseClient,
+  e: AlertEvaluation,
+  esc: Escalation,
+  active: { id: string; created_at: string } & Record<string, unknown>
+): Promise<{ id: string; created_at: string }> {
+  const existingTypes = active.credit_types as string[] | null
+  // An event created before migration 056 has no credit_types, but its pools
+  // are already listed on it. Adopt the keys only: re-appending the pools
+  // would name each of them twice in the body.
+  if (existingTypes == null) {
+    const { error } = await supabase
+      .from("alert_events")
+      .update({ credit_types: esc.pools.map((p) => p.creditType) })
+      .eq("id", active.id)
+    if (error) logDegraded("adopting credit types on a legacy event", error)
+    return active
+  }
+
+  const missing = esc.pools.filter((p) => !existingTypes.includes(p.creditType))
+  if (missing.length === 0) return active
+
+  const pools = [
+    ...((active.pools as AlertDestinationEvent["pools"] | null) ?? []),
+    ...alertEventPools({ level: esc.level, pools: missing }),
+  ]
+  const { error } = await supabase
+    .from("alert_events")
+    .update({
+      pools,
+      credit_types: [...existingTypes, ...missing.map((p) => p.creditType)],
+      body: eventBody(e, esc.level, pools),
     })
-    .filter((p): p is NonNullable<typeof p> => p !== null)
+    .eq("id", active.id)
+  if (error) logDegraded("merging a pool into an active alert event", error)
+  return active
+}
+
+function eventTitle(e: AlertEvaluation, level: AlertDeliveryLevel): string {
+  return `${e.toolName} is ${
+    level === "critical" ? "critically low" : "running low"
+  }`
+}
+
+function eventBody(
+  e: AlertEvaluation,
+  level: AlertDeliveryLevel,
+  pools: AlertDestinationEvent["pools"]
+): string {
+  return pools.length > 0
+    ? `${e.connectionName} crossed ${level} threshold for ${pools
+        .map((p) => p.label)
+        .join(", ")}.`
+    : `${e.connectionName} crossed a ${level} threshold.`
+}
+
+// The pools an alert names are exactly the ones that just crossed to its
+// level, so a pool already alerted at that level is not re-announced.
+function alertEventPools(esc: Escalation): AlertDestinationEvent["pools"] {
+  return esc.pools.map((p) => ({
+    label: p.label,
+    balance: p.balance,
+    threshold: (esc.level === "critical" ? p.critical : p.low) as number,
+    unit: p.unit,
+  }))
 }
 
 // Log server-side only: the poll response can end up in cron logs, and a DB
@@ -547,7 +675,7 @@ async function processDueDeliveries(
     const { data: destinations, error: destinationsError } = await supabase
       .from("alert_destinations")
       .select(
-        "id, user_id, kind, min_level, is_enabled, encrypted_url, consecutive_failures, updated_at"
+        "id, user_id, kind, min_level, is_enabled, encrypted_url, encrypted_signing_secret, consecutive_failures, updated_at"
       )
       .in("id", destinationIds)
     if (destinationsError) {
@@ -659,6 +787,26 @@ async function sendWebhookDelivery(
     return result
   }
 
+  // Fail closed rather than falling back to an unsigned send: a receiver that
+  // requires the signature would reject it anyway, and one that does not would
+  // silently accept a delivery the user believes is signed. Non-retryable, so
+  // it pauses until the owner rotates the secret (which moves updated_at and
+  // re-arms the delivery).
+  let signingSecret: string | null = null
+  if (destination.encrypted_signing_secret) {
+    try {
+      signingSecret = decrypt(destination.encrypted_signing_secret)
+    } catch {
+      const result: SendResult = {
+        ok: false,
+        error: "Couldn't decrypt the webhook signing secret.",
+        retryable: false,
+      }
+      await updateDestinationHealth(supabase, destination, result)
+      return result
+    }
+  }
+
   const destinationEvent: AlertDestinationEvent = {
     id: event.id,
     level: event.level,
@@ -677,7 +825,8 @@ async function sendWebhookDelivery(
     destination.kind,
     url,
     destinationEvent,
-    delivery.id
+    delivery.id,
+    signingSecret
   )
   await updateDestinationHealth(supabase, destination, result)
   return result
@@ -695,13 +844,19 @@ async function updateDestinationHealth(
   // attempted, and the claim stamps that version BEFORE this write - so a bump
   // here re-arms the very attempt that just failed, re-firing a dead webhook
   // every poll forever. Only a user edit may move it.
+  // last_attempt_at moves on every attempt, success or not. It is what dates
+  // last_error: without it the settings page can say a destination failed but
+  // not when, and last_sent_at only moves on the successes that have no error.
+  const now = new Date().toISOString()
   const update = result.ok
     ? {
-        last_sent_at: new Date().toISOString(),
+        last_attempt_at: now,
+        last_sent_at: now,
         last_error: null,
         consecutive_failures: 0,
       }
     : {
+        last_attempt_at: now,
         last_error: result.error,
         consecutive_failures: (destination.consecutive_failures ?? 0) + 1,
       }

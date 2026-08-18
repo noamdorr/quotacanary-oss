@@ -3,8 +3,32 @@ import type { SupabaseClient } from "@supabase/supabase-js"
 import { type BalanceRow, buildPools } from "./build-pools"
 
 const HISTORY_LIMIT = 30
+const HISTORY_PAGE_SIZE = 1000
 
 type HistoryRow = BalanceRow & { connection_id: string }
+
+// pool_history_sampled bounds rows per POOL (~29), not per response, so a user
+// wide enough to cross PostgREST's `max_rows` in total lost the trailing
+// connections' history entirely and those pools rendered as "No data".
+// Offset paging is right here (the RPC has a total ORDER BY, and there is no
+// cursor column to key on); the offset advances by the rows actually returned
+// and the loop stops only on an empty page, so a max_rows below the page size
+// cannot end it early.
+async function fetchPoolHistory(
+  supabase: SupabaseClient,
+  userId: string
+): Promise<HistoryRow[]> {
+  const rows: HistoryRow[] = []
+  for (;;) {
+    const { data, error } = await supabase
+      .rpc("pool_history_sampled", { p_user_id: userId })
+      .range(rows.length, rows.length + HISTORY_PAGE_SIZE - 1)
+    if (error) throw error
+    const page = (data ?? []) as HistoryRow[]
+    if (page.length === 0) return rows
+    rows.push(...page)
+  }
+}
 
 // Connections + their tool metadata + time-sampled balance history (newest
 // first), grouped into one pool per credit_type. History comes from the
@@ -17,7 +41,7 @@ export async function listConnectionsWithBalance(
   supabase: SupabaseClient,
   userId: string
 ): Promise<ConnectionWithBalance[]> {
-  const [connRes, histRes] = await Promise.all([
+  const [connRes, history] = await Promise.all([
     supabase
       .from("connections")
       .select(
@@ -30,13 +54,12 @@ export async function listConnectionsWithBalance(
       )
       .eq("user_id", userId)
       .order("created_at", { ascending: true }),
-    supabase.rpc("pool_history_sampled", { p_user_id: userId }),
+    fetchPoolHistory(supabase, userId),
   ])
   if (connRes.error) throw connRes.error
-  if (histRes.error) throw histRes.error
 
   const byConnection = new Map<string, BalanceRow[]>()
-  for (const row of (histRes.data ?? []) as HistoryRow[]) {
+  for (const row of history) {
     const { connection_id, ...balance } = row
     const group = byConnection.get(connection_id)
     if (group) group.push(balance)

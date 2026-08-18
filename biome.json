@@ -17,7 +17,10 @@
       "design-handoff",
       ".claude",
       ".agents",
-      ".codex"
+      ".codex",
+      "playwright-report",
+      "test-results",
+      "blob-report"
     ]
   },
   "formatter": {
@@ -51,6 +54,16 @@
         "rules": {
           "a11y": {
             "noLabelWithoutControl": "off"
+          }
+        }
+      }
+    },
+    {
+      "include": ["e2e/**"],
+      "linter": {
+        "rules": {
+          "correctness": {
+            "noEmptyPattern": "off"
           }
         }
       }

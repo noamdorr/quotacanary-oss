@@ -41,7 +41,7 @@ export function ConnectionsTable({
       <div
         className={cn(
           ROW_GRID,
-          "min-w-[1120px] border-b border-border bg-muted/50 px-5 py-2.5 font-mono text-[10px] uppercase tracking-wider text-muted-foreground"
+          "min-w-[900px] border-b border-border bg-muted/50 px-5 py-2.5 font-mono text-[10px] uppercase tracking-wider text-muted-foreground"
         )}
       >
         {COLUMNS.map((col) =>
@@ -73,7 +73,7 @@ export function ConnectionsTable({
           )
         )}
       </div>
-      <div className="min-w-[1120px] divide-y divide-border">
+      <div className="min-w-[900px] divide-y divide-border">
         {rows.map((row) => {
           const key = poolRowKey(row)
           return (

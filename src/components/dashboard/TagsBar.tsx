@@ -10,11 +10,15 @@ type Props = {
 
 export function TagsBar({ tags, active, onSelect }: Props) {
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <fieldset
+      aria-label="Filter by tag"
+      className="flex min-w-0 flex-wrap items-center gap-2"
+    >
       {["All", ...tags].map((tag) => (
         <button
           key={tag}
           type="button"
+          aria-pressed={active === tag}
           onClick={() => onSelect(tag)}
           className={cn(
             "rounded-full border px-3 py-1.5 text-xs transition-colors",
@@ -26,6 +30,6 @@ export function TagsBar({ tags, active, onSelect }: Props) {
           {tag}
         </button>
       ))}
-    </div>
+    </fieldset>
   )
 }

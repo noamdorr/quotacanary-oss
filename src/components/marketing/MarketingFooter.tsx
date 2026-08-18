@@ -55,6 +55,7 @@ export function MarketingFooter() {
             { label: "Why this exists", href: "/#why" },
             { label: "FAQ", href: "/#faq" },
             { label: "Docs", href: "/docs" },
+            { label: "Security", href: "/security" },
             { label: "Privacy", href: "/privacy" },
             { label: "Terms", href: "/terms" },
           ].map(({ label, href }) => (

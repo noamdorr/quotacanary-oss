@@ -27,6 +27,25 @@ export function categoryLabel(category: string | null): string {
   )
 }
 
+export function toolMatchesQuery(
+  tool: Pick<Tool, "name" | "category">,
+  query: string
+): boolean {
+  const normalizedQuery = query.trim().toLowerCase().replace(/[_-]+/g, " ")
+  if (!normalizedQuery) return true
+
+  const searchable = [
+    tool.name,
+    tool.category ?? "",
+    categoryLabel(tool.category),
+  ]
+    .join(" ")
+    .toLowerCase()
+    .replace(/[_-]+/g, " ")
+
+  return searchable.includes(normalizedQuery)
+}
+
 // SEO subheading shown under the tool name on /directory/[id].
 export function toolSubheading(name: string): string {
   return `Check your ${name} credit balance and burn rate`

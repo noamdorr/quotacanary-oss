@@ -21,14 +21,36 @@ function historyRow(
   }
 }
 
-// biome-ignore lint/suspicious/noExplicitAny: test double for the supabase client
-function mockSupabase(connections: any[], history: any[]): SupabaseClient {
+// The RPC double emulates PostgREST's `max_rows` clamp on top of the requested
+// `.range()`, because that cap is what silently truncates a wide user's history.
+function mockSupabase(
+  // biome-ignore lint/suspicious/noExplicitAny: test double for the supabase client
+  connections: any[],
+  // biome-ignore lint/suspicious/noExplicitAny: test double for the supabase client
+  history: any[],
+  options: { maxRows?: number } = {}
+): SupabaseClient {
+  const maxRows = options.maxRows ?? 1000
   const order = vi.fn(() => Promise.resolve({ data: connections, error: null }))
   const eq = vi.fn(() => ({ order }))
   const select = vi.fn(() => ({ eq }))
   const from = vi.fn(() => ({ select }))
-  const rpc = vi.fn(() => Promise.resolve({ data: history, error: null }))
-  return { from, select, eq, order, rpc } as unknown as SupabaseClient
+  const ranges: [number, number][] = []
+  const rpc = vi.fn(() => ({
+    range: (start: number, end: number) => {
+      ranges.push([start, end])
+      const window = history.slice(start, end + 1)
+      return Promise.resolve({ data: window.slice(0, maxRows), error: null })
+    },
+  }))
+  return {
+    from,
+    select,
+    eq,
+    order,
+    rpc,
+    ranges,
+  } as unknown as SupabaseClient & { ranges: [number, number][] }
 }
 
 describe("listConnectionsWithBalance", () => {
@@ -38,6 +60,29 @@ describe("listConnectionsWithBalance", () => {
     expect(supabase.rpc).toHaveBeenCalledWith("pool_history_sampled", {
       p_user_id: USER_ID,
     })
+  })
+
+  it("pages the history RPC past the PostgREST row cap", async () => {
+    // The RPC bounds rows per pool (~29), not per response. A user wide enough
+    // to cross max_rows in total used to lose the trailing connections' history
+    // entirely, and those pools rendered as "No data" with nothing logged.
+    const connections = Array.from({ length: 3 }, (_, i) => ({
+      id: `conn-${i}`,
+      watched_credit_types: null,
+    }))
+    const history = connections.map((c) =>
+      historyRow(c.id, "credits", 10, "2026-07-16T07:00:00Z")
+    )
+    const supabase = mockSupabase(connections, history, { maxRows: 2 })
+
+    const result = await listConnectionsWithBalance(supabase, USER_ID)
+
+    // Every connection keeps its history, not just the ones inside the cap.
+    expect(result.map((c) => c.pools.length)).toEqual([1, 1, 1])
+    // Offset advances by rows actually returned, so a max_rows below the page
+    // size cannot end the loop early; only an empty page can.
+    const { ranges } = supabase as unknown as { ranges: [number, number][] }
+    expect(ranges.map(([start]) => start)).toEqual([0, 2, 3])
   })
 
   it("groups history rows by connection into pools", async () => {

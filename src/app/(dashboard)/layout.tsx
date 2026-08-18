@@ -1,4 +1,5 @@
 import { logout } from "@/app/(auth)/login/actions"
+import { FeedbackTrigger } from "@/components/dashboard/FeedbackDialog"
 import { MobileNav, Sidebar } from "@/components/dashboard/Sidebar"
 import { Button } from "@/components/ui/button"
 import type { Metadata } from "next"
@@ -18,7 +19,7 @@ export default function DashboardLayout({
 }) {
   return (
     <div className="flex min-h-screen flex-col bg-background">
-      <header className="flex h-14 items-center justify-between border-b border-border/50 px-6">
+      <header className="flex h-14 items-center justify-between border-b border-border/50 px-4 sm:px-6">
         <Link
           href="/dashboard"
           className="qc-nav-logo rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
@@ -32,21 +33,26 @@ export default function DashboardLayout({
             style={{ width: 122, height: 27 }}
           />
         </Link>
-        <form action={logout}>
-          <Button
-            type="submit"
-            variant="ghost"
-            size="sm"
-            className="text-muted-foreground hover:text-foreground"
-          >
-            Sign out
-          </Button>
-        </form>
+        <div className="flex items-center gap-1">
+          <FeedbackTrigger />
+          <form action={logout}>
+            <Button
+              type="submit"
+              variant="ghost"
+              size="sm"
+              className="text-muted-foreground hover:text-foreground"
+            >
+              Sign out
+            </Button>
+          </form>
+        </div>
       </header>
       <div className="flex flex-1">
         <Sidebar />
         {/* pb on mobile clears the fixed bottom tab bar (MobileNav). */}
-        <div className="flex flex-1 flex-col pb-16 md:pb-0">{children}</div>
+        <div className="flex min-w-0 flex-1 flex-col pb-16 md:pb-0">
+          {children}
+        </div>
       </div>
       <MobileNav />
     </div>

@@ -361,4 +361,42 @@ describe("consumeRateLimit", () => {
     })
     warn.mockRestore()
   })
+
+  it.each([
+    ["PGRST202", "Could not find the function in the schema cache"],
+    ["42501", "permission denied for function consume_api_rate_limit_v2"],
+    ["42883", "function consume_api_rate_limit_v2 does not exist"],
+    ["42P01", 'relation "api_tokens" does not exist'],
+  ])(
+    "fails closed and logs loudly when the rpc reports %s (deployment misconfigured)",
+    async (code, message) => {
+      const { consumeRateLimit, RATE_WINDOW_SECONDS } = await import(
+        "./api-token"
+      )
+      const error = vi.spyOn(console, "error").mockImplementation(() => {})
+      rpcResult = { data: null, error: { code, message } }
+      expect(await consumeRateLimit("tok-1")).toEqual({
+        allowed: false,
+        remaining: 0,
+        resetSeconds: RATE_WINDOW_SECONDS,
+      })
+      expect(error).toHaveBeenCalled()
+      error.mockRestore()
+    }
+  )
+
+  it("still fails open for a genuinely transient error outside class 42", async () => {
+    const { consumeRateLimit } = await import("./api-token")
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {})
+    rpcResult = {
+      data: null,
+      error: { code: "57014", message: "canceling statement due to timeout" },
+    }
+    expect(await consumeRateLimit("tok-1")).toEqual({
+      allowed: true,
+      remaining: null,
+      resetSeconds: null,
+    })
+    warn.mockRestore()
+  })
 })

@@ -1,6 +1,11 @@
 "use client"
 
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { trackPlausibleEvent } from "@/lib/plausible-events"
 import { PlayCircle, X } from "lucide-react"
 import { useRef, useState } from "react"
@@ -56,14 +61,12 @@ export function LaunchVideoDialog() {
             <DialogTitle className="text-sm font-medium text-cream">
               QuotaCanary launch video
             </DialogTitle>
-            <button
-              type="button"
-              className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-white/15 text-cream transition hover:bg-white/10"
+            <DialogClose
+              className="border border-white/15 text-cream hover:bg-white/10"
               aria-label="Close video"
-              onClick={() => handleOpenChange(false)}
             >
               <X size={18} aria-hidden="true" />
-            </button>
+            </DialogClose>
           </div>
           {/* biome-ignore lint/a11y/useMediaCaption: The launch video has music only; no spoken content needs captions. */}
           <video

@@ -20,6 +20,13 @@
   --canary: #ffc400;
   --canary-deep: #e0ac00;
   --canary-tint: #fff3c2;
+  /* Gold you may set as TEXT on a cream background. --canary and
+     --canary-deep are for fills, borders and decoration only: as text on
+     --cream they measure 1.57:1 and 2.05:1, well under the 4.5:1 WCAG AA
+     needs. This one clears 4.5:1 on cream, cream-2 and cream-3 alike
+     (QUO-19). On the dark --ink panels, keep using --canary: it reads
+     10.9:1 there, while this token would drop to 3.3:1. */
+  --canary-ink: #8a6600;
   --canary-shadow: 0 6px 24px -8px rgba(255, 196, 0, 0.55), 0 1px 0
     rgba(0, 0, 0, 0.06) inset;
 
@@ -75,6 +82,7 @@
   --font-mono: var(--f-mono);
   --color-canary: var(--canary);
   --color-canary-deep: var(--canary-deep);
+  --color-canary-ink: var(--canary-ink);
   --color-cream: var(--cream);
   --color-cream-2: var(--cream-2);
   --color-ink: var(--ink);
@@ -316,11 +324,20 @@
   font-weight: 500;
   letter-spacing: -0.005em;
   cursor: pointer;
-  transition: transform 0.12s ease, box-shadow 0.15s ease, background 0.15s ease,
-    border-color 0.15s ease;
+  transition:
+    scale 0.12s ease-out, transform 0.12s ease-out, box-shadow 0.15s
+    ease-out, background-color 0.15s ease-out, border-color 0.15s ease-out,
+    color 0.15s ease-out;
   user-select: none;
   white-space: nowrap;
   text-decoration: none;
+}
+.btn:focus-visible {
+  outline: 3px solid rgba(255, 196, 0, 0.55);
+  outline-offset: 2px;
+}
+.btn:active {
+  scale: 0.96;
 }
 .btn-primary {
   background: var(--canary);
@@ -334,12 +351,15 @@
     rgba(0, 0, 0, 0.06) inset;
 }
 .btn-primary:active {
-  transform: translateY(1px);
+  background: var(--canary-deep);
   box-shadow: var(--canary-shadow);
 }
 @media (prefers-reduced-motion: reduce) {
   .btn-primary:hover {
     transform: none;
+  }
+  .btn:active {
+    scale: 1;
   }
 }
 .btn-ghost {
@@ -351,6 +371,10 @@
   background: rgba(26, 26, 26, 0.04);
   border-color: rgba(26, 26, 26, 0.22);
 }
+.btn-ghost:active {
+  background: rgba(26, 26, 26, 0.08);
+  border-color: rgba(26, 26, 26, 0.28);
+}
 .btn-link {
   background: transparent;
   border: 0;
@@ -360,6 +384,19 @@
 }
 .btn-link:hover {
   color: var(--ink-2);
+}
+.btn-link:active {
+  color: var(--ink-2);
+}
+
+@media (pointer: coarse) {
+  [data-slot="button"],
+  [data-slot="tabs-trigger"],
+  [data-slot="dialog-close"],
+  [data-slot="badge"]:is(a) {
+    min-width: 44px;
+    min-height: 44px;
+  }
 }
 
 /* ── Foundation cards & surfaces ────────────────────────────────────── */
@@ -405,11 +442,33 @@
   }
 }
 
+.qc-state-icon {
+  display: inline-grid;
+  width: 1em;
+  height: 1em;
+  place-items: center;
+}
+.qc-state-icon__glyph {
+  display: inline-grid;
+  grid-area: 1 / 1;
+  place-items: center;
+  opacity: 0;
+  scale: 0.25;
+  filter: blur(4px);
+  transition-property: opacity, scale, filter;
+  transition-duration: 0.3s;
+  transition-timing-function: cubic-bezier(0.2, 0, 0, 1);
+}
+.qc-state-icon__glyph[data-visible="true"] {
+  opacity: 1;
+  scale: 1;
+  filter: blur(0);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .rise-in,
   .qc-hero-grid *,
-  .qc-rotating-tool-icon,
-  .qc-rotating-tool-name,
+  .qc-rotating-tool-face,
   .qc-canary-note,
   .qc-canary-breathe,
   .qc-canary-eye,
@@ -444,6 +503,14 @@
   .qc-onboarding-listening__bird {
     transition: none !important;
     transform: none !important;
+  }
+  .qc-state-icon__glyph {
+    filter: none !important;
+    scale: 1 !important;
+    transition: none !important;
+  }
+  .qc-rotating-tool-face--previous {
+    opacity: 0 !important;
   }
   .qc-confetti-piece {
     display: none;
@@ -918,7 +985,7 @@
     rgba(255, 196, 0, 0.14) 49%,
     transparent 57% 100%
   );
-  animation: qc-auth-card-scan 5.4s ease-in-out infinite;
+  animation: qc-auth-card-scan 5.4s ease-in-out both;
 }
 .qc-auth-risk-card > * {
   position: relative;
@@ -1146,12 +1213,9 @@
 }
 .qc-rotating-tool-slot {
   position: relative;
-  display: flex;
+  display: grid;
   min-width: 0;
   height: 48px;
-  align-items: center;
-  justify-content: center;
-  gap: 7px;
   overflow: hidden;
   padding: 0 12px;
   border: 1px solid var(--hairline-soft);
@@ -1160,12 +1224,25 @@
   box-shadow: 0 1px 0 rgba(26, 26, 26, 0.04);
   color: var(--ink-2);
 }
+.qc-rotating-tool-face {
+  display: flex;
+  min-width: 0;
+  grid-area: 1 / 1;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+}
+.qc-rotating-tool-face--current[data-changing="true"] {
+  animation: qc-tool-crossfade-in 0.48s ease-out both;
+}
+.qc-rotating-tool-face--previous {
+  animation: qc-tool-crossfade-out 0.36s ease-out both;
+}
 .qc-rotating-tool-icon {
   width: 20px;
   height: 20px;
   flex: 0 0 auto;
   object-fit: contain;
-  animation: qc-logo-pop 0.34s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 .qc-rotating-tool-name {
   min-width: 0;
@@ -1175,26 +1252,21 @@
   line-height: 1;
   text-overflow: ellipsis;
   white-space: nowrap;
-  animation: qc-logo-name-pop 0.36s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
-@keyframes qc-logo-pop {
-  from {
-    opacity: 1;
-    transform: translateY(2px) scale(0.98);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-}
-@keyframes qc-logo-name-pop {
+@keyframes qc-tool-crossfade-in {
   from {
     opacity: 0;
-    transform: translateY(5px);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
+  }
+}
+@keyframes qc-tool-crossfade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
   }
 }
 @media (max-width: 640px) {
@@ -1355,6 +1427,14 @@
 }
 .qc-nav-toggle:hover {
   background: rgba(26, 26, 26, 0.04);
+}
+.qc-nav-toggle:focus-visible {
+  outline: 3px solid rgba(255, 196, 0, 0.36);
+  outline-offset: 2px;
+}
+.qc-nav-toggle[aria-expanded="true"] {
+  border-color: var(--canary);
+  background: rgba(255, 196, 0, 0.14);
 }
 @media (max-width: 767px) {
   .qc-nav-toggle {

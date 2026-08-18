@@ -1,10 +1,12 @@
 import Script from "next/script"
 
-const PLAUSIBLE_SCRIPT_SRC =
-  "https://plausible.reechee.io/js/pa-vH2mFIl_JJCwlSkaJOMtS.js"
-
+// Analytics is opt-in and set only by the hosted deployment. A self-hosted
+// instance leaves PLAUSIBLE_SCRIPT_SRC unset and loads no third-party script,
+// so its users' page paths never reach someone else's analytics.
 export function PlausibleAnalytics() {
-  if (process.env.NODE_ENV !== "production") {
+  const src = process.env.PLAUSIBLE_SCRIPT_SRC
+
+  if (process.env.NODE_ENV !== "production" || !src) {
     return null
   }
 
@@ -12,7 +14,7 @@ export function PlausibleAnalytics() {
     <>
       <Script
         id="plausible-script"
-        src={PLAUSIBLE_SCRIPT_SRC}
+        src={src}
         strategy="afterInteractive"
         async
       />

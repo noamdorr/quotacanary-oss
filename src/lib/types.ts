@@ -24,6 +24,11 @@ export type PoolThresholds = Record<
   { low: number | null; critical: number | null }
 >
 
+// Alert high-water marks, keyed by credit_type exactly like PoolThresholds.
+// Thresholds are per pool, so the mark that says "already alerted at this
+// level" has to be per pool too, or the second pool to cross stays silent.
+export type NotifiedLevels = Record<string, AlertLevel>
+
 export type Tool = {
   id: string
   name: string
@@ -114,6 +119,12 @@ export type AlertDestination = {
   url_hint: string
   min_level: AlertDeliveryLevel
   is_enabled: boolean
+  // Null means deliveries to this destination are unsigned. The secret itself
+  // is never selected outside the poller; this timestamp is the whole signal.
+  signing_secret_set_at: string | null
+  // Every attempt, poll or test. `last_sent_at` is the successful subset, so
+  // this is the one that dates `last_error`.
+  last_attempt_at: string | null
   last_sent_at: string | null
   last_error: string | null
   consecutive_failures: number

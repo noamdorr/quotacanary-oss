@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 
 export default function TermsPage() {
   return (
-    <LegalPage title="Terms of service" updated="June 12, 2026">
+    <LegalPage title="Terms of service" updated="August 12, 2026">
       <p style={{ fontSize: 16, lineHeight: 1.65, margin: 0 }}>
         QuotaCanary is a free service that monitors the credit balances of tools
         you connect and alerts you before they run out. These terms are short
@@ -18,9 +18,9 @@ export default function TermsPage() {
 
       <LegalSection heading="Your account">
         <p>
-          Sign up with an email you control and keep your password to yourself.
-          You&apos;re responsible for what happens under your account. One
-          account per person is plenty.
+          Sign up with an email you control. There is no password: we email you
+          a sign-in link, so your inbox is the key. You&apos;re responsible for
+          what happens under your account. One account per person is plenty.
         </p>
       </LegalSection>
 

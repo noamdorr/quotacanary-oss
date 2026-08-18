@@ -6,6 +6,10 @@ const source = readFileSync(
   resolve(process.cwd(), "src/components/auth/AuthBrandPanel.tsx"),
   "utf8"
 )
+const layout = readFileSync(
+  resolve(process.cwd(), "src/app/(auth)/layout.tsx"),
+  "utf8"
+)
 const css = readFileSync(resolve(process.cwd(), "src/app/globals.css"), "utf8")
 
 describe("auth brand panel", () => {
@@ -17,6 +21,12 @@ describe("auth brand panel", () => {
     expect(source).not.toContain("StatusPill")
   })
 
+  it("keeps the trust cues visible when the desktop showcase is hidden", () => {
+    expect(layout).toContain("lg:hidden")
+    expect(layout).toContain("Read-only access")
+    expect(layout).toContain("No sends touched")
+  })
+
   it("keeps the auth showcase visually aligned with the homepage CTA panel", () => {
     expect(css).toContain(".qc-auth-showcase")
     expect(css).toContain("background: var(--cream)")
@@ -24,11 +34,20 @@ describe("auth brand panel", () => {
     expect(css).toContain(".qc-auth-risk-card")
   })
 
-  it("keeps the auth risk card feeling live without ignoring reduced motion", () => {
+  it("runs the risk-card scan once while preserving quieter live cues", () => {
     expect(source).toContain("qc-auth-watch-strip")
     expect(source).toContain("qc-auth-sparkline-line")
     expect(css).toContain("@keyframes qc-auth-card-scan")
     expect(css).toContain("@keyframes qc-auth-spark-trace")
+
+    const riskCardScan = css.match(
+      /\.qc-auth-risk-card::before\s*\{[\s\S]*?\n\}/
+    )?.[0]
+
+    expect(riskCardScan).toContain(
+      "animation: qc-auth-card-scan 5.4s ease-in-out both"
+    )
+    expect(riskCardScan).not.toContain("infinite")
 
     const reducedMotionBlock = css.slice(
       css.indexOf("@media (prefers-reduced-motion: reduce)")

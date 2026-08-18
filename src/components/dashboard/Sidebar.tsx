@@ -48,13 +48,16 @@ export function Sidebar() {
           </Link>
         )
       })}
-      <Link
+      {/* The security model is a public marketing page now (QUO-20), so open
+          it in a new tab rather than navigating the app into marketing chrome. */}
+      <a
         href="/security"
-        aria-current={isActive(pathname, "/security") ? "page" : undefined}
+        target="_blank"
+        rel="noreferrer"
         className="mt-auto px-3 py-2 text-xs text-muted-foreground/70 hover:text-foreground"
       >
         Security & privacy
-      </Link>
+      </a>
     </nav>
   )
 }
