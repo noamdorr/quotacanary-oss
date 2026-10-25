@@ -3,6 +3,7 @@
 import {
   MAX_ACTIVE_TOKENS_PER_USER,
   generateApiToken,
+  scopesForChoice,
 } from "@/lib/auth/api-token"
 import { createClient } from "@/lib/supabase/server"
 import { revalidatePath } from "next/cache"
@@ -32,16 +33,21 @@ export async function createApiToken(
   if (!name) return { ok: false, error: "Give the token a name." }
   if (name.length > 80)
     return { ok: false, error: "Name must be 80 characters or fewer." }
+  // Read-only unless the form opted into write (the Mac app's connected mode).
+  const scopes = scopesForChoice(String(formData.get("scope") ?? "read"))
+  if (!scopes) return { ok: false, error: "Pick a token scope." }
 
   const { raw, hash, hint } = generateApiToken()
 
   // The cap check and the insert live inside one locked Postgres function
-  // (migration 051) so a concurrent burst can't slip past the limit (QUO-67).
+  // (migration 051, scopes added in 070) so a concurrent burst can't slip past
+  // the limit (QUO-67).
   const { data: tokenId, error } = await supabase.rpc("create_api_token", {
     p_name: name,
     p_token_hash: hash,
     p_token_hint: hint,
     p_max_active: MAX_ACTIVE_TOKENS_PER_USER,
+    p_scopes: scopes,
   })
 
   if (error) return { ok: false, error: "Couldn't create the token." }

@@ -1,14 +1,15 @@
-import { effectiveStatus } from "@/lib/balance-status"
 import type { EffectiveStatus } from "@/lib/balance-status"
 import { formatBurnEta } from "@/lib/burn-eta"
-import { burnRate } from "@/lib/burn-rate"
-import { poolEta } from "@/lib/pool-eta"
+import { assessPool } from "@/lib/pool-assessment"
 import type { PoolRow } from "@/lib/pool-rows"
-import { resolvePoolThresholds } from "@/lib/thresholds"
 
 export type PoolPayload = {
   connectionId: string
   connectionName: string
+  // Last 4 characters of the stored key, as the dashboard shows it; null when
+  // none is stored. Lets a client tell two same-tool connections apart and
+  // spot one it already watches with the same key (QUO-292).
+  keyHint: string | null
   tool: { id: string; name: string; topupUrl: string | null }
   creditType: string | null
   label: string | null
@@ -43,37 +44,16 @@ export function flattenStatus(s: EffectiveStatus): PoolPayload["status"] {
 }
 
 // Serializes a PoolRow (connection + optional pool) to a clean API payload.
-// Mirrors the exact status/burn/eta composition used in ConnectionRow and
-// ConnectionCard: resolvePoolThresholds -> effectiveStatus -> poolEta.
-// The connection.status in the row is already stale-adjusted (toPoolRows does
-// this before handing rows to consumers).
+// Status, thresholds, burn and ETA come from assessPool, the same assessment
+// the dashboard renders, so the API can never disagree with the screen.
 export function serializePoolRow(row: PoolRow): PoolPayload {
   const { connection: c, pool } = row
-
-  // Mirror dashboard: resolvePoolThresholds(c, pool?.creditType ?? "")
-  const thresholds = resolvePoolThresholds(c, pool?.creditType ?? "")
-
-  // Mirror dashboard: effectiveStatus with pool balance (null when no pool)
-  const status = flattenStatus(
-    effectiveStatus({
-      balance: pool?.balance ?? null,
-      low: thresholds.low,
-      critical: thresholds.critical,
-      connectionStatus: c.status,
-    })
-  )
-
-  // Mirror dashboard: poolEta(pool) -> { short, long } or null when there's no
-  // pool. Fall back to the app's own formatBurnEta(null) so the "no burn yet"
-  // copy stays in one place (no drift) and the payload eta is always present.
-  const eta = poolEta(pool) ?? formatBurnEta(null)
-
-  // burn is separate from eta so consumers can use numeric values
-  const burn = pool ? burnRate(pool.history) : null
+  const { thresholds, status, burn, eta } = assessPool(row)
 
   return {
     connectionId: c.id,
     connectionName: c.name,
+    keyHint: c.key_hint ?? null,
     tool: {
       id: c.tool.id,
       name: c.tool.name,
@@ -85,9 +65,11 @@ export function serializePoolRow(row: PoolRow): PoolPayload {
     balance: pool?.balance ?? null,
     balanceLimit: pool?.balanceLimit ?? null,
     recordedAt: pool?.recorded_at ?? null,
-    status,
+    status: flattenStatus(status),
     burn,
-    eta,
+    // Placeholder rows have no ETA; fall back to the app's own "no burn yet"
+    // copy so the payload eta is always present.
+    eta: eta ?? formatBurnEta(null),
     thresholds,
   }
 }

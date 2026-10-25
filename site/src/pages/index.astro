@@ -1,0 +1,160 @@
+---
+import { existsSync } from "node:fs"
+import { join } from "node:path"
+import Layout from "../layouts/Layout.astro"
+import Arrow from "../components/Arrow.astro"
+import DownloadBlock from "../components/DownloadBlock.astro"
+import MacScreen from "../components/MacScreen.astro"
+import VideoDialog from "../components/VideoDialog.astro"
+import { GITHUB_URL, HOME, SELF_HOST_URL, TOOL_REQUEST_MAILTO, UPDATE_DISCLOSURE } from "../lib/copy"
+import { getTool } from "../lib/tools"
+
+// The eight tools the design pass shows, in its order.
+const FEATURED_TOOLS = [
+  "hunter",
+  "openrouter",
+  "apollo",
+  "prospeo",
+  "tavily",
+  "neverbounce",
+  "firecrawl",
+  "dataforseo",
+].map((id) => {
+  const tool = getTool(id)
+  if (!tool) throw new Error(`featured tool ${id} is not in src/data/tools.json`)
+  return tool
+})
+
+// Optional self-host web walkthrough; public mirror may omit the media file.
+const hasLaunchVideo = existsSync(join(process.cwd(), "public/video/quotacanary-launch.mp4"))
+---
+
+<Layout
+  title={HOME.pageTitle}
+  description={HOME.pageDescription}
+  path="/"
+  ogTitle="QuotaCanary"
+  ogDescription="The bird that sings before the credits die. Credit monitoring for the API tools you connect."
+>
+  <section class="mac-section hero-mac wrap" id="download" aria-labelledby="hero-title">
+    <div class="mac-copy">
+      <h1 id="hero-title">{HOME.oneLiner}</h1>
+      <p>{UPDATE_DISCLOSURE}</p>
+      <DownloadBlock />
+    </div>
+    <MacScreen />
+  </section>
+
+  <section class="features-section section wrap" id="features" aria-label="What the Mac app does">
+    {
+      HOME.features.map((feature) => (
+        <div class="feature-row" id={feature.id} data-wide={feature.width > 600 ? "" : undefined}>
+          <div>
+            <h2>{feature.title}</h2>
+            <p>{feature.body}</p>
+            {feature.id === "keys" && <p>{UPDATE_DISCLOSURE}</p>}
+          </div>
+          <div class="feature-media">
+            <img
+              src={feature.image}
+              alt={feature.alt}
+              width={feature.width}
+              height={feature.height}
+              loading="lazy"
+              decoding="async"
+            />
+          </div>
+        </div>
+      ))
+    }
+  </section>
+
+  <section class="tools-section section wrap" id="tools" aria-labelledby="tools-title">
+    <div class="section-heading">
+      <h2 id="tools-title">A bird’s-eye view<br />of your credit stack.</h2>
+    </div>
+    <div class="tool-directory">
+      {
+        FEATURED_TOOLS.map((tool) => (
+          <a href={`/directory/${tool.id}`}>
+            <img src={tool.logo_url} alt="" width="32" height="32" loading="lazy" />
+            <span>{tool.name}</span>
+          </a>
+        ))
+      }
+    </div>
+    <div class="tools-links">
+      <a class="text-link" href="/directory">See all tools <Arrow /></a>
+      <p class="tools-foot">Don’t see yours? <a href={TOOL_REQUEST_MAILTO}>Ask for it.</a></p>
+    </div>
+  </section>
+
+  <section class="pricing-section section wrap" id="pricing" aria-labelledby="pricing-title">
+    <div class="pricing-lead"><h2 id="pricing-title">{HOME.pricingHeadline}</h2></div>
+    <div class="pricing-actions">
+      <p>{HOME.pricingFootnote}</p>
+      <a class="button primary" href="/#download">{HOME.pricingCta} <Arrow /></a>
+    </div>
+  </section>
+
+  <section class="founder-section section wrap" id="why" aria-labelledby="founder-title">
+    <div class="founder-intro">
+      <h2 id="founder-title">Why this exists.</h2>
+      <div class="founder-person">
+        <img
+          src="/founder-noam-96.webp"
+          srcset="/founder-noam-48.webp 1x, /founder-noam-96.webp 2x, /founder-noam-144.webp 3x"
+          alt="Noam Dorr"
+          width="56"
+          height="56"
+          loading="lazy"
+        />
+        <div>
+          <a href="https://www.linkedin.com/in/noam-dorokhov/" target="_blank" rel="noopener">Noam Dorr</a>
+          <span>Co-founder of <a href="https://reechee.io" target="_blank" rel="noopener">Reechee</a></span>
+        </div>
+      </div>
+    </div>
+    <div class="founder-story">
+      <p class="founder-opening">I run cold outreach pipelines for a living. Every few weeks a campaign would die at 3am, and after an hour of digging the cause was always the same: one vendor out of ten had quietly run out of credits. Some tools auto-top-up. Some send a warning email. The rest just stop.</p>
+      <p>So I built it. It sits in the menu bar, watches the balances I care about, and says something while there’s still time. I run it on my own stack every day. It’s free mostly because I can’t picture anyone paying for a balance checker, so if it saves one of your campaigns, tell someone. That’s the entire growth strategy.</p>
+    </div>
+  </section>
+
+  <section class="faq-section section wrap" id="faq" aria-labelledby="faq-title">
+    <h2 id="faq-title">Questions.<br />Reasonable ones, mostly.</h2>
+    <div class="faq-list">
+      <details><summary>What can you do that the tool’s own dashboard can’t?<span aria-hidden="true"></span></summary><p>Three things. We translate balances into deadlines (“burns out in ~3 days,” not “120 left”), watch all your connected tools at once instead of making you check seven tabs, and warn you before the credits hit zero. That’s the whole product.</p></details>
+      <details><summary>Will it send me notifications I don’t want?<span aria-hidden="true"></span></summary><p>Notifications are optional. They warn when balances are low, critical or empty, and when a tool can’t be checked. The app needs to be running, and your Mac awake and online.</p></details>
+      <details><summary>Does it touch my data, sends, or campaigns?<span aria-hidden="true"></span></summary><p>No. We only read the usage endpoint. We don’t ingest contacts, see message bodies, or touch outbound. Use a scoped key where your tool offers one; plenty only issue an all-or-nothing key, and we won’t pretend otherwise. <a href="/security">The whole security model</a> is public.</p></details>
+      <details><summary>Which tools don’t you track?<span aria-hidden="true"></span></summary><p>QuotaCanary tracks tools that expose quota through a simple read-only API call. Platforms like RapidAPI that only expose usage through dashboards or traffic headers are out today, because chasing those turns a free tool into a science project. Ship a clean quota endpoint and we’ll add you: Apollo used to be named right here, and now it’s tracked. <a href="/directory">The directory</a> is the full list; if yours is missing, <a href={TOOL_REQUEST_MAILTO}>ask</a> and we’ll take a look.</p></details>
+      <details><summary>Do you watch OpenAI or Anthropic?<span aria-hidden="true"></span></summary><p>No. Both tell an API key what you spent this month, never what’s left, and only to an org admin key. We watch balances, not receipts. Buying LLM credit through OpenRouter, DeepSeek or Hyperbolic? Those we watch.</p></details>
+      <details><summary>What Mac does it need?<span aria-hidden="true"></span></summary><p>macOS 26 or newer on Apple silicon. There’s an Intel build, but we haven’t tested it on Intel hardware, so we don’t list it as supported.</p></details>
+      <details><summary>What does the Mac app send you?<span aria-hidden="true"></span></summary><p>Balance requests go directly to each vendor with that vendor’s key; keys never go to QuotaCanary servers.</p><p>If you opt in to update checks, the app sends its app version, macOS version and chip to the signed update feed.</p></details>
+      <details><summary>Can I pull my balances into my own scripts or agent?<span aria-hidden="true"></span></summary><p>The self-host web version includes an API and MCP server for its own connections. It cannot read your Mac’s local connections.</p><p><a href={SELF_HOST_URL}>Read the self-host guide</a>.</p></details>
+      <details><summary>It’s open source - can I inspect it and self-host?<span aria-hidden="true"></span></summary><p>Yes. Inspect the <a href={GITHUB_URL}>source on GitHub</a> or run the web version on your own infrastructure.</p></details>
+      <details><summary>Why is it free?<span aria-hidden="true"></span></summary><p>Not everything needs three pricing tiers and a suspiciously popular middle option.</p></details>
+      <details><summary>Why a canary?<span aria-hidden="true"></span></summary><p>Birds in coal mines noticed bad air before the miners did, which gave everyone time to leave. Ours does the same job for credit balances. We added singing because it was cuter than the alternative.</p></details>
+    </div>
+  </section>
+
+  <section class="web-section section wrap" id="web" aria-labelledby="web-title">
+    <div class="web-intro">
+      <h2 id="web-title">{HOME.webHeading}</h2>
+      <div>
+        <p>{HOME.webBody}</p>
+        <div class="web-actions">
+          <a class="text-link" href={SELF_HOST_URL}>{HOME.webCta} <Arrow /></a>
+          {hasLaunchVideo && <VideoDialog />}
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="closing" id="closing" aria-labelledby="closing-title">
+    <div class="wrap">
+      <h2 id="closing-title">The bird that sings<br />before the credits die.</h2>
+      <DownloadBlock />
+    </div>
+  </section>
+</Layout>

@@ -1,0 +1,15 @@
+---
+import Layout from "../layouts/Layout.astro"
+import Arrow from "../components/Arrow.astro"
+
+// Copy carried over from the Next app's not-found page (live on master).
+---
+
+<Layout title="Page not found - QuotaCanary" description="This page doesn't exist." path="/404">
+  <section class="notfound wrap" aria-labelledby="notfound-title">
+    <p class="eyebrow">404</p>
+    <h2 id="notfound-title">This page doesn’t exist.</h2>
+    <p>Maybe it moved, maybe the link went stale, maybe it never existed. The bird checked twice.</p>
+    <a class="button" href="/">Back home <Arrow /></a>
+  </section>
+</Layout>

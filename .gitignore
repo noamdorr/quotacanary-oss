@@ -47,10 +47,12 @@ next-env.d.ts
 # reinstall with: npx impeccable skills install
 # Exception: our own hand-written skills are tracked.
 .claude/*
+!.claude/settings.json
 !.claude/skills/
 .claude/skills/*
 !.claude/skills/local-setup/
 !.claude/skills/releasing/
+!.claude/skills/adding-a-tool/
 .codex/
 .agents/
 .firecrawl/
@@ -65,3 +67,12 @@ supabase/.branches/
 /playwright-report/
 /blob-report/
 /playwright/.cache/
+
+# design-sync (claude.ai/design sync — see .design-sync/config.json)
+/.ds-sync/
+/ds-bundle/
+.design-sync/.cache/
+.design-sync/learnings/
+.design-sync/node_modules
+mac/.build/
+mac/dist/

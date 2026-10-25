@@ -36,7 +36,9 @@ export default async function SettingsPage() {
     .order("created_at", { ascending: false })
   const { data: tokens, error: tokensError } = await supabase
     .from("api_tokens")
-    .select("id, name, token_hint, last_used_at, revoked_at, created_at")
+    .select(
+      "id, name, token_hint, scopes, last_used_at, revoked_at, created_at"
+    )
     .eq("user_id", user.id)
     .is("revoked_at", null)
     .order("created_at", { ascending: false })
@@ -97,8 +99,8 @@ export default async function SettingsPage() {
               API &amp; MCP tokens
             </h3>
             <p className="text-sm text-muted-foreground">
-              Read-only personal access tokens for the QuotaCanary API and MCP
-              server.{" "}
+              Personal access tokens for the QuotaCanary API and MCP server.
+              Read by default; read and write is what the Mac app needs.{" "}
               <a
                 href={`${MARKETING_URL}/docs`}
                 className="font-medium underline underline-offset-4 hover:text-foreground"

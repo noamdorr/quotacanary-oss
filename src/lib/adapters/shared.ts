@@ -44,3 +44,30 @@ export function timedFetch(
     throw err
   })
 }
+
+// Reads a two-value credential (credential_fields with two entries). Accepts
+// the JSON object `buildCredentialSecret` stores, keyed by field name, and the
+// `first:second` compatibility form DataForSEO also takes. Returns null when
+// either value is missing or blank; the caller owns the error copy.
+export function credentialPair(
+  secret: string,
+  first: string,
+  second: string
+): [string, string] | null {
+  let parsed: unknown
+  try {
+    parsed = JSON.parse(secret)
+  } catch {
+    const separator = secret.indexOf(":")
+    if (separator <= 0) return null
+    const a = secret.slice(0, separator).trim()
+    const b = secret.slice(separator + 1).trim()
+    return a && b ? [a, b] : null
+  }
+  const record = (parsed ?? {}) as Record<string, unknown>
+  const rawA = record[first]
+  const rawB = record[second]
+  const a = typeof rawA === "string" ? rawA.trim() : ""
+  const b = typeof rawB === "string" ? rawB.trim() : ""
+  return a && b ? [a, b] : null
+}

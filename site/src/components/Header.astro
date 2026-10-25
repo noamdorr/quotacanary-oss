@@ -1,0 +1,86 @@
+---
+import { HOME } from "../lib/copy"
+import AppleIcon from "./AppleIcon.astro"
+
+// The hero's download block; an in-page jump from any route.
+const DOWNLOAD_HREF = "/#download"
+
+const LINKS = [
+  { href: "/#features", label: "Features" },
+  { href: "/#tools", label: "Supported tools" },
+  { href: "/#pricing", label: "Pricing" },
+]
+---
+
+<header class="site-header wrap">
+  <a class="brand" href="/" aria-label="QuotaCanary home">
+    <img class="brand-mark" src="/mark.svg" alt="" width="32" height="31" />
+    <img class="brand-word" src="/logo.png" alt="QuotaCanary" width="185" height="41" />
+  </a>
+  <nav class="desktop-nav" aria-label="Main">
+    {
+      LINKS.map((link) =>
+        link.label === "Pricing" ? (
+          // The pricing gag, carried over from the Next nav: hover swaps the
+          // word for the answer.
+          <a href={link.href} class="pricing-gag">
+            <span class="label-1">Pricing</span>
+            <span class="label-2" aria-hidden="true">It’s free!</span>
+          </a>
+        ) : (
+          <a href={link.href}>{link.label}</a>
+        )
+      )
+    }
+  </nav>
+  <a class="button button-small primary signin download-nav" href={DOWNLOAD_HREF}>
+    <AppleIcon width={13} height={16} />
+    {HOME.navCta}
+  </a>
+  <button
+    class="menu-toggle"
+    type="button"
+    aria-label="Open menu"
+    aria-expanded="false"
+    aria-controls="mobile-menu"
+  >
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"></path></svg>
+  </button>
+  <nav id="mobile-menu" class="mobile-menu" aria-label="Mobile" hidden>
+    <a class="mac-nav" href={DOWNLOAD_HREF}><AppleIcon width={13} height={18} />Mac app</a>
+    {LINKS.map((link) => <a href={link.href}>{link.label}</a>)}
+    <a href="/#faq">FAQ</a>
+  </nav>
+</header>
+
+<script>
+  // The Impeccable pass's homepage.js, unchanged in behaviour.
+  const toggle = document.querySelector<HTMLButtonElement>(".menu-toggle")
+  const menu = document.querySelector<HTMLElement>("#mobile-menu")
+  if (toggle && menu) {
+    const closeMenu = () => {
+      menu.hidden = true
+      toggle.setAttribute("aria-expanded", "false")
+      toggle.setAttribute("aria-label", "Open menu")
+    }
+    toggle.addEventListener("click", () => {
+      const open = toggle.getAttribute("aria-expanded") !== "true"
+      menu.hidden = !open
+      toggle.setAttribute("aria-expanded", String(open))
+      toggle.setAttribute("aria-label", open ? "Close menu" : "Open menu")
+    })
+    menu.addEventListener("click", (event) => {
+      if ((event.target as Element).closest("a")) closeMenu()
+    })
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && !menu.hidden) {
+        closeMenu()
+        toggle.focus()
+      }
+    })
+    document.addEventListener("click", (event) => {
+      if (!(event.target as Element).closest(".site-header")) closeMenu()
+    })
+    matchMedia("(min-width: 721px)").addEventListener("change", closeMenu)
+  }
+</script>

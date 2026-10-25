@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { skrappAdapter } from "./skrapp"
+import { catalogAdapterFor } from "./catalog"
+
+const skrappAdapter = catalogAdapterFor("skrapp")
 
 afterEach(() => vi.restoreAllMocks())
 
@@ -152,7 +154,8 @@ describe("skrapp adapter", () => {
     })
   })
 
-  it("returns an error when quota fields are missing", async () => {
+  // The catalog's `used` defaults to 0 (the hand-written adapter required it).
+  it("reads the quota as the balance when used is absent", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(
@@ -167,6 +170,35 @@ describe("skrapp adapter", () => {
                 },
               },
             }),
+          }) as unknown as Response
+      )
+    )
+
+    const result = await skrappAdapter.readBalance("skrapp-key")
+
+    expect(result).toEqual({
+      ok: true,
+      balances: [
+        {
+          creditType: "email",
+          label: "Email Credits",
+          balance: 100,
+          balanceLimit: 100,
+          unit: "credits",
+        },
+      ],
+    })
+  })
+
+  it("returns an error when the quota is missing", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          ({
+            ok: true,
+            status: 200,
+            json: async () => ({ credit: { email: { used: 4 } } }),
           }) as unknown as Response
       )
     )

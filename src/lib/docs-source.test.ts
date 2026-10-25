@@ -17,6 +17,8 @@ describe("public docs", () => {
     expect(source).toContain('"#webhooks"')
     expect(source).toContain('id="webhooks"')
     expect(source).toContain("quota.alert.")
+    // QUO-289: the "stopped checking" event is part of the contract too.
+    expect(source).toContain("quota.alert.stopped")
   })
 
   it("documents the signature contract rather than the retired no-signature note", () => {

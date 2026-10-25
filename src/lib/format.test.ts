@@ -11,8 +11,16 @@ describe("formatBalance", () => {
     expect(formatBalance(4.2, "usd")).toBe("$4.20")
   })
 
+  it("formats eur as currency", () => {
+    expect(formatBalance(29.18202293, "eur")).toBe("€29.18")
+  })
+
   it("formats gb with a unit suffix", () => {
     expect(formatBalance(12.5, "gb")).toBe("12.5 GB")
+  })
+
+  it("formats dialer minutes with a unit suffix", () => {
+    expect(formatBalance(488, "minutes")).toBe("488 min")
   })
 
   it("falls back to a plain number for an unknown unit", () => {

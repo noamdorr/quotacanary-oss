@@ -2,7 +2,7 @@ import { poolEta } from "@/lib/pool-eta"
 import type { PoolView } from "@/lib/types"
 import { describe, expect, it } from "vitest"
 
-const NOW = new Date("2026-05-27T12:00:00Z") // Wednesday
+const NOW = new Date("2026-05-27T12:00:00Z")
 
 function pool(history: { balance: number; daysAgo: number }[]): PoolView {
   return {
@@ -23,7 +23,7 @@ function pool(history: { balance: number; daysAgo: number }[]): PoolView {
 
 describe("poolEta", () => {
   it("returns null for a null pool (no readings)", () => {
-    expect(poolEta(null, NOW)).toBeNull()
+    expect(poolEta(null)).toBeNull()
   })
 
   it("returns 'no burn yet' when the trend is not downward", () => {
@@ -31,19 +31,19 @@ describe("poolEta", () => {
       { balance: 500, daysAgo: 2 },
       { balance: 500, daysAgo: 0 },
     ])
-    expect(poolEta(p, NOW)).toEqual({
+    expect(poolEta(p)).toEqual({
       short: "no burn yet",
       long: "Not draining yet.",
     })
   })
 
-  it("translates a downward trend into a weekday ETA", () => {
-    // 1000 -> 600 over 2 days = 200/day; 600 left = 3 days -> Saturday
+  it("translates a downward trend into a relative-days ETA", () => {
+    // 1000 -> 600 over 2 days = 200/day; 600 left = 3 days
     const p = pool([
       { balance: 1000, daysAgo: 2 },
       { balance: 600, daysAgo: 0 },
     ])
-    expect(poolEta(p, NOW)?.short).toBe("burns out Saturday")
+    expect(poolEta(p)?.short).toBe("in ~3 days")
   })
 
   it("uses hours for a positive balance with less than a day of runway", () => {
@@ -52,7 +52,7 @@ describe("poolEta", () => {
       { balance: 1000, daysAgo: 2 },
       { balance: 104, daysAgo: 0 },
     ])
-    expect(poolEta(p, NOW)).toEqual({
+    expect(poolEta(p)).toEqual({
       short: "~6h",
       long: "Empties in ~6 hours.",
     })
@@ -62,7 +62,7 @@ describe("poolEta", () => {
     // balance <= 0 with too few readings to measure burn: must not say "no
     // burn yet" - it is already empty.
     const p = pool([{ balance: 0, daysAgo: 0 }])
-    expect(poolEta(p, NOW)).toEqual({
+    expect(poolEta(p)).toEqual({
       short: "already gone",
       long: "Already empty.",
     })

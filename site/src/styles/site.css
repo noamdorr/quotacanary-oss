@@ -1,0 +1,163 @@
+/* Additions on top of the Impeccable pass: the Mac-first hero, the feature
+   rows, the web band, the video dialog, and the content pages (/mac, /docs,
+   /security, /privacy, /terms, /directory). Same tokens, same type scale. */
+
+/* Header: "Sign in" moved into the nav list; the small primary button is the
+   Mac download jump (QUO-212 pick 3B). */
+.download-nav{gap:10px}
+.download-nav .apple-icon{width:13px;height:16px}
+
+/* The pricing gag (carried over from the Next nav): hover slides "Pricing"
+   out and "It's free!" in on a gold chip. */
+.desktop-nav .pricing-gag{position:relative;display:inline-grid;place-items:center;overflow:hidden;white-space:nowrap;padding-inline:10px;margin-inline:-10px}
+.desktop-nav .pricing-gag span{display:inline-block;grid-area:1/1;transition:transform .35s cubic-bezier(.62,.04,.4,1),opacity .25s}
+.desktop-nav .pricing-gag .label-2{position:relative;transform:translateY(calc(100% + 18px));font-weight:600}
+.desktop-nav .pricing-gag .label-2::before{content:"";position:absolute;inset:-4px -8px;background:var(--gold);border-radius:6px;z-index:-1}
+.desktop-nav .pricing-gag:is(:hover,:focus-visible) .label-1{transform:translateY(calc(-100% - 18px));opacity:0}
+.desktop-nav .pricing-gag:is(:hover,:focus-visible) .label-2{transform:translateY(0)}
+.desktop-nav .pricing-gag:hover{text-decoration:none}
+@media(prefers-reduced-motion:reduce){.desktop-nav .pricing-gag span{transition:none}}
+
+/* Hero: the design pass's Mac section, promoted. */
+.hero-mac{padding-top:44px}
+.hero-mac .mac-copy :is(h1,h2){font-size:clamp(34px,3.2vw,46px);line-height:1.1}
+.download{display:flex;flex-direction:column;align-items:flex-start;gap:12px;margin-top:30px}
+.download-button{gap:12px;cursor:default}
+.download-button .apple-icon{width:15px;height:18px}
+.download-facts{font-size:13px;color:var(--muted);line-height:1.5}
+
+/* Pricing is a short permanent-free promise, without a feature list. */
+.pricing-section{grid-template-areas:"lead action";grid-template-rows:auto}
+.pricing-actions p{font-size:17px;line-height:1.65;margin:0 0 24px;max-width:45ch}
+
+/* Feature rows: text left, real screenshot right. */
+.features-section{padding-block:80px}
+.feature-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.35fr);gap:48px 96px;align-items:center;padding-block:40px}
+.feature-row+.feature-row{border-top:1px solid var(--line)}
+.feature-row h2{font-size:30px;line-height:1.15}
+.feature-row p{margin-top:16px;font-size:16px;line-height:1.65;color:var(--muted);max-width:52ch}
+/* Screenshots sit inside a warm card as UI fragments: the menu renders are
+   centred and run off the bottom edge, the window renders are anchored top
+   left and run off the right and bottom edges. */
+.feature-media{min-width:0;position:relative;overflow:hidden;aspect-ratio:4/3;background:linear-gradient(160deg,#fbf6e4,var(--warm));border:1px solid var(--line);border-radius:16px}
+.feature-media img{position:absolute;display:block;height:auto;border-radius:12px;box-shadow:0 24px 50px -24px #332a1a66}
+.feature-row:not([data-wide]) .feature-media img{left:50%;top:36px;width:min(380px,76%);transform:translateX(-50%)}
+.feature-row[data-wide] .feature-media img{left:32px;top:32px;width:130%;max-width:none;border-radius:10px 0 0 0;box-shadow:0 24px 50px -24px #332a1a80}
+
+/* Self-hosting is a secondary option near the footer, below the FAQ. */
+.web-section{padding-block:40px}
+.web-section h2{font-size:26px;line-height:1.2}
+.web-intro{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.35fr);gap:28px 96px;align-items:start;margin-bottom:0}
+.web-intro p{font-size:17px;line-height:1.65;color:var(--muted);max-width:60ch}
+.web-actions{display:flex;flex-wrap:wrap;gap:12px;margin-top:24px}
+.web-footnote{font-size:13px;color:var(--muted);margin-top:14px}
+.button.video-button svg{width:20px;height:20px}
+
+/* Video dialog. */
+.video-dialog{border:0;padding:0;background:var(--ink);color:var(--cream);border-radius:12px;max-width:min(960px,calc(100vw - 32px));width:100%;box-shadow:0 30px 80px -30px #0008}
+.video-dialog::backdrop{background:#1a1a1acc}
+.video-dialog-head{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:12px 16px;border-bottom:1px solid #ffffff1a;font-size:14px}
+.video-dialog-close{display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;border:1px solid #ffffff26;border-radius:8px;background:transparent;color:inherit;cursor:pointer}
+.video-dialog-close:hover{background:#ffffff1a}
+.video-dialog video{display:block;width:100%;aspect-ratio:16/9;background:#000}
+
+/* Closing: the download block instead of the web button. */
+.closing .download{margin-top:0}
+.closing .download-facts{color:var(--muted)}
+
+/* Content pages. */
+.page{padding-block:72px 96px}
+.page-narrow{max-width:760px}
+.page-wide{max-width:var(--page)}
+.eyebrow{font-family:"JetBrains Mono",monospace;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.page h1{font-size:clamp(36px,4.4vw,54px);font-weight:700;line-height:1.08;letter-spacing:-.035em;margin:0}
+.eyebrow+:is(h1,h2){margin-top:12px}
+.page-lead{font-size:18px;line-height:1.6;margin-top:20px;max-width:64ch}
+.page-meta{margin-top:14px}
+.prose{margin-top:40px;font-size:16px;line-height:1.65}
+.prose>*+*{margin-top:16px}
+.prose h2{font-size:26px;font-weight:650;line-height:1.2;letter-spacing:-.025em;margin-top:44px}
+.prose h3{font-size:19px;font-weight:600;line-height:1.3;letter-spacing:-.015em;margin:28px 0 0}
+.prose h2+*,.prose h3+*{margin-top:12px}
+.prose p,.prose li{max-width:68ch}
+.prose ul,.prose ol{padding-left:22px}
+.prose li+li{margin-top:8px}
+.prose a{color:var(--ink);overflow-wrap:anywhere}
+.prose code{font-family:"JetBrains Mono",monospace;font-size:.86em;background:var(--warm);border-radius:4px;padding:1px 5px;overflow-wrap:anywhere}
+.prose pre{font-family:"JetBrains Mono",monospace;font-size:13px;line-height:1.6;background:var(--ink);color:var(--cream);border-radius:8px;padding:16px 20px;overflow-x:auto;max-width:100%}
+.prose pre code{background:transparent;padding:0;font-size:inherit;color:inherit;overflow-wrap:normal}
+.prose table{border-collapse:collapse;width:100%;font-size:14px;text-align:left}
+.prose th,.prose td{padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+.prose th{font-weight:600;font-size:13px}
+.prose .table-scroll{overflow-x:auto}
+.prose hr{border:0;border-top:1px solid var(--line);margin-top:40px}
+.prose .note{padding:16px 20px;background:var(--warm);border-radius:8px;font-size:15px}
+.card-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:20px;margin-top:32px}
+.card{border:1px solid var(--line);border-radius:var(--radius);padding:24px;background:#fffef9}
+.card h2,.card h3{font-size:22px;font-weight:650;letter-spacing:-.02em;line-height:1.2}
+.card p{margin-top:10px;font-size:15px;line-height:1.6;color:var(--muted)}
+.card .button{margin-top:16px}
+.card .download-button{margin-top:16px}
+
+/* Directory. */
+.directory-head{max-width:640px}
+.directory-controls{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-top:36px}
+.directory-search{flex:1 1 240px;max-width:360px;min-height:44px;padding:10px 14px;font:inherit;font-size:15px;color:inherit;border:1px solid #cbc7ba;border-radius:7px;background:#fffef9}
+.directory-search:focus-visible{outline:3px solid var(--ink);outline-offset:3px}
+.chip{min-height:40px;padding:8px 16px;font-size:13px;font-weight:550;border:1px solid #cbc7ba;border-radius:999px;background:transparent;cursor:pointer;transition:background .18s,border-color .18s}
+.chip:hover{background:#f0ecdf;border-color:#9a9689}
+.chip[aria-pressed=true]{background:var(--gold);border-color:var(--gold)}
+.directory-count{margin-top:24px;font-family:"JetBrains Mono",monospace;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.directory .tool-directory{margin-top:12px}
+.directory .tool-directory>a[hidden]{display:none}
+.directory-empty{padding:40px 0;font-size:16px;color:var(--muted)}
+.directory-empty[hidden]{display:none}
+.tool-back{display:inline-flex;align-items:center;gap:12px;min-height:44px;font-size:14px;font-weight:550;text-decoration:none}
+.tool-back:hover{text-decoration:underline}
+.tool-back svg{transform:rotate(180deg)}
+.tool-head{display:flex;align-items:center;gap:16px;margin-top:16px}
+.tool-head img{width:48px;height:48px;object-fit:contain;flex-shrink:0}
+.tool-head .eyebrow{margin-top:6px}
+.tool-sub{font-size:19px;font-weight:550;margin-top:20px;letter-spacing:-.01em}
+.tool-section{margin-top:28px}
+.tool-section .eyebrow{margin-bottom:8px}
+.pool-chips{display:flex;flex-wrap:wrap;gap:8px}
+.pool-chips span{padding:6px 12px;border:1px solid var(--line);border-radius:8px;font-size:13px;background:#fffef9}
+.tool-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:32px}
+.tool-actions .button{gap:12px}
+.tool-actions svg{width:16px;height:16px}
+
+/* 404 */
+.notfound{padding-block:96px;text-align:left}
+.notfound p{margin-top:16px;font-size:17px;color:var(--muted);max-width:50ch}
+.notfound .button{margin-top:28px}
+
+@media(max-width:1100px){
+  .feature-row,.web-intro{gap:32px 48px}
+  .feature-row h2{font-size:26px}
+}
+@media(max-width:720px){
+  .hero-mac{padding-top:28px}
+  .hero-mac .mac-copy :is(h1,h2){font-size:34px}
+  .download{margin-top:22px;width:100%}
+  .download-button{width:100%;justify-content:center}
+  .features-section{padding-block:54px}
+  .feature-row{display:block;padding-block:32px}
+  .feature-row h2{font-size:24px}
+  .feature-media{margin-top:20px;border-radius:12px}
+  .feature-row:not([data-wide]) .feature-media img{top:24px;width:82%}
+  .feature-row[data-wide] .feature-media img{left:20px;top:20px;width:150%}
+  .web-section{padding-block:32px}
+  .web-intro{display:block;margin-bottom:0}
+  .web-intro p{margin-top:16px;font-size:16px}
+  .web-actions .button{width:100%;justify-content:space-between}
+  .closing .download{width:100%;margin-top:28px}
+  .page{padding-block:48px 64px}
+  .prose h2{font-size:23px;margin-top:36px}
+  .directory-controls{margin-top:28px}
+  .directory-search{max-width:100%;flex-basis:100%}
+}
+@media(prefers-reduced-motion:reduce){.chip{transition:none}}
+
+/* The hero download button keeps the brand gold (the design pass styled the Mac section button white for a secondary link; this one is the primary call). */
+.mac-copy .download-button.primary{background:var(--gold);border-color:var(--gold);color:var(--ink)}

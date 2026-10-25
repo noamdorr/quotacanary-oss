@@ -1,11 +1,12 @@
 "use client"
 
-import { effectiveStatus } from "@/lib/balance-status"
 import { formatBalance } from "@/lib/format"
-import { poolEta } from "@/lib/pool-eta"
+import { assessPool } from "@/lib/pool-assessment"
 import type { PoolRow } from "@/lib/pool-rows"
-import { resolvePoolThresholds } from "@/lib/thresholds"
+import { runwayLabel } from "@/lib/runway-copy"
 import { cn } from "@/lib/utils"
+import { warnBelowSummary } from "@/lib/warn-below-summary"
+import { Pencil } from "lucide-react"
 import { Sparkline } from "./Sparkline"
 import { StatusPill, statusDotClass } from "./StatusPill"
 
@@ -21,15 +22,9 @@ export function ConnectionCard({
   onOpen: () => void
 }) {
   const { connection: c, pool } = row
-  const { low, critical } = resolvePoolThresholds(c, pool?.creditType ?? "")
-  const status = effectiveStatus({
-    balance: pool?.balance ?? null,
-    low,
-    critical,
-    connectionStatus: c.status,
-  })
-  const tone = status.kind === "level" ? status.level : "neutral"
-  const eta = pool ? poolEta(pool) : null
+  const { status, tone, atRisk, eta } = assessPool(row)
+  const warn = pool ? warnBelowSummary(c, pool) : null
+  const warnMeta = [warn?.source, warn?.detail].filter(Boolean).join(" · ")
   const balanceText = pool
     ? pool.balanceLimit != null
       ? `${formatBalance(pool.balance, pool.unit)} / ${formatBalance(pool.balanceLimit, pool.unit)}`
@@ -78,7 +73,7 @@ export function ConnectionCard({
         <p className="text-xs text-muted-foreground">
           {pool?.label ?? "First reading pending"}
         </p>
-        {eta?.short && (
+        {eta && (
           <p
             className={cn(
               "font-mono text-xs",
@@ -89,7 +84,7 @@ export function ConnectionCard({
                   : "text-muted-foreground"
             )}
           >
-            {eta.short}
+            {runwayLabel(eta)}
           </p>
         )}
       </div>
@@ -98,6 +93,16 @@ export function ConnectionCard({
         tone={tone}
         className="h-4"
       />
+      {/* The whole card opens the drawer; this line says what it lets you change. */}
+      {warn && (
+        <span className="flex items-center justify-between gap-2 border-t border-border pt-3 text-xs text-muted-foreground">
+          <span>
+            <span className="font-medium text-foreground">{warn.text}</span>
+            {warnMeta && ` · ${warnMeta}`}
+          </span>
+          <Pencil className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+        </span>
+      )}
     </button>
   )
 }

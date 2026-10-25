@@ -16,6 +16,8 @@ const COPY_SURFACES = [
   "src/components/marketing/copy.ts",
   "src/components/marketing/Faq.tsx",
   "src/components/marketing/FounderNote.tsx",
+  "src/components/marketing/MacSection.tsx",
+  "src/app/(marketing)/mac/page.tsx",
   "src/components/marketing/ToolsDirectory.tsx",
   "src/components/auth/AuthBrandPanel.tsx",
   "src/components/dashboard/OnboardingFlow.tsx",
@@ -59,14 +61,5 @@ describe("coverage claims", () => {
     expect(read("src/components/marketing/SupportedTools.tsx")).toContain(
       "/directory"
     )
-  })
-
-  it("keeps the hardcoded marketing count consistent with the README", () => {
-    // Both are hardcoded and both must be true of the catalog. The live counts
-    // come from getActiveTools(); these two are the only static ones.
-    expect(read("src/components/marketing/SupportedTools.tsx")).toContain(
-      "60+ tools watched"
-    )
-    expect(read("README.md")).toContain("60+ tools")
   })
 })

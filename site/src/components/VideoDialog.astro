@@ -1,0 +1,48 @@
+---
+// The launch video (26s, music only, so no captions), in a native <dialog>.
+// Mirrors the Next LaunchVideoDialog, including its three Plausible events.
+import { HOME } from "../lib/copy"
+---
+
+<button type="button" class="button video-button" data-video-open>
+  <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="m10 9 5 3-5 3z"></path></svg>
+  {HOME.videoCta}
+</button>
+<dialog class="video-dialog" data-video-dialog aria-labelledby="video-title">
+  <div class="video-dialog-head">
+    <span id="video-title">QuotaCanary launch video</span>
+    <button type="button" class="video-dialog-close" aria-label="Close video" data-video-close>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg>
+    </button>
+  </div>
+  <video controls playsinline preload="none" poster="/video/quotacanary-launch-poster.jpg">
+    <source src="/video/quotacanary-launch.mp4" type="video/mp4" />
+  </video>
+</dialog>
+
+<script>
+  type PlausibleWindow = Window & { plausible?: (event: string) => void }
+  const track = (event: string) => (window as unknown as PlausibleWindow).plausible?.(event)
+
+  const dialog = document.querySelector<HTMLDialogElement>("[data-video-dialog]")
+  const video = dialog?.querySelector("video")
+  if (dialog && video) {
+    let playTracked = false
+    document.querySelector("[data-video-open]")?.addEventListener("click", () => {
+      track("Video CTA Click")
+      playTracked = false
+      dialog.showModal()
+    })
+    dialog.querySelector("[data-video-close]")?.addEventListener("click", () => dialog.close())
+    dialog.addEventListener("click", (event) => {
+      if (event.target === dialog) dialog.close()
+    })
+    dialog.addEventListener("close", () => video.pause())
+    video.addEventListener("play", () => {
+      if (playTracked) return
+      playTracked = true
+      track("Video Play")
+    })
+    video.addEventListener("ended", () => track("Video Complete"))
+  }
+</script>

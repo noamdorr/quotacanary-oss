@@ -9,6 +9,70 @@ migration under **Upgrade notes**. Always run the migration step after updating.
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-10-25
+
+QuotaCanary is now a Mac menu bar app first. Your vendor keys stay in your
+Mac's login Keychain and balance requests go straight to each vendor; there is
+no account and no QuotaCanary server in the path. The hosted web app at
+app.quotacanary.com was shut down on 2026-10-25. The web app source stays here
+for anyone not on a Mac who wants to run their own. 34 migrations, no new env
+vars - see Upgrade notes below.
+
+### Added
+- **QuotaCanary for Mac** (`mac/`), a native SwiftUI menu bar app for macOS 26
+  or newer. One row per watched balance with healthy, low and dry status, a
+  single "Warn below" number per balance, macOS notifications, 30 days of local
+  history with burn rate and a run-out estimate, several accounts per
+  provider, and opt-in signed update checks. Build it from source with
+  [the Mac build instructions](mac/docs/BUILDING.md); a signed download is not
+  available yet.
+- A shared declarative tool catalog (`catalog/tools.json`) read by both the
+  web app and the Mac app. The web app now supports 134 tools, up from 64.
+- API: create, rekey, rename and remove connections (`POST /api/v1/connections`,
+  `PATCH` and `DELETE /api/v1/connections/{id}`), behind a new `write` scope on
+  personal tokens. Responses carry an `X-QuotaCanary-Scopes` header, and
+  `GET /api/v1/pools?include=account` returns the owning account.
+- A "stopped checking" alert: one alert when a connection's balance reads
+  start failing, instead of silence.
+- A Top up link on every row, and two-field credentials for tools that need
+  them.
+- A way back from the magic-link "check your email" screen when you typed the
+  wrong address.
+
+### Changed
+- Each balance has one "Warn below" number, visible and editable from its row;
+  Critical is derived at a third of it.
+- Run-out estimates read "in 3 days" instead of a weekday name, and the
+  dashboard labels threshold status and runway separately.
+- Overlapping poll runs no longer race: a second `POST /api/poll` while one is
+  running returns `{"outcome":"skipped","reason":"overlap"}` and sends no
+  success heartbeat.
+- The self-host guide now asks for a poll schedule of exactly every 15
+  minutes, which the missed-run check assumes.
+- Mailercheck, Email Hippo and Tomba connections get a Low default.
+
+### Removed
+- The hosted service. app.quotacanary.com no longer resolves.
+- Proxycurl leaves the directory and the connect picker. Existing connections
+  keep their history.
+
+### Security
+- A per-request CSP nonce replaces `'unsafe-inline'` in `script-src`.
+- Narrower column UPDATE grants on `connections` and `alert_destinations`.
+- Dependency security updates (Next, zod, body-parser, fast-uri).
+
+### Upgrade notes
+- **34 new database migrations (062-095; 060 and 061 were never used).** Run
+  `supabase db push` (your Supabase project) or `supabase db reset` (local
+  stack; wipes data) after pulling. Most add catalog tools. Two care about
+  order: 065 revokes the column grants the old rekey action writes, so deploy
+  the new app before applying it; 066 adds the poll lease RPCs the new app
+  calls, so apply it before the app serves polls. Upgrade the app and migrate
+  in one maintenance window.
+- No environment variables were added or removed.
+- If your poll schedule is not every 15 minutes, change it to every 15 minutes
+  or expect false missed-run warnings.
+
 ## [1.1.0] - 2026-08-18
 
 ### Added

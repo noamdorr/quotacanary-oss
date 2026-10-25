@@ -63,4 +63,17 @@ describe("post-connect dashboard confirmation flow", () => {
     expect(confettiSource).toContain("qc-confetti-piece")
     expect(cssSource).toContain("@keyframes qc-confetti-fall")
   })
+
+  // A first connection is confirmed in one of two places: the onboarding
+  // success step, or the dashboard card after /connect. Both say the same
+  // one line about the warning number, and the card says it once.
+  it("tells a first connection about its warning number in both places", () => {
+    expect(onboardingSource).toContain("{WARN_BELOW_FIRST_RUN_HINT}")
+    expect(onboardingSource).toContain(
+      "Warn below {formatBalance(connected.low, p.unit)}"
+    )
+    expect(successCardSource).toMatch(
+      /\{celebrate && \(\s*<p[^>]*>\s*\{WARN_BELOW_FIRST_RUN_HINT\}/
+    )
+  })
 })

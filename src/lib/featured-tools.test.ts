@@ -6,7 +6,6 @@ function tool(id: string): FeaturedTool {
     id,
     name: id,
     logo_url: null,
-    key_instructions: null,
     default_low_threshold: null,
     default_alert_threshold: null,
     pools: null,

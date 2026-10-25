@@ -18,6 +18,7 @@ type ApiToken = {
   id: string
   name: string
   token_hint: string
+  scopes: string[] | null
   last_used_at: string | null
   revoked_at: string | null
   created_at: string
@@ -122,6 +123,38 @@ export function ApiTokens({ tokens }: { tokens: ApiToken[] }) {
           </div>
           <CreateSubmitButton />
         </div>
+        <fieldset className="space-y-2" disabled={isPending}>
+          <legend className="text-sm font-medium leading-none">Access</legend>
+          <label className="flex items-start gap-2 text-sm">
+            <input
+              type="radio"
+              name="scope"
+              value="read"
+              defaultChecked
+              className="mt-0.5 accent-[var(--brand)]"
+            />
+            <span>
+              <span className="font-medium">Read</span>{" "}
+              <span className="text-muted-foreground">
+                Lists your balances. For scripts, dashboards and MCP.
+              </span>
+            </span>
+          </label>
+          <label className="flex items-start gap-2 text-sm">
+            <input
+              type="radio"
+              name="scope"
+              value="write"
+              className="mt-0.5 accent-[var(--brand)]"
+            />
+            <span>
+              <span className="font-medium">Read and write</span>{" "}
+              <span className="text-muted-foreground">
+                Also adds, rekeys and removes connections. For the Mac app.
+              </span>
+            </span>
+          </label>
+        </fieldset>
         {state?.ok === false && (
           <p role="alert" className="text-sm text-[var(--dry)]">
             {state.error}
@@ -169,7 +202,8 @@ export function ApiTokens({ tokens }: { tokens: ApiToken[] }) {
               <div className="min-w-0">
                 <p className="font-medium">{token.name}</p>
                 <p className="font-mono text-xs text-muted-foreground">
-                  qc_live_...{token.token_hint}
+                  qc_live_...{token.token_hint} ·{" "}
+                  {token.scopes?.includes("write") ? "read + write" : "read"}
                 </p>
                 <p className="text-xs text-muted-foreground">
                   Created{" "}

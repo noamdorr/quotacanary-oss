@@ -1,3 +1,4 @@
+import { serviceClient } from "./fixtures/stack"
 import {
   expect,
   profileFor,
@@ -52,13 +53,50 @@ test("a non-HTTPS destination is refused", async ({ page }) => {
   await expect(page.getByText("Use a public HTTPS webhook URL.")).toBeVisible()
 })
 
-test("sending a test to an unreachable destination reports the failure", async ({
+test("@smoke destination rotation, toggling, and test health persist with scoped grants", async ({
   page,
+  email,
 }) => {
-  await addDestination(page, "E2E Unreachable")
+  await addDestination(page, "E2E Grants")
+  const { id: userId } = await profileFor(email)
+  async function destination() {
+    const { data, error } = await serviceClient()
+      .from("alert_destinations")
+      .select(
+        "is_enabled, encrypted_signing_secret, signing_secret_set_at, updated_at, last_attempt_at, last_sent_at, last_error, consecutive_failures"
+      )
+      .eq("user_id", userId)
+      .single()
+    if (error || !data)
+      throw new Error("Could not read the fixture destination")
+    return data
+  }
 
+  const original = await destination()
+  await page.getByRole("button", { name: "Rotate secret" }).click()
+  await expect
+    .poll(async () => (await destination()).encrypted_signing_secret)
+    .not.toBe(original.encrypted_signing_secret)
+  const rotated = await destination()
+  expect(rotated.signing_secret_set_at).not.toBe(original.signing_secret_set_at)
+  expect(rotated.updated_at).not.toBe(original.updated_at)
+
+  await page.getByRole("button", { name: "Disable", exact: true }).click()
+  await expect.poll(async () => (await destination()).is_enabled).toBe(false)
+  await page.getByRole("button", { name: "Enable", exact: true }).click()
+  await expect.poll(async () => (await destination()).is_enabled).toBe(true)
+  const beforeTest = await destination()
+
+  // Expected DNS failure, with a real authenticated health write afterwards.
+  // This must persist even when the probe itself does not succeed.
   await page.getByRole("button", { name: "Send test" }).click()
   await expect(page.getByText(/Test delivery failed/)).toBeVisible()
+  const afterTest = await destination()
+  expect(afterTest.last_attempt_at).not.toBeNull()
+  expect(afterTest.last_error).toBe("Webhook request failed.")
+  expect(afterTest.last_sent_at).toBeNull()
+  expect(afterTest.consecutive_failures).toBe(beforeTest.consecutive_failures)
+  expect(afterTest.updated_at).toBe(beforeTest.updated_at)
 })
 
 test("a destination can be removed after confirming", async ({ page }) => {

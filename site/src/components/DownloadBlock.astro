@@ -1,0 +1,25 @@
+---
+import { HOME } from "../lib/copy"
+import AppleIcon from "./AppleIcon.astro"
+
+// The Mac download call to action, shared by the hero and the closing
+// section (QUO-212). Deliberately not a link while there is no public build:
+// it turns into one only when QUO-142 publishes a real artifact URL.
+---
+
+<div class="download">
+  <span class="button primary download-button" aria-disabled="true">
+    <AppleIcon width={15} height={18} />
+    {HOME.downloadButton}
+  </span>
+  <p class="download-facts">
+    {
+      HOME.facts.map((fact, index) => (
+        <span>
+          {index > 0 && <span aria-hidden="true"> · </span>}
+          {fact}
+        </span>
+      ))
+    }
+  </p>
+</div>

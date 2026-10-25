@@ -1,37 +1,21 @@
 import type { NextConfig } from "next"
 
-// Analytics is opt-in (see PlausibleAnalytics): the hosted deploy points this
-// at its Plausible instance, a self-host leaves it unset and gets a policy
-// with no third-party script origin at all. A relative value (a self-proxied
-// script) needs no entry - 'self' already covers it.
-const plausibleScriptSrc = process.env.PLAUSIBLE_SCRIPT_SRC
-const plausibleOrigin = plausibleScriptSrc?.startsWith("https://")
-  ? new URL(plausibleScriptSrc).origin
-  : null
+// The Content-Security-Policy is NOT here: it carries a per-request nonce, so
+// it is built in src/lib/csp.ts and set by the proxy. headers() is compiled
+// into the build and can only hold the static headers below.
+//
+// The one exception is the fixed no-script policy on the paths the proxy
+// matcher skips (see ASSET_CSP): it holds no nonce, so a static rule is
+// correct there.
 
-// React uses eval() in development for debugging features (readable stacks,
-// HMR) and never in production, so this stays out of the shipped policy.
-const devEval = process.env.NODE_ENV === "production" ? null : "'unsafe-eval'"
-
-// 'unsafe-inline' is load-bearing, not lazy: Next streams the RSC payload and
-// its bootstrap through inline <script> tags, and without a per-request nonce
-// a bare 'self' blocks all of them and the app never hydrates. It still stops
-// an injected <script src> from pulling code off an attacker's origin, which
-// is the Plausible-compromise case this policy is here for. Upgrading to a
-// nonce is QUO-65.
-const scriptSrc = ["'self'", "'unsafe-inline'", devEval, plausibleOrigin]
-  .filter(Boolean)
-  .join(" ")
-
-const contentSecurityPolicy = [
-  `script-src ${scriptSrc}`,
-  // No <object>/<embed> anywhere, and lock <base> so an injected tag cannot
-  // repoint every relative script URL at an attacker.
-  "object-src 'none'",
-  "base-uri 'self'",
-  "frame-ancestors 'none'",
-].join("; ")
-
+// Mirrors the proxy matcher's exclusions in src/proxy.ts. Those paths never
+// reach the proxy, so they would otherwise carry no CSP at all. (/_next/image
+// is left out: Next sets its own stricter policy on it.) They are
+// static files, never rendered as a page that runs Next's scripts, so
+// everything but inline styles and same-origin images is denied; an SVG
+// opened directly as a document can no longer run script.
+const ASSET_CSP =
+  "default-src 'none'; style-src 'unsafe-inline'; img-src 'self' data:; frame-ancestors 'none'"
 const nextConfig: NextConfig = {
   turbopack: {
     root: __dirname,
@@ -56,8 +40,19 @@ const nextConfig: NextConfig = {
           { key: "X-Content-Type-Options", value: "nosniff" },
           // Nothing embeds QuotaCanary in a frame; belt and braces.
           { key: "X-Frame-Options", value: "DENY" },
-          { key: "Content-Security-Policy", value: contentSecurityPolicy },
         ],
+      },
+      {
+        source: "/:path*.(svg|png|jpg|jpeg|gif|webp)",
+        headers: [{ key: "Content-Security-Policy", value: ASSET_CSP }],
+      },
+      {
+        source: "/_next/static/:path*",
+        headers: [{ key: "Content-Security-Policy", value: ASSET_CSP }],
+      },
+      {
+        source: "/favicon.ico",
+        headers: [{ key: "Content-Security-Policy", value: ASSET_CSP }],
       },
     ]
   },

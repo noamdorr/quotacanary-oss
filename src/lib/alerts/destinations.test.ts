@@ -99,6 +99,45 @@ describe("alert destination payloads", () => {
     expect(section?.text?.text).not.toContain("<")
   })
 
+  // QUO-289: a connection that stopped checking has no pools to report.
+  const stopped: AlertDestinationEvent = {
+    ...event,
+    kind: "stopped_checking",
+    title: "Hunter isn't being checked",
+    body: "Hunter rejected the saved key for Hunter main.",
+    pools: [],
+    topupUrl: null,
+  }
+
+  it("names a stopped-checking event on generic webhooks", () => {
+    expect(renderDestinationPayload("webhook", stopped)).toMatchObject({
+      event: "quota.alert.stopped",
+      level: "critical",
+      title: "Hunter isn't being checked",
+      connection: { id: "conn-1", name: "Hunter main" },
+      pools: [],
+    })
+  })
+
+  it("keeps the test event name for a test delivery of any kind", () => {
+    expect(
+      renderDestinationPayload("webhook", { ...stopped, isTest: true })
+    ).toMatchObject({ event: "quota.alert.test" })
+  })
+
+  it("sends Slack a stopped-checking message without a missing-pools line", () => {
+    const payload = renderDestinationPayload("slack_webhook", stopped) as {
+      text: string
+      blocks: { type: string; text?: { type: string; text: string } }[]
+    }
+
+    expect(payload.text).toContain("isn't being checked")
+    const section = payload.blocks.find((b) => b.type === "section")
+    expect(section?.text?.text).toBe(
+      "Hunter rejected the saved key for Hunter main."
+    )
+  })
+
   it("delivers low events only to low-or-critical destinations", () => {
     expect(isDestinationLevelAllowed("low", "low")).toBe(true)
     expect(isDestinationLevelAllowed("critical", "low")).toBe(false)

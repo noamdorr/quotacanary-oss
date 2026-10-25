@@ -75,7 +75,12 @@ function fakeSupabase(
 }
 
 type Filter = [string, unknown]
-type Recorded = { table: string; verb: string; filters: Filter[] }
+type Recorded = {
+  table: string
+  verb: string
+  filters: Filter[]
+  payload?: unknown
+}
 
 // Minimal thenable query builder that records the verb + filter chain per
 // from() call, so tests can assert every mutation is scoped to the user.
@@ -92,7 +97,8 @@ function recordingSupabase(singles: Record<string, () => unknown> = {}): {
         if (!rec.verb) rec.verb = "select"
         return builder
       },
-      update: () => {
+      update: (payload: unknown) => {
+        rec.payload = payload
         rec.verb = "update"
         return builder
       },
@@ -110,7 +116,11 @@ function recordingSupabase(singles: Record<string, () => unknown> = {}): {
       },
       single: async () => {
         const make = singles[`${rec.table}.${rec.verb}`]
-        return { data: make ? make() : null, error: null }
+        const made = make ? make() : null
+        // An Error from the factory stands in for a failed read.
+        return made instanceof Error
+          ? { data: null, error: made }
+          : { data: made, error: null }
       },
       // biome-ignore lint/suspicious/noThenProperty: mimics Supabase's thenable query builder
       then: (resolve: (v: unknown) => void) =>
@@ -131,7 +141,13 @@ function filtersOf(recorded: Recorded[], table: string, verb: string) {
 
 const OWNER_FILTER: Filter = ["user_id", "user-1"]
 
-async function importWith(db: { client: SupabaseClient }) {
+async function importWith(
+  db: { client: SupabaseClient },
+  admin = recordingSupabase({ "connections.update": () => ({ id: "conn-1" }) })
+) {
+  vi.doMock("@/lib/supabase/admin", () => ({
+    createAdminClient: () => admin.client,
+  }))
   vi.doMock("@/lib/supabase/server", () => ({
     createClient: async () => db.client,
   }))
@@ -199,7 +215,7 @@ describe("mutation ownership filters (defense in depth)", () => {
     })
     const { setPoolThresholds } = await importWith(db)
 
-    await setPoolThresholds("conn-1", "credits", 100, 10)
+    await setPoolThresholds("conn-1", "credits", 100)
 
     expect(filtersOf(db.recorded, "connections", "select")).toEqual(
       expect.arrayContaining([["id", "conn-1"], OWNER_FILTER])
@@ -209,24 +225,198 @@ describe("mutation ownership filters (defense in depth)", () => {
     )
   })
 
-  it("scopes updateKey's read and write to the signed-in user", async () => {
+  describe("setPoolThresholds stores one Warn below number", () => {
+    function savedPoolThresholds(recorded: Recorded[]) {
+      const update = recorded.find(
+        (r) => r.table === "connections" && r.verb === "update"
+      )
+      return (update?.payload as { pool_thresholds?: unknown } | undefined)
+        ?.pool_thresholds
+    }
+
+    it.each([
+      [900, 300],
+      [1000, 333],
+      [2, 0.67],
+    ])("saving %d derives critical %d", async (warnBelow, critical) => {
+      const db = recordingSupabase({
+        "connections.select": () => ({ pool_thresholds: null }),
+      })
+      const { setPoolThresholds } = await importWith(db)
+
+      const res = await setPoolThresholds("conn-1", "primary", warnBelow)
+
+      expect(res).toEqual({ ok: true })
+      expect(savedPoolThresholds(db.recorded)).toEqual({
+        primary: { low: warnBelow, critical },
+      })
+    })
+
+    it("leaves another balance's non-3:1 override untouched", async () => {
+      const db = recordingSupabase({
+        "connections.select": () => ({
+          pool_thresholds: { secondary: { low: 800, critical: 200 } },
+        }),
+      })
+      const { setPoolThresholds } = await importWith(db)
+
+      await setPoolThresholds("conn-1", "primary", 900)
+
+      expect(savedPoolThresholds(db.recorded)).toEqual({
+        primary: { low: 900, critical: 300 },
+        secondary: { low: 800, critical: 200 },
+      })
+    })
+
+    it("blank removes that balance's override and keeps the others", async () => {
+      const db = recordingSupabase({
+        "connections.select": () => ({
+          pool_thresholds: {
+            primary: { low: 900, critical: 300 },
+            secondary: { low: 800, critical: 200 },
+          },
+        }),
+      })
+      const { setPoolThresholds } = await importWith(db)
+
+      const res = await setPoolThresholds("conn-1", "primary", null)
+
+      expect(res).toEqual({ ok: true })
+      expect(savedPoolThresholds(db.recorded)).toEqual({
+        secondary: { low: 800, critical: 200 },
+      })
+    })
+
+    it.each([0, -5, Number.NaN])("rejects %d without writing", async (bad) => {
+      const db = recordingSupabase({
+        "connections.select": () => ({ pool_thresholds: null }),
+      })
+      const { setPoolThresholds } = await importWith(db)
+
+      const res = await setPoolThresholds("conn-1", "primary", bad)
+
+      expect(res.ok).toBe(false)
+      expect(
+        db.recorded.some(
+          (r) => r.table === "connections" && r.verb === "update"
+        )
+      ).toBe(false)
+    })
+
+    it("does not write when the read fails", async () => {
+      const db = recordingSupabase({
+        "connections.select": () => new Error("read failed"),
+      })
+      const { setPoolThresholds } = await importWith(db)
+
+      const res = await setPoolThresholds("conn-1", "primary", 900)
+
+      expect(res).toEqual({ ok: false, error: "Couldn't save thresholds." })
+      expect(
+        db.recorded.some(
+          (r) => r.table === "connections" && r.verb === "update"
+        )
+      ).toBe(false)
+    })
+
+    it("does not write or report success when the row is missing", async () => {
+      const db = recordingSupabase()
+      const { setPoolThresholds } = await importWith(db)
+
+      const res = await setPoolThresholds("conn-1", "primary", null)
+
+      expect(res).toEqual({ ok: false, error: "Couldn't save thresholds." })
+      expect(
+        db.recorded.some(
+          (r) => r.table === "connections" && r.verb === "update"
+        )
+      ).toBe(false)
+    })
+  })
+
+  it("scopes updateKey's privileged write to the validated owner and tool", async () => {
     const db = recordingSupabase({
       "connections.select": () => ({
         tool_id: "hunter",
         tool: { credential_fields: null },
       }),
     })
-    const { updateKey } = await importWith(db)
+    const admin = recordingSupabase({
+      "connections.update": () => ({ id: "conn-1" }),
+    })
+    const { updateKey } = await importWith(db, admin)
+    const { decrypt } = await import("@/lib/crypto")
 
-    const result = await updateKey("conn-1", "new-key")
-
-    expect(result).toEqual({ ok: true })
+    expect(await updateKey("conn-1", "new-key")).toEqual({ ok: true })
+    expect(readBalance).toHaveBeenCalledWith("new-key")
     expect(filtersOf(db.recorded, "connections", "select")).toEqual(
       expect.arrayContaining([["id", "conn-1"], OWNER_FILTER])
     )
-    expect(filtersOf(db.recorded, "connections", "update")).toEqual(
-      expect.arrayContaining([["id", "conn-1"], OWNER_FILTER])
+    expect(filtersOf(db.recorded, "connections", "update")).toBeUndefined()
+    expect(filtersOf(admin.recorded, "connections", "update")).toEqual([
+      ["id", "conn-1"],
+      OWNER_FILTER,
+      ["tool_id", "hunter"],
+    ])
+    const payload = admin.recorded[0].payload as Record<string, string>
+    expect(payload.encrypted_key).not.toBe("new-key")
+    expect(decrypt(payload.encrypted_key)).toBe("new-key")
+    expect(payload.key_hint).toBe("-key")
+  })
+
+  it("does not use the admin write for another user's connection", async () => {
+    const db = recordingSupabase()
+    const admin = recordingSupabase()
+    const { updateKey } = await importWith(db, admin)
+    expect(await updateKey("conn-other", "new-key")).toEqual({
+      ok: false,
+      error: "Connection not found.",
+    })
+    expect(readBalance).not.toHaveBeenCalled()
+    expect(admin.recorded).toEqual([])
+  })
+
+  it("requires authentication before key rotation", async () => {
+    const db = recordingSupabase()
+    vi.spyOn(db.client.auth, "getUser").mockResolvedValueOnce({
+      data: { user: null },
+      error: null,
+    } as never)
+    const admin = recordingSupabase()
+    const { updateKey } = await importWith(db, admin)
+    await expect(updateKey("conn-1", "new-key")).rejects.toThrow(
+      "Not authenticated"
     )
+    expect(readBalance).not.toHaveBeenCalled()
+    expect(admin.recorded).toEqual([])
+  })
+
+  it("never writes a key rejected by the adapter", async () => {
+    const db = recordingSupabase({
+      "connections.select": () => ({ tool_id: "hunter", tool: null }),
+    })
+    const admin = recordingSupabase()
+    const { updateKey } = await importWith(db, admin)
+    readBalance.mockResolvedValueOnce({ ok: false, error: "Rejected" } as never)
+    expect(await updateKey("conn-1", "bad-key")).toEqual({
+      ok: false,
+      error: "Rejected",
+    })
+    expect(admin.recorded).toEqual([])
+    expect(revalidatePath).not.toHaveBeenCalled()
+  })
+
+  it("reports failure if the row disappears during vendor validation", async () => {
+    const db = recordingSupabase({
+      "connections.select": () => ({ tool_id: "hunter", tool: null }),
+    })
+    const admin = recordingSupabase()
+    const { updateKey } = await importWith(db, admin)
+    expect(await updateKey("conn-1", "new-key")).toEqual({
+      ok: false,
+      error: "Couldn't update the key.",
+    })
+    expect(revalidatePath).not.toHaveBeenCalled()
   })
 
   it("refuses to refresh a connection the user doesn't own", async () => {
@@ -379,6 +569,41 @@ describe("connectTool", () => {
     })
   })
 
+  it.each([false, true])(
+    "rejects an empty multi-pool selection before reading or saving (blank field: %s)",
+    async (blankField) => {
+      const db = fakeSupabase({
+        credential_fields: null,
+        pools: [
+          { credit_type: "credits", label: "Credits", unit: "credits" },
+          { credit_type: "emails", label: "Emails", unit: "credits" },
+        ],
+      })
+      const { connectTool } = await importWith(db)
+      const formData = connectForm()
+      if (blankField) formData.append("watchedCreditTypes", "")
+
+      expect(await connectTool(formData)).toEqual({
+        ok: false,
+        error: "Choose at least one balance to track.",
+      })
+      expect(readBalance).not.toHaveBeenCalled()
+      expect(db.rpcCalls).toEqual([])
+      expect(revalidatePath).not.toHaveBeenCalled()
+    }
+  )
+
+  it("preserves the implicit default when a single pool has no picker", async () => {
+    const db = fakeSupabase({
+      credential_fields: null,
+      pools: [{ credit_type: "credits", label: "Credits", unit: "credits" }],
+    })
+    const { connectTool } = await importWith(db)
+
+    expect(await connectTool(connectForm())).toMatchObject({ ok: true })
+    expect(db.rpcCalls[0].params.p_watched_credit_types).toBeNull()
+  })
+
   it("passes watched values matching the tool's pools through to the atomic RPC", async () => {
     const db = fakeSupabase({
       credential_fields: null,
@@ -422,11 +647,44 @@ describe("connectTool", () => {
     expect(db.inserts.connections).toBeUndefined()
   })
 
-  it("rejects watched values when the tool declares no pools", async () => {
+  it("answers a key this user already connected with that connection, before the vendor check (QUO-293)", async () => {
+    const sameKey = vi.fn(async () => ({
+      connectionId: "conn-old",
+      name: "Client work",
+    }))
+    vi.doMock("@/lib/connection-writes", async (importOriginal) => ({
+      ...(await importOriginal<typeof import("@/lib/connection-writes")>()),
+      findConnectionWithSameKey: sameKey,
+    }))
+    const db = fakeSupabase()
+    const admin = recordingSupabase()
+    const { connectTool } = await importWith(db, admin)
+    const formData = connectForm()
+
+    const result = await connectTool(formData)
+
+    expect(result).toEqual({
+      ok: false,
+      error: "That key is already connected as Client work.",
+      existingConnectionId: "conn-old",
+    })
+    expect(sameKey).toHaveBeenCalledWith(
+      admin.client,
+      "user-1",
+      "hunter",
+      formData,
+      "00000000-0000-4000-8000-000000000001"
+    )
+    expect(readBalance).not.toHaveBeenCalled()
+    expect(db.rpcCalls).toEqual([])
+    vi.doUnmock("@/lib/connection-writes")
+  })
+
+  it("rejects a watched value the tool neither declares nor reports", async () => {
     const db = fakeSupabase({ credential_fields: null, pools: null })
     const { connectTool } = await importWith(db)
     const formData = connectForm()
-    formData.append("watchedCreditTypes", "credits")
+    formData.append("watchedCreditTypes", "searches")
 
     const result = await connectTool(formData)
 
@@ -434,6 +692,17 @@ describe("connectTool", () => {
       ok: false,
       error: "Unknown credit pool for this tool.",
     })
+  })
+
+  it("keeps a watched value the key reports when the tool declares no pools (QUO-286)", async () => {
+    const db = fakeSupabase({ credential_fields: null, pools: null })
+    const { connectTool } = await importWith(db)
+    const formData = connectForm()
+    formData.append("watchedCreditTypes", "credits")
+
+    const result = await connectTool(formData)
+
+    expect(result.ok).toBe(true)
   })
 })
 

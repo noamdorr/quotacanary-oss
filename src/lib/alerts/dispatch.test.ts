@@ -20,6 +20,22 @@ vi.mock("@/lib/email/client", () => ({
 vi.mock("@/lib/email/render/alert", () => ({
   renderAlertEmail: (model: unknown) => renderAlertEmail(model),
 }))
+const renderStoppedCheckingEmail = vi.fn((_model: unknown) => ({
+  subject: "s",
+  html: "<p>h</p>",
+  text: "h",
+}))
+vi.mock("@/lib/email/render/stopped-checking", () => ({
+  renderStoppedCheckingEmail: (model: unknown) =>
+    renderStoppedCheckingEmail(model),
+}))
+
+// The stopped-checking tests drive the real refresh path, so the adapter is a
+// fixture whose answer each test scripts poll by poll.
+const { readBalance } = vi.hoisted(() => ({ readBalance: vi.fn() }))
+vi.mock("@/lib/adapters/registry", () => ({
+  getAdapter: () => ({ readBalance }),
+}))
 
 const { lookup } = vi.hoisted(() => ({ lookup: vi.fn() }))
 vi.mock("node:dns/promises", () => ({ lookup }))
@@ -62,6 +78,7 @@ function fakeDb(seed: {
     alert_events: [],
     alert_destinations: seed.destinations ?? [],
     alert_deliveries: [],
+    balances: [],
   }
 
   type Filter = { op: "eq" | "in" | "is"; col: string; value: unknown }
@@ -78,20 +95,42 @@ function fakeDb(seed: {
       payload: null as unknown,
       single: false,
       maybeSingle: false,
+      order: null as { col: string; ascending: boolean } | null,
+      limit: null as number | null,
     }
     function execute() {
       const rows = tables[table]
+      // Migration 089's column default: every event without a kind, seeded
+      // ones included, is a balance event.
+      if (table === "alert_events") {
+        for (const r of rows) r.kind = r.kind ?? "balance"
+      }
       if (state.action === "insert") {
+        // The refresh path inserts a batch of balance readings in one call.
+        if (Array.isArray(state.payload)) {
+          for (const p of state.payload as Row[]) {
+            rows.push({
+              id: uid("row"),
+              created_at: new Date().toISOString(),
+              recorded_at: new Date().toISOString(),
+              ...p,
+            })
+          }
+          return { data: null, error: null }
+        }
         const record: Row = { ...(state.payload as Row) }
         record.id = record.id ?? uid("row")
         record.created_at = record.created_at ?? new Date().toISOString()
         if (table === "alert_events") {
+          record.kind = record.kind ?? "balance"
           record.delivery_satisfied_at = record.delivery_satisfied_at ?? null
           record.delivery_canceled_at = record.delivery_canceled_at ?? null
-          // Partial unique index: one active event per (connection_id, level).
+          // Partial unique index (migration 089): one active event per
+          // (connection_id, kind, level).
           const clash = rows.find(
             (r) =>
               r.connection_id === record.connection_id &&
+              (r.kind ?? "balance") === record.kind &&
               r.level === record.level &&
               r.delivery_satisfied_at === null &&
               r.delivery_canceled_at === null
@@ -139,9 +178,18 @@ function fakeDb(seed: {
         }
         return { data: null, error: null }
       }
-      const matched = rows
+      let matched = rows
         .filter((r) => matches(r, state.filters))
         .map((r) => ({ ...r }))
+      if (state.order) {
+        const { col, ascending } = state.order
+        matched.sort(
+          (a, b) =>
+            (Date.parse(a[col] as string) - Date.parse(b[col] as string)) *
+            (ascending ? 1 : -1)
+        )
+      }
+      if (state.limit !== null) matched = matched.slice(0, state.limit)
       if (state.single) {
         return matched[0]
           ? { data: matched[0], error: null }
@@ -178,6 +226,14 @@ function fakeDb(seed: {
       },
       is: (col: string, value: unknown) => {
         state.filters.push({ op: "is", col, value })
+        return api
+      },
+      order: (col: string, opts?: { ascending?: boolean }) => {
+        state.order = { col, ascending: opts?.ascending ?? true }
+        return api
+      },
+      limit: (n: number) => {
+        state.limit = n
         return api
       },
       single: () => {
@@ -297,9 +353,13 @@ function fakeDb(seed: {
         const conn = tables.connections.find(
           (c) => c.id === event.connection_id
         )
-        // Migration 056: advance only the pools the event named, and only
-        // upward, then recompute the connection-level rollup.
-        if (conn) {
+        // Migration 089: a stopped-checking event stamps the incident and
+        // never touches the balance marks.
+        if (conn && event.kind === "stopped_checking") {
+          conn.failure_alerted_at = event.created_at
+        } else if (conn) {
+          // Migration 056: advance only the pools the event named, and only
+          // upward, then recompute the connection-level rollup.
           const levels = { ...((conn.notified_levels as Row) ?? {}) }
           for (const ct of (event.credit_types as string[] | null) ?? []) {
             if (rankOf(levels[ct]) < rankOf(event.level)) {
@@ -1640,5 +1700,374 @@ describe("dispatchAlerts per-pool high-water marks", () => {
       compute: "low",
       proxy: "low",
     })
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Stopped checking (QUO-289): a connection whose reads keep failing alerts
+// once per incident through the same ledger. These drive the real refresh
+// path against the fake, one call per poll, the way the poll route does.
+// ---------------------------------------------------------------------------
+
+const READ_FAILED = { ok: false as const, error: "Couldn't reach Acme." }
+const KEY_REJECTED = { ok: false as const, error: "Acme rejected this key." }
+const READ_OK = {
+  ok: true as const,
+  balances: [
+    {
+      creditType: "credits",
+      label: "Credits",
+      balance: 500,
+      balanceLimit: null,
+      unit: "credits" as const,
+    },
+  ],
+}
+
+function stoppedDb(
+  opts: {
+    alertEnabled?: boolean
+    destinations?: Row[]
+    email?: string | null
+    notifyMode?: string
+    lowThreshold?: number
+  } = {}
+) {
+  return fakeDb({
+    users: [
+      {
+        id: "u1",
+        email: opts.email !== undefined ? opts.email : "a@b.com",
+        notify_mode: opts.notifyMode ?? "low_and_critical",
+        updated_at: T0,
+      },
+    ],
+    connections: [
+      {
+        id: "c1",
+        user_id: "u1",
+        tool_id: "acme",
+        encrypted_key: encrypt("acme-key"),
+        name: "Acme main",
+        alert_enabled: opts.alertEnabled ?? true,
+        alert_threshold: null,
+        low_threshold: opts.lowThreshold ?? null,
+        alert_fired_at: null,
+        notified_level: "none",
+        notified_levels: {},
+        watched_credit_types: null,
+        pool_thresholds: {},
+        status: "active",
+        consecutive_failures: 0,
+        failure_alerted_at: null,
+        // The embedded tools() select, as PostgREST returns it.
+        tool: {
+          name: "Acme",
+          topup_url: null,
+          default_alert_threshold: null,
+          default_low_threshold: null,
+        },
+      },
+    ],
+    destinations: opts.destinations ?? [],
+  })
+}
+
+// One scheduled poll of connection c1: refresh it, then dispatch exactly what
+// src/app/api/poll/route.ts collects from the result.
+async function pollOnce(
+  db: ReturnType<typeof fakeDb>,
+  read: typeof READ_FAILED | typeof KEY_REJECTED | typeof READ_OK
+) {
+  readBalance.mockResolvedValueOnce(read)
+  const { refreshConnectionWith } = await import("@/lib/refresh-connection")
+  const { dispatchAlerts } = await import("./dispatch")
+  const result = await refreshConnectionWith(db.client, "c1")
+  return dispatchAlerts(
+    db.client,
+    result.ok && result.alert ? [result.alert] : [],
+    !result.ok && result.stopped ? [result.stopped] : []
+  )
+}
+
+function stoppedEmails() {
+  return sendEmail.mock.calls.filter(
+    ([opts]) => (opts as { tag?: string }).tag === "alert-stopped"
+  )
+}
+
+function stoppedEvents(db: ReturnType<typeof fakeDb>) {
+  return db.tables.alert_events.filter((e) => e.kind === "stopped_checking")
+}
+
+describe("stopped checking (QUO-289)", () => {
+  it("three failed polls send one alert per enabled destination, and the fourth sends nothing", async () => {
+    const db = stoppedDb({
+      destinations: [
+        webhookDestination({ id: "dest-hook" }),
+        webhookDestination({
+          id: "dest-slack",
+          kind: "slack_webhook",
+          encrypted_url: encrypt("https://hooks.slack.com/services/T/B/x"),
+        }),
+        // Critical-only destinations still hear about it: a connection nobody
+        // is watching is at least as urgent as a balance about to run dry.
+        webhookDestination({
+          id: "dest-critical",
+          min_level: "critical",
+          encrypted_url: encrypt("https://example.com/critical"),
+        }),
+        webhookDestination({
+          id: "dest-off",
+          is_enabled: false,
+          encrypted_url: encrypt("https://example.com/off"),
+        }),
+      ],
+    })
+
+    await pollOnce(db, READ_FAILED)
+    await pollOnce(db, READ_FAILED)
+    expect(stoppedEvents(db)).toHaveLength(0)
+    expect(sendEmail).not.toHaveBeenCalled()
+    expect(postToPinnedAddress).not.toHaveBeenCalled()
+
+    const third = await pollOnce(db, READ_FAILED)
+    expect(third).toEqual({ sent: 4, failedSends: 0, degraded: false })
+    expect(stoppedEmails()).toHaveLength(1)
+    expect(webhookSends().map((s) => s.url)).toEqual(
+      expect.arrayContaining([
+        "https://example.com/hook",
+        "https://hooks.slack.com/services/T/B/x",
+        "https://example.com/critical",
+      ])
+    )
+    expect(webhookSends()).toHaveLength(3)
+    expect(stoppedEvents(db)).toHaveLength(1)
+    expect(stoppedEvents(db)[0]).toMatchObject({
+      level: "critical",
+      tool_name: "Acme",
+      connection_name: "Acme main",
+      pools: [],
+    })
+    expect(db.tables.connections[0].failure_alerted_at).not.toBeNull()
+    // The balance marks belong to the balance alerts; this one leaves them be.
+    expect(db.tables.connections[0]).toMatchObject({
+      notified_level: "none",
+      notified_levels: {},
+      alert_fired_at: null,
+    })
+
+    const fourth = await pollOnce(db, READ_FAILED)
+    expect(fourth).toEqual({ sent: 0, failedSends: 0, degraded: false })
+    expect(stoppedEmails()).toHaveLength(1)
+    expect(webhookSends()).toHaveLength(3)
+  })
+
+  it("hands the email renderer the event's own copy", async () => {
+    const db = stoppedDb()
+    for (let i = 0; i < 3; i++) await pollOnce(db, READ_FAILED)
+
+    const [event] = stoppedEvents(db)
+    expect(renderStoppedCheckingEmail).toHaveBeenCalledWith({
+      toolName: "Acme",
+      body: event.body,
+      dashboardUrl: event.dashboard_url,
+    })
+    expect(renderAlertEmail).not.toHaveBeenCalled()
+  })
+
+  it("alerts a rejected key on the first poll, and only once for the incident", async () => {
+    const db = stoppedDb()
+
+    await pollOnce(db, KEY_REJECTED)
+    expect(stoppedEmails()).toHaveLength(1)
+    expect(stoppedEvents(db)[0].body).toContain("rejected")
+
+    // The threshold alert is not sent on top: one incident, one alert.
+    for (let i = 0; i < 3; i++) await pollOnce(db, READ_FAILED)
+    expect(stoppedEmails()).toHaveLength(1)
+    expect(stoppedEvents(db)).toHaveLength(1)
+  })
+
+  it("re-arms on a successful read, so a later run of failures alerts again", async () => {
+    const db = stoppedDb()
+    for (let i = 0; i < 3; i++) await pollOnce(db, READ_FAILED)
+    expect(stoppedEmails()).toHaveLength(1)
+
+    await pollOnce(db, READ_OK)
+    expect(db.tables.connections[0]).toMatchObject({
+      consecutive_failures: 0,
+      failure_alerted_at: null,
+    })
+
+    await pollOnce(db, READ_FAILED)
+    await pollOnce(db, READ_FAILED)
+    expect(stoppedEmails()).toHaveLength(1)
+    await pollOnce(db, READ_FAILED)
+    expect(stoppedEmails()).toHaveLength(2)
+    expect(stoppedEvents(db)).toHaveLength(2)
+  })
+
+  it("never sends it for a connection with alerts off", async () => {
+    const db = stoppedDb({
+      alertEnabled: false,
+      destinations: [webhookDestination()],
+    })
+    await pollOnce(db, KEY_REJECTED)
+    for (let i = 0; i < 4; i++) await pollOnce(db, READ_FAILED)
+
+    expect(sendEmail).not.toHaveBeenCalled()
+    expect(postToPinnedAddress).not.toHaveBeenCalled()
+    expect(stoppedEvents(db)).toHaveLength(0)
+  })
+
+  it("keeps the sent flag in the database, so a redeploy between polls 3 and 4 does not resend", async () => {
+    const db = stoppedDb({ destinations: [webhookDestination()] })
+    for (let i = 0; i < 3; i++) await pollOnce(db, READ_FAILED)
+    expect(stoppedEmails()).toHaveLength(1)
+    expect(webhookSends()).toHaveLength(1)
+
+    // A fresh process: every module re-evaluated, nothing carried in memory.
+    // Only the database survives, exactly as across a Railway deploy.
+    vi.resetModules()
+    await pollOnce(db, READ_FAILED)
+
+    expect(stoppedEmails()).toHaveLength(1)
+    expect(webhookSends()).toHaveLength(1)
+  })
+
+  it("re-arms after a manual refresh succeeds between two incidents", async () => {
+    // A manual refresh runs as the signed-in user, who cannot write the alert
+    // stamp, and the poller never sees that read. The next incident must
+    // still alert.
+    vi.useFakeTimers({ toFake: ["Date"] })
+    try {
+      vi.setSystemTime(new Date("2026-10-18T09:00:00.000Z"))
+      const db = stoppedDb()
+      for (let i = 0; i < 3; i++) await pollOnce(db, READ_FAILED)
+      expect(stoppedEmails()).toHaveLength(1)
+
+      vi.setSystemTime(new Date("2026-10-18T09:50:00.000Z"))
+      readBalance.mockResolvedValueOnce(READ_OK)
+      const { refreshConnectionWith } = await import("@/lib/refresh-connection")
+      expect((await refreshConnectionWith(db.client, "c1")).ok).toBe(true)
+      expect(db.tables.connections[0].failure_alerted_at).not.toBeNull()
+
+      vi.setSystemTime(new Date("2026-10-18T10:00:00.000Z"))
+      for (let i = 0; i < 3; i++) await pollOnce(db, READ_FAILED)
+      expect(stoppedEmails()).toHaveLength(2)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it("retries a failed send without duplicating it while the connection keeps failing", async () => {
+    const db = stoppedDb()
+    sendEmail.mockResolvedValue({
+      ok: false,
+      error: "Postmark 503",
+      retryable: true,
+    } as never)
+
+    for (let i = 0; i < 3; i++) await pollOnce(db, READ_FAILED)
+    expect(stoppedEmails()).toHaveLength(1)
+    // Unsent, so the incident is still open and the next poll re-prepares it.
+    expect(db.tables.connections[0].failure_alerted_at).toBeNull()
+
+    await pollOnce(db, READ_FAILED)
+    expect(stoppedEvents(db)).toHaveLength(1)
+    expect(db.tables.alert_deliveries).toHaveLength(1)
+    // Backoff: the retry is not due yet, so nothing goes out twice.
+    expect(stoppedEmails()).toHaveLength(1)
+  })
+
+  it("cancels a stopped alert still in flight once the connection reads again", async () => {
+    // The read that ends the incident is below its Low threshold, so the
+    // balance-recovery path (healthy connections only) does not cover it.
+    const db = stoppedDb({
+      email: null,
+      lowThreshold: 1000,
+      destinations: [webhookDestination()],
+    })
+    stubWebhookResponse(503)
+    for (let i = 0; i < 3; i++) await pollOnce(db, READ_FAILED)
+    const [event] = stoppedEvents(db)
+    const stoppedDelivery = () =>
+      db.tables.alert_deliveries.find((d) => d.event_id === event.id)
+    expect(stoppedDelivery()?.status).toBe("pending")
+
+    await pollOnce(db, READ_OK)
+
+    expect(stoppedDelivery()?.status).toBe("canceled")
+    expect(event.delivery_canceled_at).not.toBeNull()
+    expect(db.tables.connections[0].failure_alerted_at).toBeNull()
+  })
+
+  it("cancels the other channels' pending sends once the connection reads again", async () => {
+    // Email went out and stamped the incident; the webhook is still retrying.
+    // A late "stopped checking" after the key works again would be a lie.
+    const db = stoppedDb({
+      lowThreshold: 1000,
+      destinations: [webhookDestination()],
+    })
+    stubWebhookResponse(503)
+    for (let i = 0; i < 3; i++) await pollOnce(db, READ_FAILED)
+    expect(db.tables.connections[0].failure_alerted_at).not.toBeNull()
+    const [event] = stoppedEvents(db)
+
+    await pollOnce(db, READ_OK)
+
+    const webhook = db.tables.alert_deliveries.find(
+      (d) => d.event_id === event.id && d.channel === "webhook"
+    )
+    expect(webhook?.status).toBe("canceled")
+    expect(db.tables.connections[0].failure_alerted_at).toBeNull()
+  })
+
+  it("sends a signed webhook that names the stopped event", async () => {
+    const db = stoppedDb({
+      email: null,
+      destinations: [
+        webhookDestination({
+          encrypted_signing_secret: encrypt("qcwh_stored"),
+        }),
+      ],
+    })
+    for (let i = 0; i < 3; i++) await pollOnce(db, READ_FAILED)
+
+    const sent = webhookSends()[0]
+    expect(
+      verifyWebhookSignature({
+        secret: "qcwh_stored",
+        header: sent.headers["quotacanary-signature"],
+        body: sent.body,
+        nowSeconds: Math.floor(Date.now() / 1000),
+      })
+    ).toEqual({ ok: true })
+    expect(JSON.parse(sent.body)).toMatchObject({
+      event: "quota.alert.stopped",
+      level: "critical",
+      connection: { id: "c1", name: "Acme main" },
+      pools: [],
+    })
+  })
+
+  it("does not collide with a balance alert that is still being delivered", async () => {
+    const db = stoppedDb({ email: null, destinations: [webhookDestination()] })
+    db.tables.alert_events.push({
+      id: "evt-critical",
+      user_id: "u1",
+      connection_id: "c1",
+      kind: "balance",
+      level: "critical",
+      created_at: T0,
+      delivery_satisfied_at: null,
+      delivery_canceled_at: null,
+    })
+
+    for (let i = 0; i < 3; i++) await pollOnce(db, READ_FAILED)
+
+    expect(stoppedEvents(db)).toHaveLength(1)
+    expect(webhookSends()).toHaveLength(1)
   })
 })

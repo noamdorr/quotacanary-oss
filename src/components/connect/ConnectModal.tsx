@@ -5,16 +5,13 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { type ConnectResult, connectTool } from "@/lib/actions/connections"
-import {
-  credentialFieldsFor,
-  credentialInputName,
-  credentialPlaceholder,
-} from "@/lib/credentials"
+import { keyRequirement } from "@/lib/key-requirements"
 import { FUNNEL_EVENTS, trackPlausibleEvent } from "@/lib/plausible-events"
 import type { Tool } from "@/lib/types"
-import { ExternalLink, ShieldCheck } from "lucide-react"
+import { ShieldCheck } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useActionState, useEffect, useRef, useState } from "react"
+import { CredentialFields } from "./CredentialFields"
 
 type Props = {
   tool: Tool
@@ -27,20 +24,33 @@ type Props = {
 
 export function ConnectModal({ tool, open, onOpenChange, onConnected }: Props) {
   const router = useRouter()
+  const requirement = keyRequirement(tool.id)
   // biome-ignore format: source contract requires this initializer verbatim
   const [createRequestId, setCreateRequestId] = useState(() => crypto.randomUUID())
   const wasOpen = useRef(open)
+  const [watched, setWatched] = useState<string[] | null>(null)
+  const selectedPools = watched ?? tool.pools?.map((p) => p.credit_type) ?? []
+  const missingPool =
+    (tool.pools?.length ?? 0) > 1 && selectedPools.length === 0
 
   useEffect(() => {
     if (open && !wasOpen.current) {
       setCreateRequestId(crypto.randomUUID())
+      setWatched(null)
     }
     wasOpen.current = open
   }, [open])
 
-  const credentialFields = credentialFieldsFor(tool.credential_fields)
   const [state, formAction, pending] = useActionState(
-    async (_prev: ConnectResult | null, formData: FormData) => {
+    async (
+      _prev: ConnectResult | null,
+      formData: FormData
+    ): Promise<ConnectResult> => {
+      if (
+        (tool.pools?.length ?? 0) > 1 &&
+        formData.getAll("watchedCreditTypes").length === 0
+      )
+        return { ok: false, error: "Choose at least one balance to track." }
       const result = await connectTool(formData)
       if (result.ok) {
         trackPlausibleEvent(FUNNEL_EVENTS.CONNECTION_CREATED, {
@@ -59,7 +69,15 @@ export function ConnectModal({ tool, open, onOpenChange, onConnected }: Props) {
   )
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog
+      open={open}
+      // Stay open while an attempt is in flight: closing mid-flight let its
+      // late success close a reopened modal and navigate out from under it.
+      onOpenChange={(next) => {
+        if (!next && pending) return
+        onOpenChange(next)
+      }}
+    >
       <DialogContent className="qc-connect-modal max-w-lg gap-5">
         <div className="flex items-start gap-3">
           <div className="qc-connect-card__logo flex h-12 w-12 shrink-0 items-center justify-center rounded-md bg-secondary text-lg font-bold">
@@ -107,22 +125,10 @@ export function ConnectModal({ tool, open, onOpenChange, onConnected }: Props) {
               </p>
             </div>
           </div>
-          {tool.key_instructions && (
+          {requirement && (
             <div className="mt-3 border-t border-border/60 pt-3">
-              <p className="font-medium text-foreground">Where to find it</p>
-              <p className="mt-1 text-muted-foreground">
-                {tool.key_instructions}
-              </p>
-              {tool.api_docs_url && (
-                <a
-                  href={tool.api_docs_url}
-                  target="_blank"
-                  rel="noreferrer noopener"
-                  className="mt-2 inline-flex items-center gap-1 text-[var(--low-text)] hover:text-foreground hover:underline"
-                >
-                  API docs <ExternalLink className="h-3.5 w-3.5" />
-                </a>
-              )}
+              <p className="font-medium text-foreground">Before you connect</p>
+              <p className="mt-1 text-muted-foreground">{requirement}</p>
             </div>
           )}
         </div>
@@ -130,27 +136,12 @@ export function ConnectModal({ tool, open, onOpenChange, onConnected }: Props) {
         <form action={formAction} className="space-y-4">
           <input type="hidden" name="toolId" value={tool.id} />
           <input type="hidden" name="createRequestId" value={createRequestId} />
-          {credentialFields.map((field) => (
-            <div key={field.name} className="space-y-2">
-              <Label htmlFor={credentialInputName(field)}>{field.label}</Label>
-              <Input
-                id={credentialInputName(field)}
-                name={credentialInputName(field)}
-                type={field.type}
-                required
-                // A secret, not a login: keep password managers out and
-                // stop mobile keyboards from capitalizing or "correcting"
-                // a pasted key.
-                autoComplete="off"
-                data-1p-ignore
-                data-lpignore="true"
-                autoCapitalize="off"
-                autoCorrect="off"
-                spellCheck={false}
-                placeholder={credentialPlaceholder(tool.name, field)}
-              />
-            </div>
-          ))}
+          <CredentialFields
+            toolName={tool.name}
+            fields={tool.credential_fields}
+            required
+            fieldClassName="space-y-2"
+          />
           <div className="space-y-2">
             <Label htmlFor="name">Connection name</Label>
             <Input id="name" name="name" defaultValue={tool.name} required />
@@ -160,7 +151,11 @@ export function ConnectModal({ tool, open, onOpenChange, onConnected }: Props) {
             <Input id="tags" name="tags" placeholder="acme, client-work" />
           </div>
           {tool.pools && tool.pools.length > 1 && (
-            <fieldset className="space-y-2 rounded-lg border border-border/60 bg-secondary/30 p-3">
+            <fieldset
+              className="space-y-2 rounded-lg border border-border/60 bg-secondary/30 p-3"
+              aria-describedby="connect-pools-help"
+              aria-invalid={missingPool || undefined}
+            >
               <legend className="text-sm font-medium text-foreground">
                 Track which balances?
               </legend>
@@ -173,12 +168,30 @@ export function ConnectModal({ tool, open, onOpenChange, onConnected }: Props) {
                     type="checkbox"
                     name="watchedCreditTypes"
                     value={p.credit_type}
-                    defaultChecked
+                    checked={selectedPools.includes(p.credit_type)}
+                    onChange={(event) =>
+                      setWatched(
+                        event.target.checked
+                          ? [...selectedPools, p.credit_type]
+                          : selectedPools.filter((ct) => ct !== p.credit_type)
+                      )
+                    }
                     className="h-4 w-4 rounded border-border"
                   />
                   {p.label}
                 </label>
               ))}
+              <p
+                id="connect-pools-help"
+                role={missingPool ? "alert" : undefined}
+                className={
+                  missingPool
+                    ? "text-xs text-[var(--dry)]"
+                    : "text-xs text-muted-foreground"
+                }
+              >
+                Choose at least one balance to track.
+              </p>
             </fieldset>
           )}
           {state && !state.ok && (
@@ -186,7 +199,26 @@ export function ConnectModal({ tool, open, onOpenChange, onConnected }: Props) {
               {state.error}
             </p>
           )}
-          <Button type="submit" className="h-11 w-full" disabled={pending}>
+          {state && !state.ok && state.existingConnectionId && (
+            // The key is already connected (QUO-293): open that row instead.
+            <button
+              type="button"
+              className="text-sm underline underline-offset-2 hover:text-foreground"
+              onClick={() => {
+                onOpenChange(false)
+                router.push(
+                  `/dashboard?connected=${encodeURIComponent(state.existingConnectionId ?? "")}`
+                )
+              }}
+            >
+              Show it
+            </button>
+          )}
+          <Button
+            type="submit"
+            className="h-11 w-full"
+            disabled={pending || missingPool}
+          >
             {pending ? (
               <span className="qc-connect-listening">
                 <span aria-hidden="true" className="qc-connect-listening-dot" />

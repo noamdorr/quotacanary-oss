@@ -1,0 +1,28 @@
+{
+  "name": "quotacanary-site",
+  "version": "0.1.0",
+  "private": true,
+  "description": "The QuotaCanary marketing site (quotacanary.com), a static Astro build served by a small Node server.",
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "start": "node server.mjs",
+    "check": "astro check",
+    "test": "node --test \"test/**/*.test.mjs\"",
+    "tools:pull": "node scripts/pull-tools.mjs"
+  },
+  "dependencies": {
+    "astro": "^7.4.0",
+    "sirv": "^3.0.1"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "devDependencies": {
+    "@astrojs/check": "^0.9.10",
+    "@types/node": "^25.9.9",
+    "typescript": "^6.0.3"
+  }
+}

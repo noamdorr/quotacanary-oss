@@ -1,12 +1,25 @@
 "use server"
 
-import { getAdapter } from "@/lib/adapters/registry"
-import { buildCredentialSecret } from "@/lib/credentials"
-import { encrypt, keyHint } from "@/lib/crypto"
+import {
+  type ConnectionCredential,
+  UUID_PATTERN,
+  type WriteResult,
+  findConnectionWithSameKey,
+  insertConnection,
+  prepareConnection,
+  rekeyOwnedConnection,
+  removeOwnedConnection,
+  renameOwnedConnection,
+} from "@/lib/connection-writes"
 import { refreshConnectionWith } from "@/lib/refresh-connection"
+import { createAdminClient } from "@/lib/supabase/admin"
 import { createClient } from "@/lib/supabase/server"
-import { thresholdOrderError } from "@/lib/thresholds"
-import type { CredentialField, NotifyMode, PoolDef } from "@/lib/types"
+import {
+  criticalFor,
+  thresholdOrderError,
+  warnBelowError,
+} from "@/lib/thresholds"
+import type { NotifyMode } from "@/lib/types"
 import { revalidatePath } from "next/cache"
 
 export type ActionResult = { ok: true } | { ok: false; error: string }
@@ -17,11 +30,7 @@ export type ConnectResult =
       connectionId: string
       balances: { balance: number; label: string; unit: string }[]
     }
-  | { ok: false; error: string }
-
-const NAME_TOO_LONG = "That name is too long (80 characters max)."
-const UUID_PATTERN =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+  | { ok: false; error: string; existingConnectionId?: string }
 
 async function requireUser() {
   const supabase = await createClient()
@@ -40,21 +49,14 @@ function parseTags(raw: FormDataEntryValue | null): string[] {
     .filter(Boolean)
 }
 
-function buildCredentialFromInput(
-  fields: CredentialField[] | null | undefined,
-  input: FormData | string
-):
-  | { ok: true; secret: string; hintValue: string }
-  | { ok: false; error: string } {
-  if (typeof input !== "string") return buildCredentialSecret(fields, input)
-
-  const secret = input.trim()
-  if (!secret) return { ok: false, error: "Credentials are required." }
-  return { ok: true, secret, hintValue: secret }
+// The shared write functions carry an error code for the API; the web only
+// shows the message.
+function toActionResult(result: WriteResult): ActionResult {
+  return result.ok ? { ok: true } : { ok: false, error: result.error }
 }
 
 export async function connectTool(formData: FormData): Promise<ConnectResult> {
-  const { supabase } = await requireUser()
+  const { supabase, user } = await requireUser()
   const createRequestId = String(formData.get("createRequestId") ?? "")
 
   if (!UUID_PATTERN.test(createRequestId)) {
@@ -65,90 +67,45 @@ export async function connectTool(formData: FormData): Promise<ConnectResult> {
   }
 
   const toolId = String(formData.get("toolId") ?? "")
-  const name = String(formData.get("name") ?? "").trim()
-  const tags = parseTags(formData.get("tags"))
-  const watched = formData
-    .getAll("watchedCreditTypes")
-    .map(String)
-    .filter(Boolean)
-
-  if (!toolId || !name) return { ok: false, error: "Missing required fields." }
-  if (name.length > 80) return { ok: false, error: NAME_TOO_LONG }
-  if (tags.length > 20) return { ok: false, error: "Too many tags (20 max)." }
-  if (tags.some((t) => t.length > 40))
-    return { ok: false, error: "Tags must be 40 characters or fewer." }
-
-  const { data: tool } = await supabase
-    .from("tools")
-    .select("credential_fields, pools")
-    .eq("id", toolId)
-    .single()
-
-  // Watched pools must be ones the tool actually declares. A missing tool row
-  // declares none; the adapter lookup below still rejects unknown tools.
-  if (watched.length > 0) {
-    const pools = (tool?.pools as PoolDef[] | null) ?? []
-    const known = new Set(pools.map((p) => p.credit_type))
-    if (watched.length > 20 || !watched.every((w) => known.has(w)))
-      return { ok: false, error: "Unknown credit pool for this tool." }
-  }
-
-  const credential = buildCredentialSecret(
-    (tool?.credential_fields as CredentialField[] | null) ?? null,
-    formData
+  // One key, one connection: a second copy would poll and email twice. Checked
+  // before the vendor read, so a duplicate costs no vendor call (QUO-293).
+  const sameKey = await findConnectionWithSameKey(
+    createAdminClient(),
+    user.id,
+    toolId,
+    formData,
+    createRequestId
   )
-  if (!credential.ok) return { ok: false, error: credential.error }
-
-  const adapter = getAdapter(toolId)
-  if (!adapter) return { ok: false, error: "This tool isn't supported yet." }
-
-  // Validate by performing ONE live balance read (spec §4.4).
-  const result = await adapter.readBalance(credential.secret)
-  if (!result.ok) return { ok: false, error: result.error }
-
-  const { data: connectionId, error: insertErr } = await supabase.rpc(
-    "create_connection_with_balances",
-    {
-      p_tool_id: toolId,
-      p_encrypted_key: encrypt(credential.secret),
-      p_key_hint: keyHint(credential.hintValue),
-      p_name: name,
-      p_tags: tags,
-      p_watched_credit_types: watched.length > 0 ? watched : null,
-      p_balances: result.balances.map((balance) => ({
-        credit_type: balance.creditType,
-        label: balance.label,
-        balance: balance.balance,
-        balance_limit: balance.balanceLimit,
-        unit: balance.unit,
-      })),
-      p_create_request_id: createRequestId,
-    }
-  )
-  if (insertErr || typeof connectionId !== "string") {
+  if (sameKey)
     return {
       ok: false,
-      error: "Couldn't save the connection. Please try again.",
+      // Copy staged for Noam's pick (QUO-293).
+      error: `That key is already connected as ${sameKey.name}.`,
+      existingConnectionId: sameKey.connectionId,
     }
-  }
+
+  const prepared = await prepareConnection(supabase, {
+    toolId,
+    name: String(formData.get("name") ?? ""),
+    tags: parseTags(formData.get("tags")),
+    watchedCreditTypes: formData.getAll("watchedCreditTypes").map(String),
+    credential: formData,
+  })
+  if (!prepared.ok) return { ok: false, error: prepared.error }
+
+  const inserted = await insertConnection(
+    supabase,
+    prepared.prepared,
+    createRequestId
+  )
+  if (!inserted.ok) return { ok: false, error: inserted.error }
 
   revalidatePath("/dashboard")
   revalidatePath(`/tools/${toolId}`)
-  // Summarize the WATCHED pools (falling back to all readings), so a multi-pool
-  // connect reports exactly what's now being tracked, not an unwatched pool.
-  const watchedReadings =
-    watched.length > 0
-      ? result.balances.filter((b) => watched.includes(b.creditType))
-      : result.balances
-  const summary = watchedReadings.length > 0 ? watchedReadings : result.balances
   return {
     ok: true,
-    connectionId,
-    balances: summary.map((b) => ({
-      balance: b.balance,
-      label: b.label,
-      unit: b.unit,
-    })),
+    connectionId: inserted.connectionId,
+    balances: prepared.prepared.summary,
   }
 }
 
@@ -193,15 +150,13 @@ export async function renameConnection(
   name: string
 ): Promise<ActionResult> {
   const { supabase, user } = await requireUser()
-  const trimmed = name.trim()
-  if (!trimmed) return { ok: false, error: "Name can't be empty." }
-  if (trimmed.length > 80) return { ok: false, error: NAME_TOO_LONG }
-  const { error } = await supabase
-    .from("connections")
-    .update({ name: trimmed, updated_at: new Date().toISOString() })
-    .eq("id", connectionId)
-    .eq("user_id", user.id)
-  if (error) return { ok: false, error: "Couldn't rename." }
+  const result = await renameOwnedConnection(
+    supabase,
+    user.id,
+    connectionId,
+    name
+  )
+  if (!result.ok) return toActionResult(result)
   revalidatePath("/dashboard")
   revalidatePath("/tools/[toolId]", "page")
   return { ok: true }
@@ -209,41 +164,19 @@ export async function renameConnection(
 
 export async function updateKey(
   connectionId: string,
-  credentials: FormData | string
+  credentials: ConnectionCredential
 ): Promise<ActionResult> {
   const { supabase, user } = await requireUser()
-  const { data: conn } = await supabase
-    .from("connections")
-    .select("tool_id, tool:tools(credential_fields)")
-    .eq("id", connectionId)
-    .eq("user_id", user.id)
-    .single()
-  if (!conn) return { ok: false, error: "Connection not found." }
-  const adapter = getAdapter(conn.tool_id)
-  if (!adapter) return { ok: false, error: "Unsupported tool." }
-  // biome-ignore lint/suspicious/noExplicitAny: Supabase embedded-select rows are untyped here
-  const tool = (conn as any).tool as {
-    credential_fields: CredentialField[] | null
-  } | null
-  const credential = buildCredentialFromInput(
-    tool?.credential_fields,
+  // The owner-scoped lookup runs on the session client (RLS remains the
+  // primary guard); only the ciphertext write escalates to the admin client.
+  const result = await rekeyOwnedConnection(
+    supabase,
+    createAdminClient(),
+    user.id,
+    connectionId,
     credentials
   )
-  if (!credential.ok) return { ok: false, error: credential.error }
-  const check = await adapter.readBalance(credential.secret)
-  if (!check.ok) return { ok: false, error: check.error }
-  const { error } = await supabase
-    .from("connections")
-    .update({
-      encrypted_key: encrypt(credential.secret),
-      key_hint: keyHint(credential.hintValue),
-      status: "active",
-      last_error: null,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", connectionId)
-    .eq("user_id", user.id)
-  if (error) return { ok: false, error: "Couldn't update the key." }
+  if (!result.ok) return toActionResult(result)
   revalidatePath("/dashboard")
   revalidatePath("/tools/[toolId]", "page")
   return { ok: true }
@@ -253,12 +186,8 @@ export async function removeConnection(
   connectionId: string
 ): Promise<ActionResult> {
   const { supabase, user } = await requireUser()
-  const { error } = await supabase
-    .from("connections")
-    .delete()
-    .eq("id", connectionId)
-    .eq("user_id", user.id)
-  if (error) return { ok: false, error: "Couldn't remove the connection." }
+  const result = await removeOwnedConnection(supabase, user.id, connectionId)
+  if (!result.ok) return toActionResult(result)
   revalidatePath("/dashboard")
   revalidatePath("/tools/[toolId]", "page")
   return { ok: true }
@@ -327,23 +256,30 @@ export async function setThresholds(
   return { ok: true }
 }
 
+// One user-set number per balance: Warn below is stored as low and Critical is
+// derived from it on save. null (a blank field) removes the balance's override
+// so it falls back to the connection and tool defaults. Other balances' stored
+// pairs are left as they are, 3:1 or not.
 export async function setPoolThresholds(
   connectionId: string,
   creditType: string,
-  low: number | null,
-  critical: number | null
+  warnBelow: number | null
 ): Promise<ActionResult> {
   const { supabase, user } = await requireUser()
-  const orderError = thresholdOrderError(low, critical)
-  if (orderError) return { ok: false, error: orderError }
-  const { data: conn } = await supabase
+  const invalid = warnBelowError(warnBelow)
+  if (invalid) return { ok: false, error: invalid }
+  const { data: conn, error: readError } = await supabase
     .from("connections")
     .select("pool_thresholds")
     .eq("id", connectionId)
     .eq("user_id", user.id)
     .single()
-  const next = { ...(conn?.pool_thresholds ?? {}) }
-  next[creditType] = { low, critical }
+  // Writing back from an empty map would drop every other balance's number.
+  if (readError || !conn)
+    return { ok: false, error: "Couldn't save thresholds." }
+  const next = { ...(conn.pool_thresholds ?? {}) }
+  if (warnBelow == null) delete next[creditType]
+  else next[creditType] = { low: warnBelow, critical: criticalFor(warnBelow) }
   const { error } = await supabase
     .from("connections")
     .update({ pool_thresholds: next, updated_at: new Date().toISOString() })

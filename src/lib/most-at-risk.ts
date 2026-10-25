@@ -3,7 +3,7 @@ import type { PoolRow } from "@/lib/pool-rows"
 
 // Lower score = more urgent. dry (balance 0) is most urgent; a measurable
 // countdown ranks by daysLeft; no pool / no burn ranks last.
-function urgency(row: PoolRow): number {
+export function runwayRank(row: PoolRow): number {
   const pool = row.pool
   if (!pool) return Number.POSITIVE_INFINITY
   if (pool.balance <= 0) return -1
@@ -14,9 +14,9 @@ function urgency(row: PoolRow): number {
 export function mostAtRisk(rows: PoolRow[]): PoolRow | null {
   if (rows.length === 0) return null
   let best = rows[0]
-  let bestScore = urgency(best)
+  let bestScore = runwayRank(best)
   for (const row of rows.slice(1)) {
-    const score = urgency(row)
+    const score = runwayRank(row)
     if (score < bestScore) {
       best = row
       bestScore = score

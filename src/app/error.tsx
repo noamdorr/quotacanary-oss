@@ -22,8 +22,7 @@ export default function ErrorBoundary({
         Something broke. It wasn&apos;t you.
       </h1>
       <p className="max-w-md text-sm text-[var(--ink-3)]">
-        An unexpected error stopped this page. Try again - if it keeps
-        happening, it&apos;s on us.
+        An unexpected error stopped this page. Nothing was changed.
       </p>
       <div className="flex items-center gap-3">
         <button type="button" onClick={reset} className="btn btn-primary">

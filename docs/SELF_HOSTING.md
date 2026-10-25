@@ -1,6 +1,8 @@
 # Self-Hosting QuotaCanary
 
-The hosted app at https://quotacanary.com is free and is the right choice for almost everyone. Self-host when you would rather your API keys never touch a third-party server. When you self-host, you hold the encryption key and the database; nothing leaves your infrastructure.
+Mac users can build [QuotaCanary for Mac](../mac/docs/BUILDING.md), which keeps vendor keys in the login Keychain and sends them directly to their vendors, never to QuotaCanary servers. If you opt in to update checks, the Mac app sends its app version, macOS version and chip to the signed update feed. Checks and alerts run while the app is running and the Mac is awake and online.
+
+Not on a Mac? Run the web version yourself. You hold the database and encryption key, and you operate the server and polling schedule. This guide is for your own instance, not a QuotaCanary-operated service.
 
 QuotaCanary is a Next.js app backed by Supabase (Postgres + Auth). "Self-host" means running both. You have two ways to get Supabase:
 
@@ -85,25 +87,137 @@ Set `APP_ONLY=true`. Every request then serves the dashboard app, so you can run
 
 ## Keeping balances fresh (the poll cron)
 
-Balances refresh when something calls `POST /api/poll` with your `POLL_SECRET`. Pick one:
+Balances refresh when something calls `POST /api/poll` with your `POLL_SECRET`.
+Use one scheduler every 15 minutes. The app's missed-run counter assumes this
+interval; an hourly schedule produces misleading missed-run warnings.
+
+### Keep the secret out of the command
+
+Run setup as the account that will run cron. Create a private curl config outside
+the checkout, then edit it locally (or mount an equivalent file from your secret
+manager). Do not paste the real secret into a terminal command or crontab.
 
 ```bash
-# A plain cron entry (server self-host), every hour:
-0 * * * * curl -s -X POST https://your-instance.example.com/api/poll \
-  -H "Authorization: Bearer $POLL_SECRET" >/dev/null
+umask 077
+mkdir -p "$HOME/.config/quotacanary" "$HOME/.local/bin"
+touch "$HOME/.config/quotacanary/poll.curl"
+chmod 700 "$HOME/.config/quotacanary"
+chmod 600 "$HOME/.config/quotacanary/poll.curl"
 ```
 
-- **Railway / Fly:** add a scheduled job (Railway Cron, Fly machines schedule) that runs the curl above.
-- **Vercel:** add a [Vercel Cron](https://vercel.com/docs/cron-jobs) hitting `/api/poll` (Vercel has no always-on process, so you must use Cron or an external scheduler).
-- **Local:** a `crontab` entry pointing at `http://localhost:3000/api/poll` while your machine is on.
+Put these two lines in `~/.config/quotacanary/poll.curl`, replacing the placeholders
+in your editor. Use the app's direct HTTPS origin, without redirects. For a local
+instance only, use `http://127.0.0.1:3000/api/poll` with `APP_ONLY=true`.
+
+```text
+url = "https://your-instance.example.com/api/poll"
+header = "Authorization: Bearer REPLACE_WITH_YOUR_POLL_SECRET"
+```
+
+Keep this file and editor backups private. Curl reads the header from the file,
+so the secret is absent from process arguments and shell history. Do not enable
+shell tracing (`set -x`), curl verbose/trace output, or request-header logging.
+
+### Install and schedule the command
+
+Save the following as `~/.local/bin/quotacanary-poll`:
+
+```sh
+#!/bin/sh
+set -eu
+poll_config="${1:-$HOME/.config/quotacanary/poll.curl}"
+poll_exit=0
+poll_http=$(curl -q --config "$poll_config" \
+  --request POST --fail --silent --output /dev/null \
+  --write-out '%{http_code}' --connect-timeout 10 --max-time 300 \
+  --retry 0 2>/dev/null) || poll_exit=$?
+case "$poll_exit:$poll_http" in
+  0:2[0-9][0-9]) exit 0 ;;
+esac
+printf 'QuotaCanary poll failed: curl exit %s, HTTP %s\n' \
+  "$poll_exit" "${poll_http:-000}" >&2
+exit 1
+```
+
+This exits nonzero for HTTP errors, redirects, and transport failures. It keeps
+only the HTTP status and curl exit code in stderr; raw response bodies, URLs,
+headers, and curl diagnostics are discarded because an upstream error page can
+contain sensitive data. `-q` prevents a personal `.curlrc` from enabling tracing
+or changing the request. See the [curl options reference](https://curl.se/docs/manpage.html).
+
+Make it executable, then run it once while watching your app logs:
+
+```bash
+chmod 700 "$HOME/.local/bin/quotacanary-poll"
+"$HOME/.local/bin/quotacanary-poll"
+```
+
+For plain cron, add this **single line** with `crontab -e` as the same account:
+
+```cron
+*/15 * * * * "$HOME/.local/bin/quotacanary-poll"
+```
+
+Keep stderr available to cron mail or your scheduler's failure notifications;
+a nonzero exit alone does not notify anyone. The external monitor below also
+catches a scheduler that never starts. Container jobs can pass a mounted config
+path as the script's first argument, for example `/run/secrets/poll.curl`.
+
+- **Timeout:** 10 seconds to connect, 300 seconds for the whole client request.
+  Your host may terminate the server earlier. Curl exit 28 means a client timeout;
+  22 with HTTP 401 means the bearer secret was rejected; HTTP 500 means the poll
+  or its infrastructure failed. HTTP 000 means no HTTP status was received.
+- **Retries:** none, including at the scheduler level. A failed or timed-out POST
+  may already have refreshed balances or sent alerts. Inspect app logs and run
+  history before a manual retry; do not add `--retry-all-errors`.
+- **Overlap:** keep exactly one scheduler and no concurrent manual runs. There
+  is no global poll lock. Where supported, disable concurrent job execution. A
+  client timeout does not cancel server work, so inspect a timed-out run before
+  starting another. A local job lock cannot coordinate multiple machines.
+
+**Where to schedule:** Fly.io or another job runner can execute the script;
+local cron only works while your machine and app are running. For an app hosted
+on Vercel, use an external runner that can make this authenticated POST.
+[Vercel Cron sends GET requests](https://vercel.com/docs/cron-jobs#how-cron-jobs-work),
+so pointing it directly at this POST-only endpoint will not work.
+
+### Know when polling stops
+
+Configure these on the **app server**, not the cron runner:
+
+- Set `POLL_HEARTBEAT_URL` to a private ping URL from an external cron monitor
+  that supports POST pings and a `/fail` suffix. Configure a 15-minute expected
+  interval, a 10-minute grace period, and a notification destination you check.
+  Completed failed runs ping `/fail`; missing pings catch a stopped scheduler,
+  rejected credentials, or an unavailable app/database. Keep the ping URL private.
+- Optionally set `POLL_ALERT_EMAIL` and `POSTMARK_SERVER_TOKEN` for an email with
+  run counts on failure, missed runs, or repeated degradation. Email alone cannot
+  report an app that is down. Both monitoring features are off when unset.
+
+HTTP 200 can still mean `degraded`: some refreshes or alert sends failed. Degraded
+runs deliberately send a success heartbeat because the scheduler is alive.
+Inspect persistent degradation in app logs (`[poll] run degraded`) or the recent
+run history in your own database:
+
+```sql
+select started_at, finished_at, outcome, refresh_failed, alerts_failed,
+       alerts_degraded, missed_runs
+from public.poll_runs
+order by started_at desc
+limit 20;
+```
+
+Verify that one scheduled run records a recent row and reaches your monitor.
+Then test the monitor's notification path; do not assume a configured destination
+has delivered an alert. After changing the secret, update both the app and the
+private curl config, and verify the next run again.
 
 ## Deploy targets
 
 | Host | Always-on poller | Notes |
 | --- | --- | --- |
-| Railway | native | Recommended. Persistent Node server; add a Railway Cron for `/api/poll`. |
-| Fly.io | native | Container host like Railway; schedule the poll with a Fly cron machine. |
-| Vercel | needs Vercel Cron | Serverless; the app runs, but background polling must come from Vercel Cron or an external scheduler. |
+| Fly.io | native | Container host; schedule the poll with a Fly cron machine. |
+| Vercel | external POST runner | Schedule the authenticated POST externally; native Vercel Cron uses GET. |
 
 Any host that runs `npm run build && npm run start` for a Next.js app works; the only host-specific concern is how you schedule the poll.
 

@@ -1,0 +1,255 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "tools": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Display name used in error copy"
+          },
+          "topupUrl": {
+            "description": "Where the user buys more credits; mirrors tools.topup_url on the hosted side",
+            "type": "string",
+            "format": "starts_with",
+            "pattern": "^https:\\/\\/.*"
+          },
+          "request": {
+            "type": "object",
+            "properties": {
+              "method": {
+                "type": "string",
+                "enum": ["GET", "POST"]
+              },
+              "url": {
+                "type": "string",
+                "format": "starts_with",
+                "pattern": "^https:\\/\\/.*",
+                "description": "Absolute URL. With auth.in = path it contains {key}, replaced by the percent-encoded key"
+              },
+              "headers": {
+                "description": "Static headers sent as-is beside the auth header",
+                "type": "object",
+                "propertyNames": {
+                  "type": "string"
+                },
+                "additionalProperties": {
+                  "type": "string"
+                }
+              },
+              "body": {
+                "description": "Raw request body, sent verbatim",
+                "type": "string"
+              }
+            },
+            "required": ["method", "url"],
+            "additionalProperties": false
+          },
+          "auth": {
+            "type": "object",
+            "properties": {
+              "in": {
+                "type": "string",
+                "enum": ["header", "query", "path"]
+              },
+              "name": {
+                "description": "Header or query parameter name; absent for path",
+                "type": "string",
+                "minLength": 1
+              },
+              "format": {
+                "default": "{key}",
+                "description": "Header value template; {key} is replaced by the raw key",
+                "type": "string"
+              }
+            },
+            "required": ["in"],
+            "additionalProperties": false
+          },
+          "errors": {
+            "description": "Per-status overrides on top of the default {401: invalid_key}; every other non-2xx status is http",
+            "type": "object",
+            "propertyNames": {
+              "type": "string",
+              "pattern": "^[1-5]\\d\\d$"
+            },
+            "additionalProperties": {
+              "type": "string",
+              "enum": ["invalid_key", "http"]
+            }
+          },
+          "errorPath": {
+            "description": "When a 2xx body carries a non-empty string here, fail with that string",
+            "type": "string",
+            "minLength": 1
+          },
+          "rejectWhen": {
+            "description": "When the value at path equals this boolean, the key was rejected (vendors that answer 200 on a bad key)",
+            "type": "object",
+            "properties": {
+              "path": {
+                "type": "string",
+                "minLength": 1,
+                "description": "Dotted path into the JSON body, e.g. data.credits; a numeric segment indexes an array (0 for a bare-array body)"
+              },
+              "equals": {
+                "type": "boolean"
+              }
+            },
+            "required": ["path", "equals"],
+            "additionalProperties": false
+          },
+          "bodyError": {
+            "description": "A vendor-reported error in the body: a flag at when.path selects the first non-empty string in messagePaths, or that string is the trigger",
+            "type": "object",
+            "properties": {
+              "when": {
+                "description": "The flag that marks the body as an error. Absent: a non-empty string in messagePaths is itself the error",
+                "anyOf": [
+                  {
+                    "type": "object",
+                    "properties": {
+                      "path": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "Dotted path into the JSON body, e.g. data.credits; a numeric segment indexes an array (0 for a bare-array body)"
+                      },
+                      "equals": {
+                        "type": "boolean"
+                      }
+                    },
+                    "required": ["path", "equals"],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "path": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "Dotted path into the JSON body, e.g. data.credits; a numeric segment indexes an array (0 for a bare-array body)"
+                      },
+                      "notEquals": {
+                        "type": "string"
+                      }
+                    },
+                    "required": ["path", "notEquals"],
+                    "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "path": {
+                        "type": "string",
+                        "minLength": 1,
+                        "description": "Dotted path into the JSON body, e.g. data.credits; a numeric segment indexes an array (0 for a bare-array body)"
+                      },
+                      "truthy": {
+                        "type": "boolean",
+                        "const": true
+                      }
+                    },
+                    "required": ["path", "truthy"],
+                    "additionalProperties": false
+                  }
+                ]
+              },
+              "messagePaths": {
+                "minItems": 1,
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Dotted path into the JSON body, e.g. data.credits; a numeric segment indexes an array (0 for a bare-array body)"
+                },
+                "description": "Tried in order; the first non-empty string is the error"
+              },
+              "keyRejectedWhen": {
+                "description": "With when only: when the value at path is this string, the key was rejected (copy: rejected this key) instead of the message",
+                "type": "object",
+                "properties": {
+                  "path": {
+                    "type": "string",
+                    "minLength": 1,
+                    "description": "Dotted path into the JSON body, e.g. data.credits; a numeric segment indexes an array (0 for a bare-array body)"
+                  },
+                  "equals": {
+                    "type": "string"
+                  }
+                },
+                "required": ["path", "equals"],
+                "additionalProperties": false
+              },
+              "fallback": {
+                "description": "With when only: the copy when the flag fires and no message is found (default error)",
+                "type": "string",
+                "enum": ["error", "invalid_key"]
+              },
+              "on": {
+                "default": "2xx",
+                "description": "Which responses carry the body to read; on a failing status the body is read after the status overrides",
+                "type": "string",
+                "enum": ["2xx", "non2xx", "any"]
+              }
+            },
+            "required": ["messagePaths"],
+            "additionalProperties": false
+          },
+          "pools": {
+            "minItems": 1,
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "creditType": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "label": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "unit": {
+                  "type": "string",
+                  "enum": ["credits", "usd", "gb", "minutes"]
+                },
+                "balance": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Dotted path into the JSON body, e.g. data.credits; a numeric segment indexes an array (0 for a bare-array body)"
+                },
+                "limit": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Dotted path into the JSON body, e.g. data.credits; a numeric segment indexes an array (0 for a bare-array body)"
+                },
+                "used": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Dotted path into the JSON body, e.g. data.credits; a numeric segment indexes an array (0 for a bare-array body)"
+                }
+              },
+              "required": ["creditType", "label", "unit"],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": ["id", "name", "request", "auth", "pools"],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": ["tools"],
+  "additionalProperties": false
+}

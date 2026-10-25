@@ -90,3 +90,40 @@ describe("sortPoolRows", () => {
     ])
   })
 })
+
+// QUO-201: Status sorts by the Warn below state; runway (time to empty) breaks
+// ties inside a state.
+function burning(id: string, balance: number, perDay: number): PoolRow {
+  const r = row(id, balance)
+  if (!r.pool) throw new Error("fixture has a pool")
+  r.pool.history = [
+    { balance: balance + perDay, recorded_at: "2026-05-26T00:00:00Z" },
+    { balance, recorded_at: "2026-05-27T00:00:00Z" },
+  ]
+  return r
+}
+
+describe("sortPoolRows runway", () => {
+  it("breaks a status tie by the shorter runway", () => {
+    // Both low (balance <= 300): 250/10 = 25 days versus 200/100 = 2 days.
+    const sorted = sortPoolRows(
+      [burning("slow", 250, 10), burning("fast", 200, 100)],
+      "status",
+      "asc"
+    )
+    expect(sorted.map((r) => r.connection.id)).toEqual(["fast", "slow"])
+  })
+
+  it("keeps the threshold state ahead of runway under Status", () => {
+    // Healthy with 2 days of runway still sorts after low with 25 days.
+    const sorted = sortPoolRows(
+      [burning("healthy-fast", 2000, 1000), burning("low-slow", 250, 10)],
+      "status",
+      "asc"
+    )
+    expect(sorted.map((r) => r.connection.id)).toEqual([
+      "low-slow",
+      "healthy-fast",
+    ])
+  })
+})

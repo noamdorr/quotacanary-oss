@@ -1,4 +1,5 @@
 import { LegalPage, LegalSection } from "@/components/marketing/LegalPage"
+import { COPY } from "@/components/marketing/copy"
 import type { Metadata } from "next"
 
 export const metadata: Metadata = {
@@ -9,7 +10,7 @@ export const metadata: Metadata = {
 
 export default function SecurityPage() {
   return (
-    <LegalPage title="Security" updated="August 12, 2026">
+    <LegalPage title="Security" updated="October 11, 2026">
       <p style={{ fontSize: 16, lineHeight: 1.65, margin: 0 }}>
         QuotaCanary stores third-party API keys so it can read your credit
         balances. This page explains exactly how those keys are handled, and is
@@ -96,6 +97,10 @@ export default function SecurityPage() {
           the code is identical, so you can read exactly what it does before you
           trust it.
         </p>
+      </LegalSection>
+
+      <LegalSection heading={COPY.mac.securityHeading}>
+        <p>{COPY.mac.securityParagraph}</p>
       </LegalSection>
 
       <LegalSection heading="A tip that limits blast radius">

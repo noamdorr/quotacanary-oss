@@ -1,7 +1,8 @@
 import { MarketingFooter } from "@/components/marketing/MarketingFooter"
 import { MarketingNav } from "@/components/marketing/MarketingNav"
 import { APP_SIGNUP_URL } from "@/components/marketing/constants"
-import { getActiveTools, getToolById } from "@/lib/db/tools"
+import { NONCE_HEADER } from "@/lib/csp"
+import { getToolById } from "@/lib/db/tools"
 import {
   categoryLabel,
   toolSubheading,
@@ -10,19 +11,13 @@ import {
 import { withUtm } from "@/lib/marketing/utm"
 import { ArrowLeft, ExternalLink } from "lucide-react"
 import type { Metadata } from "next"
+import { headers } from "next/headers"
 import { notFound } from "next/navigation"
 import type { ReactNode } from "react"
 
-// Pre-render known tools at build time, but render newly added tools on first
-// request (notFound() below still 404s unknown ids), and refresh hourly.
-export const dynamicParams = true
-export const revalidate = 3600
-
-export async function generateStaticParams() {
-  const tools = await getActiveTools()
-  return tools.map((t) => ({ id: t.id }))
-}
-
+// Rendered per request (the root layout reads the CSP nonce, which rules out
+// a prerender); the catalog read behind it is cached hourly in lib/db/tools,
+// and notFound() below still 404s unknown ids.
 export async function generateMetadata({
   params,
 }: {
@@ -63,6 +58,9 @@ export default async function ToolDirectoryPage({
   const { id } = await params
   const tool = await getToolById(id)
   if (!tool) notFound()
+  // JSON-LD is data, not code, but Google's structured-data guidance tells
+  // sites with a CSP to nonce it anyway, and it costs nothing here.
+  const nonce = (await headers()).get(NONCE_HEADER) ?? undefined
 
   const topupUrl = withUtm(tool.topup_url, { medium: "tool-page" })
   const websiteUrl = toolWebsiteUrl(tool)
@@ -187,17 +185,6 @@ export default async function ToolDirectoryPage({
               </Section>
             ) : null}
 
-            {tool.key_instructions ? (
-              <Section label="Find your API key">
-                <p
-                  className="text-pretty"
-                  style={{ fontSize: 14, color: "var(--ink-2)", margin: 0 }}
-                >
-                  {tool.key_instructions}
-                </p>
-              </Section>
-            ) : null}
-
             <Section label="Balance warnings">
               <p
                 className="text-pretty"
@@ -237,7 +224,7 @@ export default async function ToolDirectoryPage({
                   target="_blank"
                   rel="noopener noreferrer"
                 >
-                  Get more
+                  Top up
                 </a>
               ) : null}
               {tool.api_docs_url ? (
@@ -256,7 +243,7 @@ export default async function ToolDirectoryPage({
         </article>
       </main>
       <MarketingFooter />
-      <script type="application/ld+json">
+      <script type="application/ld+json" nonce={nonce}>
         {JSON.stringify(jsonLd).replace(/</g, "\\u003c")}
       </script>
     </>

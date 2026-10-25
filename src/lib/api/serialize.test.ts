@@ -132,6 +132,22 @@ describe("serializePoolRow", () => {
     expect(payload.thresholds).toEqual({ low: 500, critical: 100 })
   })
 
+  // QUO-292: the Mac matches an account connection to a local one on tool
+  // id + the last 4 of the key, so the hint the web already shows rides along.
+  it("carries the connection's key hint, null when none is stored", () => {
+    const pool = makePool()
+    expect(
+      serializePoolRow({
+        connection: makeConn({ key_hint: "wxyz", pools: [pool] }),
+        pool,
+      }).keyHint
+    ).toBe("wxyz")
+    expect(
+      serializePoolRow({ connection: makeConn({ pools: [] }), pool: null })
+        .keyHint
+    ).toBeNull()
+  })
+
   it("low status when balance is at or below low threshold", () => {
     const pool = makePool({ balance: 400 })
     const conn = makeConn({
@@ -229,8 +245,8 @@ describe("serializePoolRow", () => {
     expect(payload.burn).not.toBeNull()
     expect(payload.burn?.perDay).toBeCloseTo(200, 0)
     expect(payload.burn?.daysLeft).toBeCloseTo(3, 0)
-    // eta should mention a day/days out (Saturday from Wednesday ref)
-    expect(payload.eta.short).toMatch(/burn|Saturday/i)
+    // eta is relative, never a weekday (QUO-184)
+    expect(payload.eta.short).toBe("in ~3 days")
     expect(payload.eta.long).toContain("~3 days")
   })
 

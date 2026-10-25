@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { emaillistverifyAdapter } from "./emaillistverify"
+import { catalogAdapterFor } from "./catalog"
+
+const emaillistverifyAdapter = catalogAdapterFor("emaillistverify")
 afterEach(() => vi.restoreAllMocks())
 describe("emaillistverify adapter", () => {
   it("returns ondemand and subscription readings", async () => {

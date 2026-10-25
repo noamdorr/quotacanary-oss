@@ -1,8 +1,18 @@
 # Security
 
-QuotaCanary stores third-party API keys so it can read your credit balances. This document explains exactly how those keys are handled, and is honest about what hosting model protects against what.
+## QuotaCanary for Mac
+
+Your vendor API keys live in the Mac’s login Keychain, with synchronization disabled. They never go to QuotaCanary servers. The app makes read-only balance requests directly to each vendor, using that vendor’s key. Local connection files and history do not store plaintext keys.
+
+If you opt in to update checks, the app sends its app version, macOS version and chip to the signed update feed.
+
+The Mac app has no analytics and requires no QuotaCanary account. Checks and alerts work while the app is running and your Mac is awake and online. Local storage is not protection against someone who controls your unlocked Mac.
 
 The same model is published for non-developers at [quotacanary.com/security](https://quotacanary.com/security). Keep the two in step when you change either.
+
+## When you run the web version yourself
+
+The [self-host web app](docs/SELF_HOSTING.md) uses a different storage model. You operate the server, database, credentials and polling schedule. Its API and MCP server serve that instance, not the Mac app’s local connections.
 
 ## How keys are stored
 
@@ -13,17 +23,13 @@ The same model is published for non-developers at [quotacanary.com/security](htt
 - Ciphertext **never reaches the browser**. Keys are decrypted server-side only at poll time, to make a single read-only call to the vendor.
 - QuotaCanary makes **read-only** calls. It reads balances; it never modifies your accounts on connected tools.
 
-## The honest limit
+## The honest limit for self-hosters
 
-On the **hosted** app, the server can technically decrypt your keys, because it has to use them to poll your balances while you are away. This is true of any hosted tool that acts on your behalf. Encryption-at-rest protects against a database leak; it does not mean the operator is cryptographically incapable of decryption.
+Your web server can decrypt vendor keys because it needs them to poll balances. Encryption at rest protects against a database leak alone; it does not prevent an operator or an attacker with both the database and server secrets from decrypting them. Choose infrastructure you trust, restrict access and keep backups and logs free of secrets.
 
-If you do not want any operator to be able to decrypt your keys, **self-host** (see [docs/SELF_HOSTING.md](docs/SELF_HOSTING.md)). Then you are the operator, you hold the `ENCRYPTION_KEY`, and your keys never leave your infrastructure. The code is identical, so you can read exactly what it does.
+## Limit access
 
-## A tip that limits blast radius
-
-Where a vendor offers it, paste a **read-only or scoped** API key. QuotaCanary only needs to read balances, so a scoped key means the worst case is "someone could read your balance," which is close to nothing.
-
-A minor note for the thorough: a few vendor adapters pass the key as a `?api_key=` URL parameter. Over HTTPS that is encrypted in transit; the only theoretical exposure is the vendor's own request logs, not QuotaCanary.
+Where a vendor supports it, use a read-only or narrowly scoped API key. The actual access granted depends on the vendor; a balance checker cannot reduce a key’s permissions itself. Some adapters send credentials as URL parameters, so vendor or proxy request logs may contain them even when transport uses HTTPS.
 
 ## Reporting a vulnerability
 

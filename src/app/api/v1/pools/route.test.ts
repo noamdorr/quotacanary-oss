@@ -470,6 +470,121 @@ describe("GET /api/v1/pools", () => {
   })
 
   // -------------------------------------------------------------------------
+  describe("X-QuotaCanary-Scopes header", () => {
+    it("reports the token's scopes on every authenticated response, never on 401", async () => {
+      mockVerify.mockResolvedValue({
+        userId: "user-1",
+        tokenId: "tok-1",
+        scopes: ["read", "write"],
+      })
+      mockConsume.mockResolvedValue({
+        allowed: true,
+        remaining: 59,
+        resetSeconds: 42,
+      })
+      mockList.mockResolvedValue([HEALTHY_CONN])
+      const ok = await GET(bearerRequest("qc_live_test"))
+      expect(ok.status).toBe(200)
+      expect(ok.headers.get("X-QuotaCanary-Scopes")).toBe("read write")
+
+      const badFilter = await GET(
+        bearerRequest("qc_live_test", { status: "nope" })
+      )
+      expect(badFilter.status).toBe(400)
+      expect(badFilter.headers.get("X-QuotaCanary-Scopes")).toBe("read write")
+
+      mockConsume.mockResolvedValue({
+        allowed: false,
+        remaining: 0,
+        resetSeconds: 7,
+      })
+      const limited = await GET(bearerRequest("qc_live_test"))
+      expect(limited.status).toBe(429)
+      expect(limited.headers.get("X-QuotaCanary-Scopes")).toBe("read write")
+
+      mockVerify.mockResolvedValue({
+        userId: "user-1",
+        tokenId: "tok-1",
+        scopes: [],
+      })
+      const noScope = await GET(bearerRequest("qc_live_test"))
+      expect(noScope.status).toBe(403)
+      expect(noScope.headers.get("X-QuotaCanary-Scopes")).toBe("")
+
+      mockVerify.mockResolvedValue(null)
+      const anon = await GET(bearerRequest("qc_live_test"))
+      expect(anon.status).toBe(401)
+      expect(anon.headers.get("X-QuotaCanary-Scopes")).toBeNull()
+    })
+  })
+
+  // -------------------------------------------------------------------------
+  // QUO-274: the Mac names the account a one-way move lands in. Opt-in, so
+  // other clients never pay for the extra Auth lookup.
+  describe("?include=account", () => {
+    const getUserById = vi.fn()
+    beforeEach(() => {
+      mockVerify.mockResolvedValue({
+        userId: "user-1",
+        tokenId: "tok-1",
+        scopes: ["read"],
+      })
+      mockConsume.mockResolvedValue({
+        allowed: true,
+        remaining: 59,
+        resetSeconds: 42,
+      })
+      mockList.mockResolvedValue([HEALTHY_CONN])
+      mockAdmin.mockReturnValue({
+        auth: { admin: { getUserById } },
+      } as unknown as ReturnType<typeof createAdminClient>)
+    })
+
+    it("adds the token owner's verified email, looked up by the token's userId", async () => {
+      getUserById.mockResolvedValue({
+        data: { user: { id: "user-1", email: "owner@example.com" } },
+        error: null,
+      })
+      const res = await GET(
+        bearerRequest("qc_live_test", { include: "account", user_id: "evil" })
+      )
+      expect(res.status).toBe(200)
+      const body = await res.json()
+      expect(body.account).toEqual({ email: "owner@example.com" })
+      expect(body.pools).toHaveLength(1)
+      expect(getUserById).toHaveBeenCalledWith("user-1")
+    })
+
+    it("leaves the response unchanged without the parameter", async () => {
+      const res = await GET(bearerRequest("qc_live_test"))
+      const body = await res.json()
+      expect(body).not.toHaveProperty("account")
+      expect(getUserById).not.toHaveBeenCalled()
+    })
+
+    it("omits account rather than failing when the lookup errors", async () => {
+      getUserById.mockResolvedValue({
+        data: { user: null },
+        error: new Error("auth down"),
+      })
+      const res = await GET(
+        bearerRequest("qc_live_test", { include: "account" })
+      )
+      expect(res.status).toBe(200)
+      const body = await res.json()
+      expect(body).not.toHaveProperty("account")
+      expect(body.pools).toHaveLength(1)
+
+      getUserById.mockRejectedValue(new Error("network"))
+      const thrown = await GET(
+        bearerRequest("qc_live_test", { include: "account" })
+      )
+      expect(thrown.status).toBe(200)
+      expect(await thrown.json()).not.toHaveProperty("account")
+    })
+  })
+
+  // -------------------------------------------------------------------------
   describe("Cache-Control header", () => {
     it("sets Cache-Control: no-store on success", async () => {
       mockVerify.mockResolvedValue({

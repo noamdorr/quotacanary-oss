@@ -1,10 +1,9 @@
 "use client"
 
 import { Canary, type CanaryMood } from "@/components/brand/Canary"
-import { effectiveStatus } from "@/lib/balance-status"
-import { poolEta } from "@/lib/pool-eta"
+import { assessPool } from "@/lib/pool-assessment"
 import type { PoolRow } from "@/lib/pool-rows"
-import { resolvePoolThresholds } from "@/lib/thresholds"
+import { HEALTHY_SHORT_RUNWAY_NOTE, HERO_EYEBROW } from "@/lib/runway-copy"
 import { ExternalLink } from "lucide-react"
 import { StatusPill } from "./StatusPill"
 
@@ -12,15 +11,7 @@ export function BurnRateHero({ row }: { row: PoolRow }) {
   if (!row.pool) return null
 
   const { connection: c, pool } = row
-  const { low, critical } = resolvePoolThresholds(c, pool.creditType ?? "")
-  const status = effectiveStatus({
-    balance: pool.balance ?? null,
-    low,
-    critical,
-    connectionStatus: c.status,
-  })
-  const tone = status.kind === "level" ? status.level : "neutral"
-  const eta = poolEta(pool)
+  const { status, tone, eta } = assessPool(row)
   // The bird plays by its own lore: quiet when everything is fine, singing
   // while a warning is live ("sings before the credits die"), belly-up once
   // the pool is actually empty, and wide-eyed when the reading can't be
@@ -46,7 +37,7 @@ export function BurnRateHero({ row }: { row: PoolRow }) {
           className="font-mono text-[11px] font-medium uppercase tracking-[0.18em]"
           style={{ color: accent }}
         >
-          Next to die
+          {HERO_EYEBROW}
         </span>
         <div className="flex items-start gap-3">
           {c.tool.topup_url && (
@@ -54,9 +45,9 @@ export function BurnRateHero({ row }: { row: PoolRow }) {
               href={c.tool.topup_url}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex h-7 items-center gap-1 rounded-lg bg-foreground px-2.5 text-xs font-semibold text-background transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+              className="inline-flex h-7 items-center gap-1 whitespace-nowrap rounded-lg bg-foreground px-2.5 text-xs font-semibold text-background transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
             >
-              Get more <ExternalLink className="h-3 w-3" aria-hidden="true" />
+              Top up <ExternalLink className="h-3 w-3" aria-hidden="true" />
             </a>
           )}
           <Canary mood={mood} size={56} />
@@ -70,6 +61,11 @@ export function BurnRateHero({ row }: { row: PoolRow }) {
             <em style={{ color: accent, fontStyle: "italic" }}>{eta.short}</em>
           </p>
           <p className="mt-1 text-sm text-muted-foreground">{eta.long}</p>
+          {tone === "healthy" && (
+            <p className="mt-1 text-xs text-muted-foreground">
+              {HEALTHY_SHORT_RUNWAY_NOTE}
+            </p>
+          )}
         </div>
       )}
 

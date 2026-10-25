@@ -1,25 +1,25 @@
-import { effectiveStatus } from "@/lib/balance-status"
+import { runwayRank } from "@/lib/most-at-risk"
+import { assessPool } from "@/lib/pool-assessment"
 import type { PoolRow } from "@/lib/pool-rows"
-import { resolvePoolThresholds } from "@/lib/thresholds"
 
 export type SortKey = "name" | "status" | "balance" | "updated"
 export type SortDir = "asc" | "desc"
 
 // Lower rank = more urgent → shown first when sorting status ascending.
 function severity(r: PoolRow): number {
-  const ct = r.pool?.creditType ?? ""
-  const { low, critical } = resolvePoolThresholds(r.connection, ct)
-  const s = effectiveStatus({
-    balance: r.pool?.balance ?? null,
-    low,
-    critical,
-    connectionStatus: r.connection.status,
-  })
+  const s = assessPool(r).status
   if (s.kind === "connection") return s.status === "stale" ? 2 : 0
   // "No data" is low urgency - we don't know it's at risk, so it sorts after
   // every real level (below even healthy).
   if (s.kind === "nodata") return 5
   return { critical: 1, low: 3, healthy: 4 }[s.level]
+}
+
+// runwayRank is Infinity for no burn, and Infinity - Infinity is NaN.
+function byRunway(a: PoolRow, b: PoolRow): number {
+  const x = runwayRank(a)
+  const y = runwayRank(b)
+  return x === y ? 0 : x < y ? -1 : 1
 }
 
 function compare(a: PoolRow, b: PoolRow, key: SortKey): number {
@@ -29,7 +29,8 @@ function compare(a: PoolRow, b: PoolRow, key: SortKey): number {
         sensitivity: "base",
       })
     case "status":
-      return severity(a) - severity(b)
+      // Warn below state first; inside a state, the shorter runway leads.
+      return severity(a) - severity(b) || byRunway(a, b)
     case "balance":
       return (a.pool?.balance ?? 0) - (b.pool?.balance ?? 0)
     case "updated":

@@ -14,7 +14,7 @@ type Category = "bug" | "feedback" | "tool"
 
 const CATEGORIES: { value: Category; label: string }[] = [
   { value: "bug", label: "Something's broken" },
-  { value: "feedback", label: "Feedback" },
+  { value: "feedback", label: "Idea or gripe" },
   { value: "tool", label: "Tool request" },
 ]
 
@@ -63,8 +63,7 @@ export function FeedbackDialog({
             </span>
             <p className="text-sm text-muted-foreground">
               It goes straight to the person who builds this. If it needs a
-              reply, you'll get one at your account email within a couple of
-              working days.
+              reply, you'll get one at your account email.
             </p>
             <Button
               type="button"

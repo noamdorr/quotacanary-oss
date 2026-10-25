@@ -1,4 +1,4 @@
-import { Canary } from "@/components/brand/Canary"
+import { LogoMark } from "@/components/brand/LogoMark"
 import { COPY } from "@/components/marketing/copy"
 
 export function MarketingFooter() {
@@ -21,7 +21,7 @@ export function MarketingFooter() {
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <Canary mood="perched" size={22} />
+          <LogoMark height={22} />
           <span
             style={{
               fontFamily: "var(--f-display)",
@@ -54,6 +54,7 @@ export function MarketingFooter() {
             { label: "Tools", href: "/directory" },
             { label: "Why this exists", href: "/#why" },
             { label: "FAQ", href: "/#faq" },
+            { label: "Mac app", href: "/mac" },
             { label: "Docs", href: "/docs" },
             { label: "Security", href: "/security" },
             { label: "Privacy", href: "/privacy" },

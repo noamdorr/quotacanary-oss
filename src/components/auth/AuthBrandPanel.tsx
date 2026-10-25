@@ -26,10 +26,10 @@ export function AuthBrandPanel() {
           canary watch the burn rate.
         </p>
 
-        <div className="qc-auth-risk-card" aria-label="Demo credit alert">
-          <div className="qc-auth-watch-strip" aria-hidden="true">
-            <span className="qc-auth-watch-dot" />
-            <span>live watch</span>
+        <div className="qc-auth-risk-card" aria-label="Example credit alert">
+          <div className="qc-auth-watch-strip">
+            <span className="qc-auth-watch-dot" aria-hidden="true" />
+            <span>example data</span>
           </div>
 
           <div className="qc-auth-risk-top">

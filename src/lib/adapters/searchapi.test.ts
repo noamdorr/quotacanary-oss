@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { searchapiAdapter } from "./searchapi"
+import { catalogAdapterFor } from "./catalog"
+
+const searchapiAdapter = catalogAdapterFor("searchapi")
 afterEach(() => vi.restoreAllMocks())
 describe("searchapi adapter", () => {
   it("returns balance and balanceLimit from account", async () => {

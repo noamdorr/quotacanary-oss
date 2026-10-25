@@ -34,6 +34,21 @@ describe("auth brand panel", () => {
     expect(css).toContain(".qc-auth-risk-card")
   })
 
+  it("labels the sample risk card as example data, visibly and accessibly", () => {
+    expect(source.toLowerCase()).not.toContain("live watch")
+    expect(source).toContain('aria-label="Example credit alert"')
+    expect(source).toMatch(/<span>example data<\/span>/)
+
+    const strip = source.match(
+      /<div className="qc-auth-watch-strip"[^>]*>/
+    )?.[0]
+    expect(strip).toBeDefined()
+    expect(strip).not.toContain("aria-hidden")
+    expect(source).toContain(
+      '<span className="qc-auth-watch-dot" aria-hidden="true" />'
+    )
+  })
+
   it("runs the risk-card scan once while preserving quieter live cues", () => {
     expect(source).toContain("qc-auth-watch-strip")
     expect(source).toContain("qc-auth-sparkline-line")

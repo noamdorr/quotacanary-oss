@@ -1,0 +1,45 @@
+---
+// The Mac screen from the design pass: wallpaper, menu bar strip with the
+// bird, and the native panel render (synthetic data).
+import AppleIcon from "./AppleIcon.astro"
+---
+
+<figure class="mac-product">
+  <div class="mac-screen">
+    <div class="desktop-strip" aria-hidden="true">
+      <span><AppleIcon width={12} height={16} />Finder</span>
+      <div>
+        <span class="menu-bar-mark"><img src="/mark.svg" alt="" width="18" height="17" /></span>
+        <svg viewBox="0 0 24 24"><path d="M3 9a14 14 0 0 1 18 0M6 13a9 9 0 0 1 12 0M10 17a3 3 0 0 1 4 0"></path></svg>
+        <span data-menu-bar-clock>Mon 9:41 AM</span>
+      </div>
+    </div>
+    <div class="native-panel">
+      <img
+        src="/img/mac-panel-showcase.webp"
+        alt="Native QuotaCanary Mac panel, showing sample credit balances and monitoring states."
+        width="760"
+        height="606"
+      />
+    </div>
+  </div>
+</figure>
+
+<script>
+  // The menu bar clock shows the visitor's own day and time, like the real
+  // one. "Mon 9:41 AM" stays in the HTML as the no-JS fallback.
+  const clock = document.querySelector<HTMLElement>("[data-menu-bar-clock]")
+  if (clock) {
+    const format = (now: Date) => {
+      const day = now.toLocaleDateString("en-US", { weekday: "short" })
+      const time = now.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })
+      return `${day} ${time}`
+    }
+    const tick = () => {
+      const now = new Date()
+      clock.textContent = format(now)
+      setTimeout(tick, 60_000 - (now.getSeconds() * 1000 + now.getMilliseconds()))
+    }
+    tick()
+  }
+</script>

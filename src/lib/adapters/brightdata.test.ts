@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { brightdataAdapter } from "./brightdata"
+import { catalogAdapterFor } from "./catalog"
+
+const brightdataAdapter = catalogAdapterFor("brightdata")
 
 afterEach(() => vi.restoreAllMocks())
 

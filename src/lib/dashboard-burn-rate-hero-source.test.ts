@@ -20,7 +20,7 @@ describe("dashboard burn-rate hero", () => {
 
   it("surfaces a top-up action when the tool provides one", () => {
     expect(source).toContain("c.tool.topup_url")
-    expect(source).toContain("Get more")
+    expect(source).toContain("Top up")
     expect(source).toContain("ExternalLink")
   })
 })

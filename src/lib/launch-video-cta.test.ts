@@ -19,6 +19,15 @@ describe("launch video CTA", () => {
     expect(dialogSource).toContain("PlayCircle")
   })
 
+  it("renders the CTA only when the video asset exists (mirror ships without it)", () => {
+    // public/video/ is pruned from the public mirror, so self-host builds
+    // have no mp4 to serve; the hero must check the file server-side and
+    // drop the CTA instead of opening a dialog that 404s.
+    expect(heroSource).toContain("existsSync")
+    expect(heroSource).toContain("public/video/quotacanary-launch.mp4")
+    expect(heroSource).toContain("{hasLaunchVideo && <LaunchVideoDialog />}")
+  })
+
   it("uses the local launch video assets and tracks key Plausible events", () => {
     expect(dialogSource).toContain("/video/quotacanary-launch.mp4")
     expect(dialogSource).toContain("/video/quotacanary-launch-poster")

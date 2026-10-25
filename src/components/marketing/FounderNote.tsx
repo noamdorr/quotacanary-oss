@@ -45,10 +45,13 @@ export function FounderNote() {
           }}
         >
           <img
-            src="/founder-noam.png"
+            src="/founder-noam-96.webp"
+            srcSet="/founder-noam-48.webp 1x, /founder-noam-96.webp 2x, /founder-noam-144.webp 3x"
             alt="Noam Dorr"
             width={48}
             height={48}
+            loading="lazy"
+            decoding="async"
             style={{
               width: 48,
               height: 48,

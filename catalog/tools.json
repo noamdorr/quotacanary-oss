@@ -1,0 +1,2379 @@
+{
+  "$schema": "./tools.schema.json",
+  "tools": [
+    {
+      "id": "anymailfinder",
+      "name": "Anymail Finder",
+      "topupUrl": "https://anymailfinder.com/pricing",
+      "request": {
+        "method": "GET",
+        "url": "https://api.anymailfinder.com/v5.1/account"
+      },
+      "auth": {
+        "in": "header",
+        "name": "Authorization"
+      },
+      "pools": [
+        {
+          "creditType": "credits",
+          "label": "Credits",
+          "unit": "credits",
+          "balance": "credits_left"
+        }
+      ]
+    },
+    {
+      "id": "bettercontact",
+      "name": "BetterContact",
+      "topupUrl": "https://app.bettercontact.rocks",
+      "request": {
+        "method": "GET",
+        "url": "https://app.bettercontact.rocks/api/v2/account",
+        "headers": {
+          "Accept": "application/json"
+        }
+      },
+      "auth": {
+        "in": "header",
+        "name": "X-API-Key"
+      },
+      "errors": {
+        "403": "invalid_key"
+      },
+      "bodyError": {
+        "when": {
+          "path": "success",
+          "equals": false
+        },
+        "messagePaths": ["message"],
+        "fallback": "error"
+      },
+      "pools": [
+        {
+          "creditType": "credits",
+          "label": "Credits",
+          "unit": "credits",
+          "balance": "credits_left"
+        }
+      ]
+    },
+    {
+      "id": "bouncer",
+      "name": "Bouncer",
+      "topupUrl": "https://www.usebouncer.com/pricing/",
+      "request": {
+        "method": "GET",
+        "url": "https://api.usebouncer.com/v1.1/credits"
+      },
+      "auth": {
+        "in": "header",
+        "name": "x-api-key"
+      },
+      "pools": [
+        {
+          "creditType": "credits",
+          "label": "Credits",
+          "unit": "credits",
+          "balance": "credits"
+        }
+      ]
+    },
+    {
+      "id": "bouncify",
+      "name": "Bouncify",
+      "topupUrl": "https://bouncify.io/pricing.html",
+      "request": {
+        "method": "GET",
+        "url": "https://api.bouncify.io/v1/info"
+      },
+      "auth": {
+        "in": "query",
+        "name": "apikey"
+      },
+      "pools": [
+        {
+          "creditType": "credits",
+          "label": "Credits",
+          "unit": "credits",
+          "balance": "credits_info.credits_remaining"
+        }
+      ]
+    },
+    {
+      "id": "brightdata",
+      "name": "Bright Data",
+      "topupUrl": "https://brightdata.com/cp/billing",
+      "request": {
+        "method": "GET",
+        "url": "https://api.brightdata.com/customer/balance"
+      },
+      "auth": {
+        "in": "header",
+        "name": "Authorization",
+        "format": "Bearer {key}"
+      },
+      "pools": [
+        {
+          "creditType": "balance",
+          "label": "Balance",
+          "unit": "usd",
+          "balance": "balance"
+        }
+      ]
+    },
+    {
+      "id": "builtwith",
+      "name": "BuiltWith",
+      "topupUrl": "https://payments.builtwith.com/agent-payment-api-config",
+      "request": {
+        "method": "GET",
+        "url": "https://payments.builtwith.com/v1/billing/api-discovery",
+        "headers": {
+          "Accept": "application/json"
+        }
+      },
+      "auth": {
+        "in": "header",
+        "name": "Authorization",
+        "format": "Bearer {key}"
+      },
+      "errors": {
+        "403": "invalid_key"
+      },
+      "bodyError": {
+        "messagePaths": ["error", "error.message", "message"],
+        "on": "non2xx"
+      },
+      "pools": [
+        {
+          "creditType": "credits",
+          "label": "API Credits",
+          "unit": "credits",
+          "balance": "credits_available",
+          "limit": "credits_total"
+        }
+      ]
+    },
+    {
+      "id": "captaindata",
+      "name": "Captain Data",
+      "topupUrl": "https://app.captaindata.com/settings/plans",
+      "request": {
+        "method": "GET",
+        "url": "https://api.captaindata.com/v1/quotas"
+      },
+      "auth": {
+        "in": "header",
+        "name": "X-API-Key"
+      },
+      "pools": [
+        {
+          "creditType": "credits",
+          "label": "Credits",
+          "unit": "credits",
+          "balance": "credits_left",
+          "limit": "credits_max"
+        }
+      ]
+    },
+    {
+      "id": "clearout",
+      "name": "Clearout",
+      "topupUrl": "https://app.clearout.io/public/credits",
+      "request": {
+        "method": "GET",
+        "url": "https://api.clearout.io/v2/email_verify/getcredits"
+      },
+      "auth": {
+        "in": "header",
+        "name": "Authorization"
+      },
+      "pools": [
+        {
+          "creditType": "credits",
+          "label": "Credits",
+          "unit": "credits",
+          "balance": "data.available_credits",
+          "limit": "data.credits.total"
+        }
+      ]
+    },
+    {
+      "id": "debounce",
+      "name": "DeBounce",
+      "topupUrl": "https://debounce.com/pricing/",
+      "request": {
+        "method": "GET",
+        "url": "https://api.debounce.io/v1/balance/"
+      },
+      "auth": {
+        "in": "query",
+        "name": "api"
+      },
+      "pools": [
+        {
+          "creditType": "credits",
+          "label": "Credits",
+          "unit": "credits",
+          "balance": "balance"
+        }
+      ]
+    },
+    {
+      "id": "dropcontact",
+      "name": "Dropcontact",
+      "topupUrl": "https://app.dropcontact.com/billing",
+      "request": {
+        "method": "POST",
+        "url": "https://api.dropcontact.com/v1/enrich/all",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": "{\"data\":[{}]}"
+      },
+      "auth": {
+        "in": "header",
+        "name": "X-Access-Token"
+      },
+      "pools": [
+        {
+          "creditType": "credits",
+          "label": "Credits",
+          "unit": "credits",
+          "balance": "credits_left"
+        }
+      ]
+    },
+    {
+      "id": "emailable",
+      "name": "Emailable",
+      "topupUrl": "https://app.emailable.com/checkout/credits",
+      "request": {
+        "method": "GET",
+        "url": "https://api.emailable.com/v1/account"
+      },
+      "auth": {
+        "in": "header",
+        "name": "Authorization",
+        "format": "Bearer {key}"
+      },
+      "pools": [
+        {
+          "creditType": "credits",
+          "label": "Credits",
+          "unit": "credits",
+          "balance": "available_credits"
+        }
+      ]
+    },
+    {
+      "id": "enrow",
+      "name": "Enrow",
+      "topupUrl": "https://enrow.io/pricing",
+      "request": {
+        "method": "GET",
+        "url": "https://api.enrow.io/account/info"
+      },
+      "auth": {
+        "in": "header",
+        "name": "x-api-key"
+      },
+      "pools": [
+        {
+          "creditType": "credits",
+          "label": "Credits",
+          "unit": "credits",
+          "balance": "credits"
+        }
+      ]
+    },
+    {
+      "id": "findymail",
+      "name": "Findymail",
+      "topupUrl": "https://www.findymail.com/pricing/",
+      "request": {
+        "method": "GET",
+        "url": "https://app.findymail.com/api/credits",
+        "headers": {
+          "Accept": "application/json"
+        }
+      },
+      "auth": {
+        "in": "header",
+        "name": "Authorization",
+        "format": "Bearer {key}"
+      },
+      "pools": [
+        {
+          "creditType": "credits",
+          "label": "Credits",
+          "unit": "credits",
+          "balance": "credits"
+        }
+      ]
+    },
+    {
+      "id": "fullenrich",
+      "name": "FullEnrich",
+      "topupUrl": "https://app.fullenrich.com/app/settings/billing",
+      "request": {
+        "method": "GET",
+        "url": "https://app.fullenrich.com/api/v1/account/credits"
+      },
+      "auth": {
+        "in": "header",
+        "name": "Authorization",
+        "format": "Bearer {key}"
+      },
+      "pools": [
+        {
+          "creditType": "credits",
+          "label": "Credits",
+          "unit": "credits",
+          "balance": "balance"
+        }
+      ]
+    },
+    {
+      "id": "hunter",
+      "name": "Hunter",
+      "topupUrl": "https://hunter.io/welcome/upgrade",
+      "request": {
+        "method": "GET",
+        "url": "https://api.hunter.io/v2/account"
+      },
+      "auth": {
+        "in": "header",
+        "name": "Authorization",
+        "format": "Bearer {key}"
+      },
+      "pools": [
+        {
+          "creditType": "searches",
+          "label": "Searches",
+          "unit": "credits",
+          "limit": "data.requests.searches.available",
+          "used": "data.requests.searches.used"
+        },
+        {
+          "creditType": "verifications",
+          "label": "Verifications",
+          "unit": "credits",
+          "limit": "data.requests.verifications.available",
+          "used": "data.requests.verifications.used"
+        }
+      ]
+    },
+    {
+      "id": "keywordseverywhere",
+      "name": "Keywords Everywhere",
+      "topupUrl": "https://keywordseverywhere.com/pricing.html",
+      "request": {
+        "method": "GET",
+        "url": "https://api.keywordseverywhere.com/v1/account/credits",
+        "headers": {
+          "Accept": "application/json"
+        }
+      },
+      "auth": {
+        "in": "header",
+        "name": "Authorization",
+        "format": "Bearer {key}"
+      },
+      "bodyError": {
+        "messagePaths": ["error", "message"],
+        "on": "non2xx"
+      },
+      "pools": [
+        {
+          "creditType": "credits",
+          "label": "Credits",
+          "unit": "credits",
+          "balance": "0"
+        }
+      ]
+    },
+    {
+      "id": "leadmagic",
+      "name": "LeadMagic",
+      "topupUrl": "https://app.leadmagic.io/settings/billing",
+      "request": {
+        "method": "GET",
+        "url": "https://api.leadmagic.io/v1/credits"
+      },
+      "auth": {
+        "in": "header",
+        "name": "X-API-Key"
+      },
+      "pools": [
+        {
+          "creditType": "credits",
+          "label": "Credits",
+          "unit": "credits",
+          "balance": "credits"
+        }
+      ]
+    },
+    {
+      "id": "lusha",
+      "name": "Lusha",
+      "topupUrl": "https://dashboard.lusha.com/account",
+      "request": {
+        "method": "GET",
+        "url": "https://api.lusha.com/v3/account/usage"
+      },
+      "auth": {
+        "in": "header",
+        "name": "api_key"
+      },
+      "pools": [
+        {
+          "creditType": "credits",
+          "label": "Credits",
+          "unit": "credits",
+          "balance": "usage.bulkCredits.remaining",
+          "limit": "usage.bulkCredits.total"
+        }
+      ]
+    },
+    {
+      "id": "mailercheck",
+      "name": "MailerCheck",
+      "topupUrl": "https://app.mailercheck.com/",
+      "request": {
+        "method": "GET",
+        "url": "https://app.mailercheck.com/api/credits"
+      },
+      "auth": {
+        "in": "header",
+        "name": "Authorization",
+        "format": "Bearer {key}"
+      },
+      "errors": {
+        "403": "invalid_key"
+      },
+      "pools": [
+        {
+          "creditType": "credits",
+          "label": "Credits",
+          "unit": "credits",
+          "balance": "total"
+        }
+      ]
+    },
+    {
+      "id": "millionverifier",
+      "name": "MillionVerifier",
+      "topupUrl": "https://app.millionverifier.com/",
+      "request": {
+        "method": "GET",
+        "url": "https://api.millionverifier.com/api/v3/credits"
+      },
+      "auth": {
+        "in": "query",
+        "name": "api"
+      },
+      "errors": {
+        "401": "http"
+      },
+      "errorPath": "error",
+      "pools": [
+        {
+          "creditType": "credits",
+          "label": "Credits",
+          "unit": "credits",
+          "balance": "credits"
+        }
+      ]
+    },
+    {
+      "id": "myemailverifier",
+      "name": "MyEmailVerifier",
+      "topupUrl": "https://client.myemailverifier.com/login?buyCredit=10000",
+      "request": {
+        "method": "GET",
+        "url": "https://client.myemailverifier.com/verifier/getcredits/{key}"
+      },
+      "auth": {
+        "in": "path"
+      },
+      "pools": [
+        {
+          "creditType": "credits",
+          "label": "Credits",
+          "unit": "credits",
+          "balance": "Credits"
+        }
+      ]
+    },
+    {
+      "id": "neverbounce",
+      "name": "NeverBounce",
+      "topupUrl": "https://app.neverbounce.com/account/billing",
+      "request": {
+        "method": "GET",
+        "url": "https://api.neverbounce.com/v4/account/info"
+      },
+      "auth": {
+        "in": "query",
+        "name": "key"
+      },
+      "errors": {
+        "401": "http"
+      },
+      "bodyError": {
+        "when": {
+          "path": "status",
+          "notEquals": "success"
+        },
+        "messagePaths": ["message"],
+        "fallback": "invalid_key"
+      },
+      "pools": [
+        {
+          "creditType": "paid_credits",
+          "label": "Paid Credits",
+          "unit": "credits",
+          "balance": "credits_info.paid_credits_remaining"
+        }
+      ]
+    },
+    {
+      "id": "oppora",
+      "name": "Oppora",
+      "topupUrl": "https://oppora.ai/pricing",
+      "request": {
+        "method": "GET",
+        "url": "https://api.oppora.ai/api/v1/public/credits",
+        "headers": {
+          "Accept": "application/json"
+        }
+      },
+      "auth": {
+        "in": "header",
+        "name": "Authorization",
+        "format": "Bearer {key}"
+      },
+      "errors": {
+        "403": "invalid_key"
+      },
+      "bodyError": {
+        "messagePaths": ["error", "error.message", "message"],
+        "on": "any"
+      },
+      "pools": [
+        {
+          "creditType": "data",
+          "label": "Data Credits",
+          "unit": "credits",
+          "balance": "data_credits.remaining"
+        },
+        {
+          "creditType": "phone",
+          "label": "Phone Credits",
+          "unit": "credits",
+          "balance": "phone_credits.remaining"
+        }
+      ]
+    },
+    {
+      "id": "outscraper",
+      "name": "Outscraper",
+      "topupUrl": "https://app.outscraper.com/billing",
+      "request": {
+        "method": "GET",
+        "url": "https://api.outscraper.com/profile/balance"
+      },
+      "auth": {
+        "in": "header",
+        "name": "X-API-KEY"
+      },
+      "errors": {
+        "403": "invalid_key"
+      },
+      "bodyError": {
+        "when": {
+          "path": "error",
+          "truthy": true
+        },
+        "messagePaths": ["errorMessage"],
+        "fallback": "error"
+      },
+      "pools": [
+        {
+          "creditType": "balance",
+          "label": "Account Balance",
+          "unit": "usd",
+          "balance": "balance"
+        }
+      ]
+    },
+    {
+      "id": "prospeo",
+      "name": "Prospeo",
+      "topupUrl": "https://app.prospeo.io/account/subscription",
+      "request": {
+        "method": "GET",
+        "url": "https://api.prospeo.io/account-information"
+      },
+      "auth": {
+        "in": "header",
+        "name": "X-KEY"
+      },
+      "rejectWhen": {
+        "path": "error",
+        "equals": true
+      },
+      "bodyError": {
+        "when": {
+          "path": "error",
+          "equals": true
+        },
+        "keyRejectedWhen": {
+          "path": "error_code",
+          "equals": "INVALID_API_KEY"
+        },
+        "messagePaths": ["error_code"],
+        "on": "non2xx"
+      },
+      "pools": [
+        {
+          "creditType": "credits",
+          "label": "Credits",
+          "unit": "credits",
+          "balance": "response.remaining_credits",
+          "used": "response.used_credits"
+        }
+      ]
+    },
+    {
+      "id": "reoon",
+      "name": "Reoon",
+      "topupUrl": "https://emailverifier.reoon.com/",
+      "request": {
+        "method": "GET",
+        "url": "https://emailverifier.reoon.com/api/v1/check-account-balance/"
+      },
+      "auth": {
+        "in": "query",
+        "name": "key"
+      },
+      "pools": [
+        {
+          "creditType": "instant",
+          "label": "Credits",
+          "unit": "credits",
+          "balance": "remaining_instant_credits"
+        },
+        {
+          "creditType": "daily",
+          "label": "Daily Credits",
+          "unit": "credits",
+          "balance": "remaining_daily_credits"
+        }
+      ]
+    },
+    {
+      "id": "scaleserp",
+      "name": "Scale SERP",
+      "topupUrl": "https://trajectdata.com/serp/scale-serp-api/pricing/",
+      "request": {
+        "method": "GET",
+        "url": "https://api.scaleserp.com/account"
+      },
+      "auth": {
+        "in": "query",
+        "name": "api_key"
+      },
+      "errors": {
+        "403": "invalid_key"
+      },
+      "rejectWhen": {
+        "path": "request_info.success",
+        "equals": false
+      },
+      "pools": [
+        {
+          "creditType": "credits",
+          "label": "Credits",
+          "unit": "credits",
+          "balance": "account_info.credits_remaining",
+          "limit": "account_info.credits_limit"
+        }
+      ]
+    },
+    {
+      "id": "scrapegraphai",
+      "name": "ScrapeGraphAI",
+      "topupUrl": "https://scrapegraphai.com/pricing",
+      "request": {
+        "method": "GET",
+        "url": "https://v2-api.scrapegraphai.com/api/credits"
+      },
+      "auth": {
+        "in": "header",
+        "name": "SGAI-APIKEY"
+      },
+      "errors": {
+        "403": "invalid_key"
+      },
+      "pools": [
+        {
+          "creditType": "credits",
+          "label": "Credits",
+          "unit": "credits",
+          "balance": "remaining"
+        }
+      ]
+    },
+    {
+      "id": "scraperapi",
+      "name": "ScraperAPI",
+      "topupUrl": "https://dashboard.scraperapi.com/billing",
+      "request": {
+        "method": "GET",
+        "url": "https://api.scraperapi.com/account"
+      },
+      "auth": {
+        "in": "query",
+        "name": "api_key"
+      },
+      "pools": [
+        {
+          "creditType": "requests",
+          "label": "Requests",
+          "unit": "credits",
+          "limit": "requestLimit",
+          "used": "requestCount"
+        }
+      ]
+    },
+    {
+      "id": "scrapfly",
+      "name": "Scrapfly",
+      "topupUrl": "https://scrapfly.io/dashboard/billing",
+      "request": {
+        "method": "GET",
+        "url": "https://api.scrapfly.io/account"
+      },
+      "auth": {
+        "in": "query",
+        "name": "key"
+      },
+      "pools": [
+        {
+          "creditType": "credits",
+          "label": "Credits",
+          "unit": "credits",
+          "balance": "subscription.usage.scrape.remaining",
+          "limit": "subscription.usage.scrape.limit"
+        }
+      ]
+    },
+    {
+      "id": "scrapingant",
+      "name": "ScrapingAnt",
+      "topupUrl": "https://app.scrapingant.com/dashboard",
+      "request": {
+        "method": "GET",
+        "url": "https://api.scrapingant.com/v2/usage"
+      },
+      "auth": {
+        "in": "query",
+        "name": "x-api-key"
+      },
+      "pools": [
+        {
+          "creditType": "credits",
+          "label": "Credits",
+          "unit": "credits",
+          "balance": "remained_credits",
+          "limit": "plan_total_credits"
+        }
+      ]
+    },
+    {
+      "id": "scrapingbee",
+      "name": "ScrapingBee",
+      "topupUrl": "https://app.scrapingbee.com/billing/plans",
+      "request": {
+        "method": "GET",
+        "url": "https://app.scrapingbee.com/api/v1/usage"
+      },
+      "auth": {
+        "in": "header",
+        "name": "Authorization",
+        "format": "Bearer {key}"
+      },
+      "pools": [
+        {
+          "creditType": "credits",
+          "label": "API Credits",
+          "unit": "credits",
+          "limit": "max_api_credit",
+          "used": "used_api_credit"
+        }
+      ]
+    },
+    {
+      "id": "scrapingdog",
+      "name": "Scrapingdog",
+      "topupUrl": "https://www.scrapingdog.com/pricing/",
+      "request": {
+        "method": "GET",
+        "url": "https://api.scrapingdog.com/account"
+      },
+      "auth": {
+        "in": "query",
+        "name": "api_key"
+      },
+      "pools": [
+        {
+          "creditType": "requests",
+          "label": "Requests",
+          "unit": "credits",
+          "limit": "requestLimit",
+          "used": "requestUsed"
+        }
+      ]
+    },
+    {
+      "id": "searchapi",
+      "name": "SearchApi",
+      "topupUrl": "https://www.searchapi.io/pricing",
+      "request": {
+        "method": "GET",
+        "url": "https://www.searchapi.io/api/v1/me"
+      },
+      "auth": {
+        "in": "header",
+        "name": "Authorization",
+        "format": "Bearer {key}"
+      },
+      "pools": [
+        {
+          "creditType": "credits",
+          "label": "Credits",
+          "unit": "credits",
+          "balance": "account.remaining_credits",
+          "limit": "account.monthly_allowance"
+        }
+      ]
+    },
+    {
+      "id": "serpapi",
+      "name": "SerpApi",
+      "topupUrl": "https://serpapi.com/change-plan",
+      "request": {
+        "method": "GET",
+        "url": "https://serpapi.com/account.json"
+      },
+      "auth": {
+        "in": "query",
+        "name": "api_key"
+      },
+      "pools": [
+        {
+          "creditType": "searches",
+          "label": "Searches Left",
+          "unit": "credits",
+          "balance": "total_searches_left"
+        }
+      ]
+    },
+    {
+      "id": "serpwow",
+      "name": "SerpWow",
+      "topupUrl": "https://app.serpwow.com/",
+      "request": {
+        "method": "GET",
+        "url": "https://api.serpwow.com/live/account"
+      },
+      "auth": {
+        "in": "query",
+        "name": "api_key"
+      },
+      "pools": [
+        {
+          "creditType": "credits",
+          "label": "Credits",
+          "unit": "credits",
+          "balance": "account_info.credits_remaining",
+          "limit": "account_info.credits_limit"
+        }
+      ]
+    },
+    {
+      "id": "shodan",
+      "name": "Shodan",
+      "topupUrl": "https://account.shodan.io/billing",
+      "request": {
+        "method": "GET",
+        "url": "https://api.shodan.io/api-info",
+        "headers": {
+          "Accept": "application/json"
+        }
+      },
+      "auth": {
+        "in": "query",
+        "name": "key"
+      },
+      "errors": {
+        "403": "invalid_key"
+      },
+      "errorPath": "error",
+      "pools": [
+        {
+          "creditType": "query",
+          "label": "Query Credits",
+          "unit": "credits",
+          "balance": "query_credits",
+          "limit": "usage_limits.query_credits"
+        },
+        {
+          "creditType": "scan",
+          "label": "Scan Credits",
+          "unit": "credits",
+          "balance": "scan_credits",
+          "limit": "usage_limits.scan_credits"
+        }
+      ]
+    },
+    {
+      "id": "surfe",
+      "name": "Surfe",
+      "topupUrl": "https://app.surfe.com/lighthouse/home?open-buy-credits=true",
+      "request": {
+        "method": "GET",
+        "url": "https://api.surfe.com/v1/credits"
+      },
+      "auth": {
+        "in": "header",
+        "name": "Authorization",
+        "format": "Bearer {key}"
+      },
+      "pools": [
+        {
+          "creditType": "email",
+          "label": "Email Credits",
+          "unit": "credits",
+          "balance": "totalEmail"
+        },
+        {
+          "creditType": "mobile",
+          "label": "Mobile Credits",
+          "unit": "credits",
+          "balance": "totalMobile"
+        },
+        {
+          "creditType": "search",
+          "label": "Search Credits",
+          "unit": "credits",
+          "balance": "totalSearch"
+        }
+      ]
+    },
+    {
+      "id": "valueserp",
+      "name": "ValueSERP",
+      "topupUrl": "https://app.valueserp.com/",
+      "request": {
+        "method": "GET",
+        "url": "https://api.valueserp.com/account"
+      },
+      "auth": {
+        "in": "query",
+        "name": "api_key"
+      },
+      "pools": [
+        {
+          "creditType": "monthly",
+          "label": "Monthly Credits",
+          "unit": "credits",
+          "balance": "account_info.monthly_credits_remaining",
+          "limit": "account_info.monthly_credits_limit"
+        },
+        {
+          "creditType": "topup",
+          "label": "Top-up Credits",
+          "unit": "credits",
+          "balance": "account_info.topup_credits_remaining"
+        }
+      ]
+    },
+    {
+      "id": "wiza",
+      "name": "Wiza",
+      "topupUrl": "https://wiza.co/app/settings/billing",
+      "request": {
+        "method": "GET",
+        "url": "https://wiza.co/api/meta/credits"
+      },
+      "auth": {
+        "in": "header",
+        "name": "Authorization",
+        "format": "Bearer {key}"
+      },
+      "pools": [
+        {
+          "creditType": "api",
+          "label": "API Credits",
+          "unit": "credits",
+          "balance": "credits.api_credits"
+        }
+      ]
+    },
+    {
+      "id": "zenserp",
+      "name": "Zenserp",
+      "topupUrl": "https://zenserp.com/pricing-plans/",
+      "request": {
+        "method": "GET",
+        "url": "https://app.zenserp.com/api/v2/status"
+      },
+      "auth": {
+        "in": "header",
+        "name": "apikey"
+      },
+      "errors": {
+        "403": "invalid_key"
+      },
+      "pools": [
+        {
+          "creditType": "requests",
+          "label": "Requests",
+          "unit": "credits",
+          "balance": "remaining_requests"
+        }
+      ]
+    },
+    {
+      "id": "bounceban",
+      "name": "BounceBan",
+      "topupUrl": "https://bounceban.com/pricing",
+      "request": {
+        "method": "GET",
+        "url": "https://api.bounceban.com/v1/account"
+      },
+      "auth": {
+        "in": "header",
+        "name": "Authorization"
+      },
+      "pools": [
+        {
+          "creditType": "credits",
+          "label": "Credits",
+          "unit": "credits",
+          "balance": "available_credits"
+        }
+      ]
+    },
+    {
+      "id": "oceanio",
+      "name": "Ocean.io",
+      "topupUrl": "https://www.ocean.io/pricing",
+      "request": {
+        "method": "GET",
+        "url": "https://api.ocean.io/v2/credits/balance"
+      },
+      "auth": {
+        "in": "header",
+        "name": "x-api-token"
+      },
+      "errors": {
+        "403": "invalid_key"
+      },
+      "pools": [
+        {
+          "creditType": "one_time",
+          "label": "One-time credits",
+          "unit": "credits",
+          "balance": "credits.oneTime"
+        },
+        {
+          "creditType": "recurrent",
+          "label": "Recurring credits",
+          "unit": "credits",
+          "balance": "credits.recurrent"
+        }
+      ]
+    },
+    {
+      "id": "sixtyfour",
+      "name": "Sixtyfour",
+      "topupUrl": "https://sixtyfour.ai/pricing",
+      "request": {
+        "method": "GET",
+        "url": "https://api.sixtyfour.ai/check-balance"
+      },
+      "auth": {
+        "in": "header",
+        "name": "x-api-key"
+      },
+      "pools": [
+        {
+          "creditType": "credits",
+          "label": "Credits",
+          "unit": "credits",
+          "balance": "credits"
+        }
+      ]
+    },
+    {
+      "id": "scrapecreators",
+      "name": "Scrape Creators",
+      "topupUrl": "https://scrapecreators.com/pricing",
+      "request": {
+        "method": "GET",
+        "url": "https://api.scrapecreators.com/v1/account/credit-balance"
+      },
+      "auth": {
+        "in": "header",
+        "name": "x-api-key"
+      },
+      "pools": [
+        {
+          "creditType": "credits",
+          "label": "Credits",
+          "unit": "credits",
+          "balance": "creditCount"
+        }
+      ]
+    },
+    {
+      "id": "crawl4ai",
+      "name": "Crawl4AI",
+      "topupUrl": "https://api.crawl4ai.com/dashboard/",
+      "request": {
+        "method": "GET",
+        "url": "https://api.crawl4ai.com/v1/billing/balance"
+      },
+      "auth": {
+        "in": "header",
+        "name": "Authorization",
+        "format": "Bearer {key}"
+      },
+      "pools": [
+        {
+          "creditType": "credits",
+          "label": "Credits",
+          "unit": "credits",
+          "balance": "credit"
+        }
+      ]
+    },
+    {
+      "id": "seranking",
+      "name": "SE Ranking",
+      "topupUrl": "https://seranking.com/api.html",
+      "request": {
+        "method": "GET",
+        "url": "https://api.seranking.com/v1/account/subscription"
+      },
+      "auth": {
+        "in": "header",
+        "name": "Authorization",
+        "format": "Token {key}"
+      },
+      "pools": [
+        {
+          "creditType": "units",
+          "label": "API units",
+          "unit": "credits",
+          "balance": "subscription_info.units_left",
+          "limit": "subscription_info.units_limit"
+        }
+      ]
+    },
+    {
+      "id": "cloro",
+      "name": "cloro",
+      "topupUrl": "https://cloro.dev/pricing/",
+      "request": {
+        "method": "GET",
+        "url": "https://api.cloro.dev/v1/credits"
+      },
+      "auth": {
+        "in": "header",
+        "name": "Authorization",
+        "format": "Bearer {key}"
+      },
+      "pools": [
+        {
+          "creditType": "credits",
+          "label": "Credits",
+          "unit": "credits",
+          "balance": "remaining",
+          "limit": "perCycle"
+        }
+      ]
+    },
+    {
+      "id": "serpstat",
+      "name": "Serpstat",
+      "topupUrl": "https://serpstat.com/page/pricing-plans/",
+      "request": {
+        "method": "POST",
+        "url": "https://api.serpstat.com/v4/",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": "{\"id\":\"1\",\"method\":\"SerpstatLimitsProcedure.getStats\",\"params\":{}}"
+      },
+      "auth": {
+        "in": "query",
+        "name": "token"
+      },
+      "errorPath": "error.message",
+      "pools": [
+        {
+          "creditType": "credits",
+          "label": "API credits",
+          "unit": "credits",
+          "balance": "result.data.left_lines",
+          "limit": "result.data.max_lines"
+        }
+      ]
+    },
+    {
+      "id": "clay",
+      "name": "Clay",
+      "topupUrl": "https://www.clay.com/pricing",
+      "request": {
+        "method": "GET",
+        "url": "https://api.clay.com/public/v0/credits/balance"
+      },
+      "auth": {
+        "in": "header",
+        "name": "clay-api-key"
+      },
+      "pools": [
+        {
+          "creditType": "credits",
+          "label": "Data credits",
+          "unit": "credits",
+          "balance": "balance"
+        },
+        {
+          "creditType": "actions",
+          "label": "Actions",
+          "unit": "credits",
+          "balance": "action_execution_balance"
+        }
+      ]
+    },
+    {
+      "id": "instantly",
+      "name": "Instantly",
+      "topupUrl": "https://instantly.ai/pricing",
+      "request": {
+        "method": "GET",
+        "url": "https://api.instantly.ai/api/v2/workspace-billing/plan-details"
+      },
+      "auth": {
+        "in": "header",
+        "name": "Authorization",
+        "format": "Bearer {key}"
+      },
+      "pools": [
+        {
+          "creditType": "credits",
+          "label": "Credits",
+          "unit": "credits",
+          "balance": "subscriptions.credits.available_credits",
+          "limit": "subscriptions.credits.total_credits"
+        },
+        {
+          "creditType": "leads",
+          "label": "Leads",
+          "unit": "credits",
+          "limit": "subscriptions.outreach.total_lead_limit",
+          "used": "subscriptions.outreach.current_lead_count"
+        }
+      ]
+    },
+    {
+      "id": "kickbox",
+      "name": "Kickbox",
+      "topupUrl": "https://kickbox.com/pricing",
+      "request": {
+        "method": "GET",
+        "url": "https://api.kickbox.com/v2/balance"
+      },
+      "auth": {
+        "in": "header",
+        "name": "Authorization",
+        "format": "Bearer {key}"
+      },
+      "errors": {
+        "403": "invalid_key"
+      },
+      "bodyError": {
+        "when": {
+          "path": "success",
+          "equals": false
+        },
+        "messagePaths": ["message"],
+        "fallback": "error"
+      },
+      "pools": [
+        {
+          "creditType": "credits",
+          "label": "Credits",
+          "unit": "credits",
+          "balance": "balance"
+        }
+      ]
+    },
+    {
+      "id": "sendgrid",
+      "name": "SendGrid",
+      "topupUrl": "https://sendgrid.com/en-us/pricing",
+      "request": {
+        "method": "GET",
+        "url": "https://api.sendgrid.com/v3/user/credits"
+      },
+      "auth": {
+        "in": "header",
+        "name": "Authorization",
+        "format": "Bearer {key}"
+      },
+      "errors": {
+        "403": "invalid_key"
+      },
+      "pools": [
+        {
+          "creditType": "emails",
+          "label": "Emails",
+          "unit": "credits",
+          "balance": "remain",
+          "limit": "total"
+        }
+      ]
+    },
+    {
+      "id": "elevenlabs",
+      "name": "ElevenLabs",
+      "topupUrl": "https://elevenlabs.io/pricing",
+      "request": {
+        "method": "GET",
+        "url": "https://api.elevenlabs.io/v1/user/subscription"
+      },
+      "auth": {
+        "in": "header",
+        "name": "xi-api-key"
+      },
+      "pools": [
+        {
+          "creditType": "characters",
+          "label": "Characters",
+          "unit": "credits",
+          "limit": "character_limit",
+          "used": "character_count"
+        }
+      ]
+    },
+    {
+      "id": "fal",
+      "name": "fal.ai",
+      "topupUrl": "https://fal.ai/dashboard/billing",
+      "request": {
+        "method": "GET",
+        "url": "https://api.fal.ai/v1/account/billing?expand=credits"
+      },
+      "auth": {
+        "in": "header",
+        "name": "Authorization",
+        "format": "Key {key}"
+      },
+      "errors": {
+        "403": "invalid_key"
+      },
+      "pools": [
+        {
+          "creditType": "credits",
+          "label": "Credits",
+          "unit": "usd",
+          "balance": "credits.current_balance"
+        }
+      ]
+    },
+    {
+      "id": "stability",
+      "name": "Stability AI",
+      "topupUrl": "https://platform.stability.ai/account/credits",
+      "request": {
+        "method": "GET",
+        "url": "https://api.stability.ai/v1/user/balance"
+      },
+      "auth": {
+        "in": "header",
+        "name": "Authorization",
+        "format": "Bearer {key}"
+      },
+      "pools": [
+        {
+          "creditType": "credits",
+          "label": "Credits",
+          "unit": "credits",
+          "balance": "credits"
+        }
+      ]
+    },
+    {
+      "id": "runway",
+      "name": "Runway",
+      "topupUrl": "https://dev.runwayml.com",
+      "request": {
+        "method": "GET",
+        "url": "https://api.dev.runwayml.com/v1/organization",
+        "headers": {
+          "X-Runway-Version": "2024-11-06"
+        }
+      },
+      "auth": {
+        "in": "header",
+        "name": "Authorization",
+        "format": "Bearer {key}"
+      },
+      "pools": [
+        {
+          "creditType": "credits",
+          "label": "Credits",
+          "unit": "credits",
+          "balance": "creditBalance"
+        }
+      ]
+    },
+    {
+      "id": "heygen",
+      "name": "HeyGen",
+      "topupUrl": "https://www.heygen.com/api-pricing",
+      "request": {
+        "method": "GET",
+        "url": "https://api.heygen.com/v3/users/me"
+      },
+      "auth": {
+        "in": "header",
+        "name": "x-api-key"
+      },
+      "pools": [
+        {
+          "creditType": "wallet",
+          "label": "Wallet",
+          "unit": "usd",
+          "balance": "data.wallet.remaining_balance"
+        },
+        {
+          "creditType": "subscription",
+          "label": "Premium credits",
+          "unit": "credits",
+          "balance": "data.subscription.credits.premium_credits.remaining"
+        },
+        {
+          "creditType": "usage_based",
+          "label": "Spending cap",
+          "unit": "usd",
+          "limit": "data.usage_based.spending_cap_usd",
+          "used": "data.usage_based.spending_current_usd"
+        }
+      ]
+    },
+    {
+      "id": "hubspot",
+      "name": "HubSpot",
+      "topupUrl": "https://www.hubspot.com/pricing",
+      "request": {
+        "method": "GET",
+        "url": "https://api.hubapi.com/account-info/2026-03/api-usage/daily/private-apps"
+      },
+      "auth": {
+        "in": "header",
+        "name": "Authorization",
+        "format": "Bearer {key}"
+      },
+      "pools": [
+        {
+          "creditType": "api_calls",
+          "label": "Daily API calls",
+          "unit": "credits",
+          "limit": "results.0.usageLimit",
+          "used": "results.0.currentUsage"
+        }
+      ]
+    },
+    {
+      "id": "enrichlayer",
+      "name": "Enrich Layer",
+      "topupUrl": "https://enrichlayer.com/pricing",
+      "request": {
+        "method": "GET",
+        "url": "https://enrichlayer.com/api/v2/credit-balance"
+      },
+      "auth": {
+        "in": "header",
+        "name": "Authorization",
+        "format": "Bearer {key}"
+      },
+      "pools": [
+        {
+          "creditType": "credits",
+          "label": "Credits",
+          "unit": "credits",
+          "balance": "credit_balance"
+        }
+      ]
+    },
+    {
+      "id": "deepl",
+      "name": "DeepL",
+      "topupUrl": "https://www.deepl.com/pro-api",
+      "request": {
+        "method": "GET",
+        "url": "https://api.deepl.com/v2/usage"
+      },
+      "auth": {
+        "in": "header",
+        "name": "Authorization",
+        "format": "DeepL-Auth-Key {key}"
+      },
+      "errors": {
+        "403": "invalid_key"
+      },
+      "pools": [
+        {
+          "creditType": "characters",
+          "label": "Characters",
+          "unit": "credits",
+          "limit": "character_limit",
+          "used": "character_count"
+        }
+      ]
+    },
+    {
+      "id": "uplead",
+      "name": "UpLead",
+      "topupUrl": "https://www.uplead.com/pricing/",
+      "request": {
+        "method": "GET",
+        "url": "https://api.uplead.com/v2/credits"
+      },
+      "auth": {
+        "in": "header",
+        "name": "Authorization"
+      },
+      "pools": [
+        {
+          "creditType": "credits",
+          "label": "Credits",
+          "unit": "credits",
+          "balance": "data.credits"
+        }
+      ]
+    },
+    {
+      "id": "crustdata",
+      "name": "Crustdata",
+      "topupUrl": "https://crustdata.com/pricing",
+      "request": {
+        "method": "GET",
+        "url": "https://api.crustdata.com/account/credits",
+        "headers": {
+          "x-api-version": "2025-11-01"
+        }
+      },
+      "auth": {
+        "in": "header",
+        "name": "Authorization",
+        "format": "Bearer {key}"
+      },
+      "pools": [
+        {
+          "creditType": "credits",
+          "label": "Credits",
+          "unit": "credits",
+          "balance": "account.credits"
+        }
+      ]
+    },
+    {
+      "id": "iproyal",
+      "name": "IPRoyal",
+      "topupUrl": "https://iproyal.com/residential-proxies/",
+      "request": {
+        "method": "GET",
+        "url": "https://resi-api.iproyal.com/v1/me"
+      },
+      "auth": {
+        "in": "header",
+        "name": "Authorization",
+        "format": "Bearer {key}"
+      },
+      "pools": [
+        {
+          "creditType": "traffic",
+          "label": "Residential traffic",
+          "unit": "gb",
+          "balance": "available_traffic"
+        }
+      ]
+    },
+    {
+      "id": "similarweb",
+      "name": "Similarweb",
+      "topupUrl": "https://www.similarweb.com/corp/pricing/",
+      "request": {
+        "method": "GET",
+        "url": "https://api.similarweb.com/capabilities"
+      },
+      "auth": {
+        "in": "query",
+        "name": "api_key"
+      },
+      "pools": [
+        {
+          "creditType": "data_credits",
+          "label": "Data credits",
+          "unit": "credits",
+          "balance": "remaining_hits"
+        }
+      ]
+    },
+    {
+      "id": "ipinfo",
+      "name": "IPinfo",
+      "topupUrl": "https://ipinfo.io/pricing",
+      "request": {
+        "method": "GET",
+        "url": "https://ipinfo.io/me"
+      },
+      "auth": {
+        "in": "header",
+        "name": "Authorization",
+        "format": "Bearer {key}"
+      },
+      "errors": {
+        "403": "invalid_key"
+      },
+      "pools": [
+        {
+          "creditType": "requests",
+          "label": "Requests",
+          "unit": "credits",
+          "balance": "requests.remaining",
+          "limit": "requests.limit"
+        }
+      ]
+    },
+    {
+      "id": "telnyx",
+      "name": "Telnyx",
+      "topupUrl": "https://portal.telnyx.com/",
+      "request": {
+        "method": "GET",
+        "url": "https://api.telnyx.com/v2/balance"
+      },
+      "auth": {
+        "in": "header",
+        "name": "Authorization",
+        "format": "Bearer {key}"
+      },
+      "errors": {
+        "403": "invalid_key"
+      },
+      "pools": [
+        {
+          "creditType": "balance",
+          "label": "Balance (USD)",
+          "unit": "usd",
+          "balance": "data.balance"
+        }
+      ]
+    },
+    {
+      "id": "scrapedo",
+      "name": "Scrape.do",
+      "topupUrl": "https://scrape.do/pricing/",
+      "request": {
+        "method": "GET",
+        "url": "https://api.scrape.do/info"
+      },
+      "auth": {
+        "in": "query",
+        "name": "token"
+      },
+      "rejectWhen": {
+        "path": "IsActive",
+        "equals": false
+      },
+      "pools": [
+        {
+          "creditType": "requests",
+          "label": "Requests",
+          "unit": "credits",
+          "balance": "RemainingMonthlyRequest",
+          "limit": "MaxMonthlyRequest"
+        }
+      ]
+    },
+    {
+      "id": "hasdata",
+      "name": "HasData",
+      "topupUrl": "https://hasdata.com/prices",
+      "request": {
+        "method": "GET",
+        "url": "https://api.hasdata.com/user/me/usage"
+      },
+      "auth": {
+        "in": "header",
+        "name": "x-api-key"
+      },
+      "pools": [
+        {
+          "creditType": "credits",
+          "label": "Credits",
+          "unit": "credits",
+          "balance": "data.availableCredits",
+          "limit": "data.totalCredits"
+        }
+      ]
+    },
+    {
+      "id": "olostep",
+      "name": "Olostep",
+      "topupUrl": "https://www.olostep.com/pricing",
+      "request": {
+        "method": "GET",
+        "url": "https://api.olostep.com/user/credits/info"
+      },
+      "auth": {
+        "in": "header",
+        "name": "Authorization",
+        "format": "Bearer {key}"
+      },
+      "errors": {
+        "402": "invalid_key"
+      },
+      "pools": [
+        {
+          "creditType": "credits",
+          "label": "Credits",
+          "unit": "credits",
+          "balance": "credits"
+        }
+      ]
+    },
+    {
+      "id": "emaillistverify",
+      "name": "EmailListVerify",
+      "topupUrl": "https://app.emaillistverify.com/signin",
+      "request": {
+        "method": "GET",
+        "url": "https://api.emaillistverify.com/api/credits"
+      },
+      "auth": {
+        "in": "header",
+        "name": "x-api-key",
+        "format": "{key}"
+      },
+      "pools": [
+        {
+          "creditType": "ondemand",
+          "label": "Credits",
+          "unit": "credits",
+          "balance": "onDemand.available"
+        },
+        {
+          "creditType": "subscription",
+          "label": "Daily Credits",
+          "unit": "credits",
+          "balance": "subscription.available"
+        }
+      ]
+    },
+    {
+      "id": "scrapeops",
+      "name": "ScrapeOps",
+      "topupUrl": "https://scrapeops.io/app/login/",
+      "request": {
+        "method": "GET",
+        "url": "https://backend.scrapeops.io/v1/proxy/account/usage"
+      },
+      "auth": {
+        "in": "query",
+        "name": "api_key"
+      },
+      "pools": [
+        {
+          "creditType": "credits",
+          "label": "Credits",
+          "unit": "credits",
+          "limit": "plan_api_credits",
+          "used": "used_api_credits"
+        }
+      ]
+    },
+    {
+      "id": "skrapp",
+      "name": "Skrapp",
+      "topupUrl": "https://skrapp.io/pricing",
+      "request": {
+        "method": "GET",
+        "url": "https://api.skrapp.io/api/v2/account",
+        "headers": {
+          "Accept": "application/json",
+          "Content-Type": "application/json"
+        }
+      },
+      "auth": {
+        "in": "header",
+        "name": "X-Access-Key",
+        "format": "{key}"
+      },
+      "errors": {
+        "403": "invalid_key"
+      },
+      "bodyError": {
+        "messagePaths": ["error", "message"],
+        "on": "2xx"
+      },
+      "pools": [
+        {
+          "creditType": "email",
+          "label": "Email Credits",
+          "unit": "credits",
+          "limit": "credit.email.quota",
+          "used": "credit.email.used"
+        }
+      ]
+    },
+    {
+      "id": "aiark",
+      "name": "AI Ark",
+      "topupUrl": "https://ai-ark.com/pricing",
+      "request": {
+        "method": "GET",
+        "url": "https://api.ai-ark.com/api/developer-portal/v1/payments/credits",
+        "headers": {
+          "Content-Type": "application/json"
+        }
+      },
+      "auth": {
+        "in": "header",
+        "name": "X-TOKEN"
+      },
+      "pools": [
+        {
+          "creditType": "credits",
+          "label": "Credits",
+          "unit": "credits",
+          "balance": "total"
+        }
+      ]
+    },
+    {
+      "id": "blitzapi",
+      "name": "BlitzAPI",
+      "topupUrl": "https://www.blitz-api.ai/pricing",
+      "request": {
+        "method": "GET",
+        "url": "https://api.blitz-api.ai/v2/account/key-info"
+      },
+      "auth": {
+        "in": "header",
+        "name": "x-api-key"
+      },
+      "pools": [
+        {
+          "creditType": "credits",
+          "label": "Records",
+          "unit": "credits",
+          "balance": "records_remaining"
+        }
+      ]
+    },
+    {
+      "id": "dropleads",
+      "name": "DropLeads",
+      "topupUrl": "https://www.dropleads.io/#pricing",
+      "request": {
+        "method": "GET",
+        "url": "https://prime.dropleads.io/api/v2/prime-db/credits/balance"
+      },
+      "auth": {
+        "in": "header",
+        "name": "X-API-Key"
+      },
+      "pools": [
+        {
+          "creditType": "credits",
+          "label": "Credits",
+          "unit": "credits",
+          "balance": "credits.totalAvailable",
+          "limit": "credits.totalCredits"
+        }
+      ]
+    },
+    {
+      "id": "leadsforge",
+      "name": "Leadsforge",
+      "topupUrl": "https://www.leadsforge.ai/pricing",
+      "request": {
+        "method": "GET",
+        "url": "https://api.leadsforge.ai/public/v1/balance"
+      },
+      "auth": {
+        "in": "header",
+        "name": "Authorization",
+        "format": "Bearer {key}"
+      },
+      "pools": [
+        {
+          "creditType": "credits",
+          "label": "Credits",
+          "unit": "credits",
+          "balance": "availableCredits"
+        }
+      ]
+    },
+    {
+      "id": "emailhippo",
+      "name": "Email Hippo",
+      "topupUrl": "https://app.emailhippo.com/",
+      "request": {
+        "method": "GET",
+        "url": "https://api.hippoapi.com/customer/reports/v3/quota/{key}",
+        "headers": {
+          "Accept": "application/json"
+        }
+      },
+      "auth": {
+        "in": "path"
+      },
+      "errors": {
+        "400": "invalid_key",
+        "404": "invalid_key"
+      },
+      "bodyError": {
+        "when": {
+          "path": "errorSummary",
+          "truthy": true
+        },
+        "messagePaths": ["errorSummary"]
+      },
+      "pools": [
+        {
+          "creditType": "quota",
+          "label": "Quota",
+          "unit": "credits",
+          "balance": "quotaRemaining",
+          "used": "quotaUsed"
+        }
+      ]
+    },
+    {
+      "id": "serper",
+      "name": "Serper",
+      "topupUrl": "https://serper.dev/billing",
+      "request": {
+        "method": "GET",
+        "url": "https://google.serper.dev/account"
+      },
+      "auth": {
+        "in": "header",
+        "name": "X-API-KEY"
+      },
+      "errors": {
+        "403": "invalid_key"
+      },
+      "pools": [
+        {
+          "creditType": "credits",
+          "label": "Credits",
+          "unit": "credits",
+          "balance": "balance"
+        }
+      ]
+    },
+    {
+      "id": "linkup",
+      "name": "Linkup",
+      "topupUrl": "https://app.linkup.so/billing",
+      "request": {
+        "method": "GET",
+        "url": "https://api.linkup.so/v1/credits/balance"
+      },
+      "auth": {
+        "in": "header",
+        "name": "Authorization",
+        "format": "Bearer {key}"
+      },
+      "pools": [
+        {
+          "creditType": "credits",
+          "label": "Credits",
+          "unit": "credits",
+          "balance": "balance"
+        }
+      ]
+    },
+    {
+      "id": "search1api",
+      "name": "Search1API",
+      "topupUrl": "https://s1.dev/pricing",
+      "request": {
+        "method": "GET",
+        "url": "https://api.search1api.com/usage"
+      },
+      "auth": {
+        "in": "header",
+        "name": "Authorization",
+        "format": "Bearer {key}"
+      },
+      "pools": [
+        {
+          "creditType": "credits",
+          "label": "Credits",
+          "unit": "credits",
+          "balance": "usage"
+        }
+      ]
+    },
+    {
+      "id": "valyu",
+      "name": "Valyu",
+      "topupUrl": "https://www.valyu.ai/pricing",
+      "request": {
+        "method": "GET",
+        "url": "https://api.valyu.ai/v1/account/balance"
+      },
+      "auth": {
+        "in": "header",
+        "name": "x-api-key"
+      },
+      "errors": {
+        "403": "invalid_key"
+      },
+      "pools": [
+        {
+          "creditType": "balance",
+          "label": "Balance (USD)",
+          "unit": "usd",
+          "balance": "credit_balance_usd"
+        }
+      ]
+    },
+    {
+      "id": "companyenrich",
+      "name": "CompanyEnrich",
+      "topupUrl": "https://companyenrich.com/pricing",
+      "request": {
+        "method": "GET",
+        "url": "https://api.companyenrich.com/me"
+      },
+      "auth": {
+        "in": "header",
+        "name": "Authorization",
+        "format": "Bearer {key}"
+      },
+      "pools": [
+        {
+          "creditType": "credits",
+          "label": "Credits",
+          "unit": "credits",
+          "limit": "credits.total",
+          "used": "credits.used"
+        }
+      ]
+    },
+    {
+      "id": "fetchin",
+      "name": "Fetchin",
+      "topupUrl": "https://fetchin.io/pricing",
+      "request": {
+        "method": "GET",
+        "url": "https://api.fetchin.io/api/v1/subscription"
+      },
+      "auth": {
+        "in": "header",
+        "name": "X-API-Key"
+      },
+      "pools": [
+        {
+          "creditType": "credits",
+          "label": "Credits",
+          "unit": "credits",
+          "balance": "creditsRemaining"
+        }
+      ]
+    },
+    {
+      "id": "fiberai",
+      "name": "Fiber AI",
+      "topupUrl": "https://www.fiber.ai/pricing",
+      "request": {
+        "method": "GET",
+        "url": "https://api.fiber.ai/v1/get-org-credits"
+      },
+      "auth": {
+        "in": "header",
+        "name": "x-api-key"
+      },
+      "errors": {
+        "403": "invalid_key"
+      },
+      "pools": [
+        {
+          "creditType": "credits",
+          "label": "Credits",
+          "unit": "credits",
+          "balance": "output.0.available",
+          "limit": "output.0.max"
+        }
+      ]
+    },
+    {
+      "id": "aviato",
+      "name": "Aviato",
+      "topupUrl": "https://data.aviato.co",
+      "request": {
+        "method": "GET",
+        "url": "https://data.api.aviato.co/billing/balance"
+      },
+      "auth": {
+        "in": "header",
+        "name": "Authorization",
+        "format": "Bearer {key}"
+      },
+      "pools": [
+        {
+          "creditType": "credits",
+          "label": "Credits",
+          "unit": "credits",
+          "balance": "balance",
+          "limit": "lastTopupBalance"
+        }
+      ]
+    },
+    {
+      "id": "getleads",
+      "name": "GetLeads",
+      "topupUrl": "https://www.getleads.io/pricing/",
+      "request": {
+        "method": "GET",
+        "url": "https://app.getleads.io/api/v1/usage/fair-use"
+      },
+      "auth": {
+        "in": "header",
+        "name": "X-API-Key"
+      },
+      "pools": [
+        {
+          "creditType": "credits",
+          "label": "Credits",
+          "unit": "credits",
+          "balance": "credits_remaining"
+        }
+      ]
+    },
+    {
+      "id": "moltsets",
+      "name": "MoltSets",
+      "topupUrl": "https://moltsets.com/pricing",
+      "request": {
+        "method": "POST",
+        "url": "https://api.moltsets.com/api/v1/tools/get_account",
+        "headers": {
+          "Content-Type": "application/json",
+          "User-Agent": "QuotaCanary"
+        },
+        "body": "{}"
+      },
+      "auth": {
+        "in": "header",
+        "name": "Authorization",
+        "format": "Bearer {key}"
+      },
+      "bodyError": {
+        "when": {
+          "path": "results.unlimited",
+          "equals": true
+        },
+        "messagePaths": ["error.message"],
+        "fallback": "error"
+      },
+      "pools": [
+        {
+          "creditType": "credits",
+          "label": "Credits",
+          "unit": "credits",
+          "balance": "results.token_balance"
+        }
+      ]
+    },
+    {
+      "id": "openmart",
+      "name": "Openmart",
+      "topupUrl": "https://www.openmart.com/pricing",
+      "request": {
+        "method": "GET",
+        "url": "https://api.openmart.ai/api/v2/credit-balance"
+      },
+      "auth": {
+        "in": "header",
+        "name": "Authorization",
+        "format": "Bearer {key}"
+      },
+      "pools": [
+        {
+          "creditType": "credits",
+          "label": "Credits",
+          "unit": "credits",
+          "balance": "balance"
+        }
+      ]
+    },
+    {
+      "id": "moz",
+      "name": "Moz",
+      "topupUrl": "https://moz.com/products/api/pricing",
+      "request": {
+        "method": "POST",
+        "url": "https://api.moz.com/jsonrpc",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": "{\"jsonrpc\":\"2.0\",\"id\":\"quotacanary-quota-lookup\",\"method\":\"quota.lookup\",\"params\":{\"data\":{\"path\":\"api.limits.data.rows\"}}}"
+      },
+      "auth": {
+        "in": "header",
+        "name": "x-moz-token"
+      },
+      "pools": [
+        {
+          "creditType": "rows",
+          "label": "Rows",
+          "unit": "credits",
+          "limit": "result.quota.allotted",
+          "used": "result.quota.used"
+        }
+      ]
+    },
+    {
+      "id": "contextdev",
+      "name": "Context.dev",
+      "topupUrl": "https://www.context.dev/pricing",
+      "request": {
+        "method": "GET",
+        "url": "https://api.context.dev/v1/org/usage"
+      },
+      "auth": {
+        "in": "header",
+        "name": "Authorization",
+        "format": "Bearer {key}"
+      },
+      "pools": [
+        {
+          "creditType": "credits",
+          "label": "Credits",
+          "unit": "credits",
+          "balance": "credits_remaining",
+          "used": "period.credits_used"
+        }
+      ]
+    },
+    {
+      "id": "akta",
+      "name": "Akta",
+      "topupUrl": "https://docs.akta.pro/getting-started/pricing",
+      "request": {
+        "method": "GET",
+        "url": "https://api.akta.pro/api/v1/mcp/account"
+      },
+      "auth": {
+        "in": "header",
+        "name": "x-api-key"
+      },
+      "pools": [
+        {
+          "creditType": "credits",
+          "label": "Credits",
+          "unit": "credits",
+          "balance": "credit_balance"
+        }
+      ]
+    },
+    {
+      "id": "litescrape",
+      "name": "Litescrape",
+      "topupUrl": "https://litescrape.com/pricing",
+      "request": {
+        "method": "GET",
+        "url": "https://api.litescrape.com/api/keys/status"
+      },
+      "auth": {
+        "in": "header",
+        "name": "Authorization",
+        "format": "Bearer {key}"
+      },
+      "errors": {
+        "403": "invalid_key"
+      },
+      "pools": [
+        {
+          "creditType": "calls",
+          "label": "Calls",
+          "unit": "credits",
+          "balance": "remaining_calls"
+        }
+      ]
+    },
+    {
+      "id": "tinyfish",
+      "name": "TinyFish",
+      "topupUrl": "https://www.tinyfish.ai/pricing",
+      "request": {
+        "method": "GET",
+        "url": "https://agent.tinyfish.ai/v1/wallet"
+      },
+      "auth": {
+        "in": "header",
+        "name": "X-API-Key"
+      },
+      "bodyError": {
+        "messagePaths": ["error.message"],
+        "on": "non2xx"
+      },
+      "pools": [
+        {
+          "creditType": "wallet",
+          "label": "Wallet",
+          "unit": "usd",
+          "balance": "available_balance"
+        }
+      ]
+    },
+    {
+      "id": "tikhub",
+      "name": "TikHub",
+      "topupUrl": "https://tikhub.io/pricing",
+      "request": {
+        "method": "GET",
+        "url": "https://api.tikhub.io/api/v1/tikhub/user/get_user_info"
+      },
+      "auth": {
+        "in": "header",
+        "name": "Authorization",
+        "format": "Bearer {key}"
+      },
+      "pools": [
+        {
+          "creditType": "balance",
+          "label": "Balance (USD)",
+          "unit": "usd",
+          "balance": "user_data.balance"
+        }
+      ]
+    }
+  ]
+}

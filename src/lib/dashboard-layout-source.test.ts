@@ -61,7 +61,11 @@ describe("dashboard layout source", () => {
 
   it("keeps horizontal clipping inside the table at intermediate widths", () => {
     expect(connectionsTable).toContain("overflow-x-auto")
-    expect(connectionsTable).toContain("min-w-[900px]")
+    // 964 holds the seven-column grid (963px with gaps, padding and the row
+    // border) and still fits the 990px content area at xl with a scrollbar.
+    expect(connectionsTable).toContain("min-w-[964px]")
+    expect(connectionRow).toContain("_112px_132px_")
+    expect(connectionsTable).toContain('label: "Warn below"')
   })
 
   it("uses cards until the complete table and its view switcher fit", () => {

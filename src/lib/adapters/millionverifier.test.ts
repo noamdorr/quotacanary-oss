@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { millionverifierAdapter } from "./millionverifier"
+import { catalogAdapterFor } from "./catalog"
+
+const millionverifierAdapter = catalogAdapterFor("millionverifier")
 
 afterEach(() => vi.restoreAllMocks())
 

@@ -20,7 +20,12 @@ vi.mock("@/lib/adapters/registry", () => ({
 }))
 
 type Filter = [string, unknown]
-type Recorded = { table: string; verb: string; filters: Filter[] }
+type Recorded = {
+  table: string
+  verb: string
+  filters: Filter[]
+  payload?: unknown
+}
 
 // Minimal thenable query builder that records the verb + filter chain per
 // from() call. Mirrors src/lib/actions/connections.test.ts's helper.
@@ -37,8 +42,9 @@ function recordingSupabase(singles: Record<string, () => unknown> = {}): {
         if (!rec.verb) rec.verb = "select"
         return builder
       },
-      update: () => {
+      update: (payload: unknown) => {
         rec.verb = "update"
+        rec.payload = payload
         return builder
       },
       insert: () => {
@@ -94,7 +100,7 @@ describe("refreshConnectionWith", () => {
 
     const result = await refreshConnectionWith(db.client, "conn-1")
 
-    expect(result).toEqual({
+    expect(result).toMatchObject({
       ok: false,
       error: "Couldn't read this connection's balance.",
     })
@@ -103,5 +109,79 @@ describe("refreshConnectionWith", () => {
       boom
     )
     logSpy.mockRestore()
+  })
+
+  // QUO-289: the poll needs the facts to decide a "stopped checking" alert.
+  it("reports a failed read's streak and whether the key was rejected", async () => {
+    const { encrypt } = await import("@/lib/crypto")
+    readBalance.mockResolvedValueOnce({
+      ok: false,
+      error: "Hunter rejected this key.",
+    } as never)
+    const db = recordingSupabase({
+      "connections.select": () => ({
+        id: "conn-1",
+        user_id: "user-1",
+        tool_id: "hunter",
+        encrypted_key: encrypt("secret-key"),
+        name: "Hunter main",
+        alert_enabled: true,
+        consecutive_failures: 2,
+        failure_alerted_at: "2026-10-18T09:00:00.000Z",
+        tool: { name: "Hunter" },
+      }),
+    })
+
+    const result = await refreshConnectionWith(db.client, "conn-1")
+
+    expect(result).toEqual({
+      ok: false,
+      error: "Hunter rejected this key.",
+      stopped: {
+        connectionId: "conn-1",
+        userId: "user-1",
+        toolName: "Hunter",
+        connectionName: "Hunter main",
+        alertEnabled: true,
+        consecutiveFailures: 3,
+        keyRejected: true,
+        failureAlertedAt: "2026-10-18T09:00:00.000Z",
+      },
+    })
+    expect(db.recorded.find((r) => r.verb === "update")?.payload).toMatchObject(
+      { status: "error", consecutive_failures: 3 }
+    )
+  })
+
+  it("never writes the alert stamp itself, on either path", async () => {
+    // Manual refresh runs this as the signed-in user, and 065's column grant
+    // leaves the stamp out on purpose: writing it here would fail the whole
+    // update and break refresh for everyone.
+    const { encrypt } = await import("@/lib/crypto")
+    const row = () => ({
+      id: "conn-1",
+      user_id: "user-1",
+      tool_id: "hunter",
+      encrypted_key: encrypt("secret-key"),
+      name: "Hunter main",
+      alert_enabled: true,
+      consecutive_failures: 4,
+      failure_alerted_at: "2026-10-18T09:00:00.000Z",
+    })
+    const ok = recordingSupabase({ "connections.select": row })
+    const okResult = await refreshConnectionWith(ok.client, "conn-1")
+    readBalance.mockResolvedValueOnce({ ok: false, error: "down" } as never)
+    const failed = recordingSupabase({ "connections.select": row })
+    await refreshConnectionWith(failed.client, "conn-1")
+
+    for (const r of [...ok.recorded, ...failed.recorded]) {
+      if (r.verb === "update") {
+        expect(r.payload).not.toHaveProperty("failure_alerted_at")
+      }
+    }
+    // Dispatch reads it from the evaluation to clean up after an incident.
+    expect(okResult.ok && okResult.alert?.failureAlertedAt).toBe(
+      "2026-10-18T09:00:00.000Z"
+    )
   })
 })

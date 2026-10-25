@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { bettercontactAdapter } from "./bettercontact"
+import { catalogAdapterFor } from "./catalog"
+
+const bettercontactAdapter = catalogAdapterFor("bettercontact")
 
 afterEach(() => vi.restoreAllMocks())
 
@@ -84,6 +86,27 @@ describe("bettercontact adapter", () => {
     const result = await bettercontactAdapter.readBalance("api-key")
 
     expect(result).toEqual({ ok: false, error: "Invalid API key" })
+  })
+
+  it("treats a null credits_left as unexpected, never a false zero", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          ({
+            ok: true,
+            status: 200,
+            json: async () => ({ success: true, credits_left: null }),
+          }) as unknown as Response
+      )
+    )
+
+    const result = await bettercontactAdapter.readBalance("api-key")
+
+    expect(result).toEqual({
+      ok: false,
+      error: "BetterContact returned an unexpected response.",
+    })
   })
 
   it("returns an error on a non-JSON body", async () => {

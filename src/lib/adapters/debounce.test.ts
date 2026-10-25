@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { debounceAdapter } from "./debounce"
+import { catalogAdapterFor } from "./catalog"
+
+const debounceAdapter = catalogAdapterFor("debounce")
 afterEach(() => vi.restoreAllMocks())
 describe("debounce adapter", () => {
   it("coerces string balance to a number", async () => {

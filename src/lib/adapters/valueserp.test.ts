@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { valueserpAdapter } from "./valueserp"
+import { catalogAdapterFor } from "./catalog"
+
+const valueserpAdapter = catalogAdapterFor("valueserp")
 afterEach(() => vi.restoreAllMocks())
 describe("valueserp adapter", () => {
   it("returns monthly and top-up readings", async () => {

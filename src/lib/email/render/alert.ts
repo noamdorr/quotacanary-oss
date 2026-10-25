@@ -56,7 +56,7 @@ export function renderAlertEmail(model: AlertEmailModel): RenderedEmail {
     : ""
 
   const topupHtml = model.topupUrl
-    ? `<tr><td style="height:16px;"></td></tr><tr><td><a href="${esc(model.topupUrl)}" style="font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#1a1a1a;">Get more from ${esc(model.toolName)}</a></td></tr>`
+    ? `<tr><td style="height:16px;"></td></tr><tr><td><a href="${esc(model.topupUrl)}" style="font-family:Arial,Helvetica,sans-serif;font-size:14px;color:#1a1a1a;">Top up ${esc(model.toolName)}</a></td></tr>`
     : ""
 
   const html = `<table width="100%" cellpadding="0" cellspacing="0" style="background:#FFFDF5;padding:32px 0;">
@@ -88,7 +88,7 @@ export function renderAlertEmail(model: AlertEmailModel): RenderedEmail {
     model.etaText ? `\n${model.etaText}` : "",
     "",
     `Open dashboard: ${model.dashboardUrl}`,
-    model.topupUrl ? `Get more: ${model.topupUrl}` : "",
+    model.topupUrl ? `Top up: ${model.topupUrl}` : "",
   ]
     .filter((line) => line !== "")
     .join("\n")

@@ -9,9 +9,14 @@ import { SIGNATURE_HEADER, buildSignatureHeader } from "./signing"
 
 export type AlertDestinationKind = "webhook" | "slack_webhook"
 export type AlertDeliveryLevel = Exclude<AlertLevel, "none">
+// alert_events.kind (migration 089). A stopped-checking event carries level
+// "critical", so every destination and notify_mode that hears about a
+// critical balance hears about it too, and it has no pools.
+export type AlertEventKind = "balance" | "stopped_checking"
 
 export type AlertDestinationEvent = {
   id: string
+  kind?: AlertEventKind
   level: AlertDeliveryLevel
   toolName: string
   connectionId: string
@@ -281,9 +286,19 @@ export async function postAlertDestination(
   }
 }
 
+// The event name is staged for Noam's pick (QUO-289 PR); docs/page.tsx
+// documents it beside the balance events.
+const STOPPED_CHECKING_EVENT = "quota.alert.stopped"
+
+function webhookEventName(event: AlertDestinationEvent): string {
+  if (event.isTest) return "quota.alert.test"
+  if (event.kind === "stopped_checking") return STOPPED_CHECKING_EVENT
+  return `quota.alert.${event.level}`
+}
+
 function renderWebhookPayload(event: AlertDestinationEvent) {
   return {
-    event: event.isTest ? "quota.alert.test" : `quota.alert.${event.level}`,
+    event: webhookEventName(event),
     id: event.id,
     level: event.level,
     title: event.title,
@@ -313,10 +328,14 @@ function escapeSlackText(s: string): string {
 function renderSlackPayload(event: AlertDestinationEvent) {
   const title = escapeSlackText(event.title)
   const body = escapeSlackText(event.body)
+  // A stopped-checking event has no pools by design; saying details are
+  // missing would read as a second failure.
   const poolText =
-    event.pools.length > 0
-      ? event.pools.map(formatPoolLine).join("\n")
-      : "No matching pool details were available."
+    event.kind === "stopped_checking"
+      ? null
+      : event.pools.length > 0
+        ? event.pools.map(formatPoolLine).join("\n")
+        : "No matching pool details were available."
 
   return {
     text: `${title}: ${body}`,
@@ -334,7 +353,7 @@ function renderSlackPayload(event: AlertDestinationEvent) {
         type: "section",
         text: {
           type: "mrkdwn",
-          text: `${body}\n${poolText}`,
+          text: poolText === null ? body : `${body}\n${poolText}`,
         },
       },
       {

@@ -1,0 +1,107 @@
+---
+import Layout from "../../layouts/Layout.astro"
+import { TOOL_REQUEST_MAILTO } from "../../lib/copy"
+import { CATEGORY_ORDER, TOOLS, categoryLabel } from "../../lib/tools"
+
+// Copy carried over from the Next ToolsDirectory component (live on master).
+const present = new Set(TOOLS.map((tool) => tool.category ?? ""))
+const categories = CATEGORY_ORDER.filter((category) => present.has(category))
+---
+
+<Layout
+  title="Every tool QuotaCanary watches - the credit-balance directory"
+  description="Browse every API tool QuotaCanary monitors for credit balance and burn rate. Find your tool and learn how to check its balance before it runs dry."
+  path="/directory"
+>
+  <section class="page page-wide wrap directory" aria-labelledby="directory-title">
+    <div class="directory-head">
+      <p class="eyebrow">Tool directory</p>
+      <h1 id="directory-title">Every tool QuotaCanary watches.</h1>
+      <p class="page-lead">
+        Click any one to see how to check its balance and what it bills you on. This is the whole
+        list; if yours isn't on it, <a href={TOOL_REQUEST_MAILTO}>ask for it</a>.
+      </p>
+    </div>
+
+    <form class="directory-controls" role="search" data-directory-controls>
+      <input
+        type="search"
+        class="directory-search"
+        name="q"
+        placeholder="Search tools..."
+        aria-label="Search tools"
+        autocomplete="off"
+      />
+      <button type="button" class="chip" data-category="all" aria-pressed="true">All</button>
+      {
+        categories.map((category) => (
+          <button type="button" class="chip" data-category={category} aria-pressed="false">
+            {categoryLabel(category)}
+          </button>
+        ))
+      }
+    </form>
+
+    <p class="directory-count" aria-live="polite" data-directory-count>
+      {TOOLS.length} tools
+    </p>
+
+    <div class="tool-directory" data-directory-list>
+      {
+        TOOLS.map((tool) => (
+          <a
+            href={`/directory/${tool.id}`}
+            data-name={tool.name.toLowerCase()}
+            data-category={tool.category ?? ""}
+          >
+            <img src={tool.logo_url} alt="" width="32" height="32" loading="lazy" />
+            <span>{tool.name}</span>
+          </a>
+        ))
+      }
+    </div>
+    <p class="directory-empty" data-directory-empty hidden>
+      Nothing by that name. Try fewer letters, or <a href={TOOL_REQUEST_MAILTO}>ask for it</a> and
+      we'll take a look.
+    </p>
+  </section>
+</Layout>
+
+<script>
+  // Client-side filter over the prerendered list: same behaviour as the Next
+  // ToolsDirectory (name substring + one category chip).
+  const controls = document.querySelector<HTMLFormElement>("[data-directory-controls]")
+  const list = document.querySelector<HTMLElement>("[data-directory-list]")
+  const count = document.querySelector<HTMLElement>("[data-directory-count]")
+  const empty = document.querySelector<HTMLElement>("[data-directory-empty]")
+  if (controls && list && count && empty) {
+    const input = controls.querySelector<HTMLInputElement>("input[type=search]")!
+    const chips = Array.from(controls.querySelectorAll<HTMLButtonElement>("[data-category]"))
+    const items = Array.from(list.querySelectorAll<HTMLAnchorElement>("a[data-name]"))
+    let category = "all"
+
+    const apply = () => {
+      const q = input.value.trim().toLowerCase()
+      let shown = 0
+      for (const item of items) {
+        const match =
+          (category === "all" || item.dataset.category === category) &&
+          (q === "" || (item.dataset.name ?? "").includes(q))
+        item.hidden = !match
+        if (match) shown++
+      }
+      count.textContent = `${shown} ${shown === 1 ? "tool" : "tools"}`
+      empty.hidden = shown !== 0
+    }
+
+    controls.addEventListener("submit", (event) => event.preventDefault())
+    input.addEventListener("input", apply)
+    for (const chip of chips) {
+      chip.addEventListener("click", () => {
+        category = chip.dataset.category ?? "all"
+        for (const other of chips) other.setAttribute("aria-pressed", String(other === chip))
+        apply()
+      })
+    }
+  }
+</script>

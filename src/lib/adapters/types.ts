@@ -1,7 +1,7 @@
 // How a balance value should be interpreted and formatted in the UI.
 // Adapters pick from this known set; the DB column is freeform text so new
 // units can be added without a migration (the formatter falls back gracefully).
-export type BalanceUnit = "credits" | "usd" | "gb"
+export type BalanceUnit = "credits" | "usd" | "eur" | "gb" | "minutes"
 
 export type BalanceReading = {
   creditType: string

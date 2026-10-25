@@ -1,21 +1,18 @@
-const DAY_NAMES = [
-  "Sunday",
-  "Monday",
-  "Tuesday",
-  "Wednesday",
-  "Thursday",
-  "Friday",
-  "Saturday",
-]
-
 export type BurnEta = { short: string; long: string }
 
 // Translates days-of-runway (from burnRate().daysLeft) into the brand's
 // human phrasing. `daysLeft` is null when there is no measurable burn.
-export function formatBurnEta(
-  daysLeft: number | null,
-  now: Date = new Date()
-): BurnEta {
+//
+// Unit rule (QUO-184; the Mac app's BurnEta.swift mirrors it exactly):
+//   < 1 day        hours        "~18h"              / "Empties in ~18 hours."
+//   1 to < 1.5     tomorrow     "burns out tomorrow" / "Empties tomorrow."
+//   1.5 to < 7     days         "in ~3 days"        / "Empties in ~3 days."
+//   7 to < 28      weeks        "~2 weeks"          / "Empties in ~16 days."
+//   28 to < 365    months       "~3 months"         / "Empties in ~3 months."
+//   >= 365         next year    "~next year"        / "Plenty of runway."
+// Always relative, never a weekday name: the reader should not have to recall
+// today's date and do the math.
+export function formatBurnEta(daysLeft: number | null): BurnEta {
   if (daysLeft === null) {
     return { short: "no burn yet", long: "Not draining yet." }
   }
@@ -35,13 +32,10 @@ export function formatBurnEta(
       long: "Empties tomorrow.",
     }
   }
-  // Weekday is resolved in UTC on purpose: keeps output deterministic across
-  // server/client timezones (and makes the unit tests stable in any CI tz).
   if (daysLeft < 7) {
     const d = Math.round(daysLeft)
-    const out = new Date(now.getTime() + daysLeft * 86_400_000)
     return {
-      short: `burns out ${DAY_NAMES[out.getUTCDay()]}`,
+      short: `in ~${d} day${d === 1 ? "" : "s"}`,
       long: `Empties in ~${d} day${d === 1 ? "" : "s"}.`,
     }
   }

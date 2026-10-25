@@ -3,6 +3,7 @@ import { FinalCta } from "@/components/marketing/FinalCta"
 import { FounderNote } from "@/components/marketing/FounderNote"
 import { HeroEditorial } from "@/components/marketing/HeroEditorial"
 import { HowItWorks } from "@/components/marketing/HowItWorks"
+import { MacSection } from "@/components/marketing/MacSection"
 import { MarketingFooter } from "@/components/marketing/MarketingFooter"
 import { MarketingNav } from "@/components/marketing/MarketingNav"
 import { Pricing } from "@/components/marketing/Pricing"
@@ -44,6 +45,7 @@ export default function MarketingHome() {
         <HeroEditorial />
         <SupportedTools />
         <HowItWorks />
+        <MacSection />
         <Pricing />
         <FounderNote />
         <Faq />

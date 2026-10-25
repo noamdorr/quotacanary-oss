@@ -43,10 +43,7 @@ export function RotatingToolLogos() {
     }))
   )
   const [reducedMotion, setReducedMotion] = useState(true)
-
-  useEffect(() => {
-    void preloadRotatingToolLogos()
-  }, [])
+  const shownIndexes = useRef<number[]>([...INITIAL_ROTATING_TOOL_INDEXES])
 
   useEffect(() => {
     const media = window.matchMedia("(prefers-reduced-motion: reduce)")
@@ -63,6 +60,20 @@ export function RotatingToolLogos() {
       return
     }
 
+    // Only the four visible logos load with the page. Each later logo is
+    // fetched one tick before it appears, so the crossfade has it in cache.
+    const preloadUpcomingLogo = () => {
+      if (logoQueue.current.length === 0) {
+        logoQueue.current = makeLogoQueue(shownIndexes.current)
+      }
+
+      void preloadRotatingToolLogos([
+        ROTATING_TOOL_LOGOS[logoQueue.current[0]].logo,
+      ])
+    }
+
+    preloadUpcomingLogo()
+
     const interval = window.setInterval(() => {
       const section = root.current?.closest("section")
 
@@ -73,27 +84,26 @@ export function RotatingToolLogos() {
         return
       }
 
-      setVisibleSlots((currentSlots) => {
-        const currentIndexes = currentSlots.map(({ current }) => current)
+      if (slotQueue.current.length === 0) {
+        slotQueue.current = makeSlotQueue()
+      }
 
-        if (slotQueue.current.length === 0) {
-          slotQueue.current = makeSlotQueue()
-        }
+      const slot = slotQueue.current.shift() ?? 0
+      const next =
+        logoQueue.current.shift() ??
+        fallbackToolIndex(shownIndexes.current, slot)
 
-        if (logoQueue.current.length === 0) {
-          logoQueue.current = makeLogoQueue(currentIndexes)
-        }
-
-        const slot = slotQueue.current.shift() ?? 0
-        const next =
-          logoQueue.current.shift() ?? fallbackToolIndex(currentIndexes, slot)
-
-        return currentSlots.map((visibleSlot, currentSlot) =>
+      shownIndexes.current = shownIndexes.current.map((current, index) =>
+        index === slot ? next : current
+      )
+      setVisibleSlots((currentSlots) =>
+        currentSlots.map((visibleSlot, currentSlot) =>
           currentSlot === slot
             ? { current: next, previous: visibleSlot.current }
             : visibleSlot
         )
-      })
+      )
+      preloadUpcomingLogo()
     }, ADVANCE_MS)
 
     return () => window.clearInterval(interval)

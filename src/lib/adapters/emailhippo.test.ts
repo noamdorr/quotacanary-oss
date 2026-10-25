@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { emailhippoAdapter } from "./emailhippo"
+import { catalogAdapterFor } from "./catalog"
+
+const emailhippoAdapter = catalogAdapterFor("emailhippo")
 
 afterEach(() => vi.restoreAllMocks())
 
@@ -83,7 +85,7 @@ describe("emailhippo adapter", () => {
     )
   })
 
-  it("returns error when Email Hippo reports an error summary", async () => {
+  it("passes Email Hippo's error summary through", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(
@@ -104,7 +106,7 @@ describe("emailhippo adapter", () => {
 
     expect(result).toEqual({
       ok: false,
-      error: "Email Hippo rejected the quota request.",
+      error: "Invalid license key.",
     })
   })
 

@@ -3,16 +3,15 @@
 import { Canary } from "@/components/brand/Canary"
 import { Button } from "@/components/ui/button"
 import { setViewMode } from "@/lib/actions/connections"
-import { effectiveStatus } from "@/lib/balance-status"
 import { connectionRowsForSuccess } from "@/lib/dashboard-connection-success"
 import { mostAtRisk } from "@/lib/most-at-risk"
+import { assessPool } from "@/lib/pool-assessment"
 import { type PoolRow, toPoolRows } from "@/lib/pool-rows"
 import {
   type SortDir,
   type SortKey,
   sortPoolRows,
 } from "@/lib/sort-connections"
-import { resolvePoolThresholds } from "@/lib/thresholds"
 import type { ConnectionWithBalance, ViewMode } from "@/lib/types"
 import { useRouter } from "next/navigation"
 import { useMemo, useState } from "react"
@@ -26,16 +25,7 @@ import { type StatusFilter, ViewControls } from "./ViewControls"
 
 function matchesStatus(row: PoolRow, filter: StatusFilter): boolean {
   if (filter === "all") return true
-  const { low, critical } = resolvePoolThresholds(
-    row.connection,
-    row.pool?.creditType ?? ""
-  )
-  const s = effectiveStatus({
-    balance: row.pool?.balance ?? null,
-    low,
-    critical,
-    connectionStatus: row.connection.status,
-  })
+  const s = assessPool(row).status
   if (s.kind !== "level") return filter === "attention"
   if (filter === "attention") return s.level === "low" || s.level === "critical"
   return s.level === filter
@@ -111,8 +101,12 @@ export function DashboardClient({
     router.replace("/dashboard", { scroll: false })
   }
 
+  // The confirmation card lists the new connection whatever the filters say,
+  // so its rows have to open the drawer even when the table is hiding them.
   const openRow = openKey
-    ? (visible.find((r) => poolRowKey(r) === openKey) ?? null)
+    ? (visible.find((r) => poolRowKey(r) === openKey) ??
+      successRows.find((r) => poolRowKey(r) === openKey) ??
+      null)
     : null
 
   // Shared by the card view and the table view's mobile fallback.
@@ -147,6 +141,7 @@ export function DashboardClient({
         <ConnectionSuccessCard
           rows={successRows}
           celebrate={connections.length === 1}
+          onOpenRow={(r) => setOpenKey(poolRowKey(r))}
           onDismiss={dismissSuccess}
         />
       )}

@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { mailercheckAdapter } from "./mailercheck"
+import { catalogAdapterFor } from "./catalog"
+
+const mailercheckAdapter = catalogAdapterFor("mailercheck")
 
 afterEach(() => vi.restoreAllMocks())
 

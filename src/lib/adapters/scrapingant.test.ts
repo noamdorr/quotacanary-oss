@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { scrapingantAdapter } from "./scrapingant"
+import { catalogAdapterFor } from "./catalog"
+
+const scrapingantAdapter = catalogAdapterFor("scrapingant")
 afterEach(() => vi.restoreAllMocks())
 describe("scrapingant adapter", () => {
   it("returns balance and balanceLimit", async () => {

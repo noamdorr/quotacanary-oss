@@ -1,0 +1,1038 @@
+[
+  {
+    "id": "ahrefs",
+    "name": "Ahrefs",
+    "logo_url": "/logos/ahrefs.png",
+    "category": "data",
+    "description": "SEO data and backlink intelligence APIs, billed from monthly API units.",
+    "website_url": "https://ahrefs.com",
+    "api_docs_url": "https://docs.ahrefs.com/en/api/reference/subscription-info/get-limits-and-usage",
+    "key_instructions": "Go to Ahrefs -> Account settings -> API and copy your API key",
+    "topup_url": "https://app.ahrefs.com/account/subscription",
+    "pools": [
+      {
+        "unit": "credits",
+        "label": "API Units",
+        "credit_type": "units"
+      }
+    ]
+  },
+  {
+    "id": "anymailfinder",
+    "name": "Anymail Finder",
+    "logo_url": "/logos/anymailfinder.png",
+    "category": "email_finding",
+    "description": "Email finding that charges only for verified results, billed per credit.",
+    "website_url": null,
+    "api_docs_url": "https://anymailfinder.com/email-finder-api/docs/account",
+    "key_instructions": "Go to app.anymailfinder.com → API → copy your API key",
+    "topup_url": "https://anymailfinder.com/pricing",
+    "pools": null
+  },
+  {
+    "id": "apify",
+    "name": "Apify",
+    "logo_url": "/logos/apify.png",
+    "category": "data",
+    "description": "A platform of scrapers and automations, billed from a prepaid balance.",
+    "website_url": null,
+    "api_docs_url": "https://docs.apify.com/api/v2",
+    "key_instructions": "Go to console.apify.com → Settings → Integrations → copy your API token",
+    "topup_url": "https://console.apify.com/billing/subscription",
+    "pools": null
+  },
+  {
+    "id": "apollo",
+    "name": "Apollo",
+    "logo_url": "/logos/apollo.png",
+    "category": "email_finding",
+    "description": "B2B contact database and sales engagement, metered from separate lead, export, dial, and AI credit pools.",
+    "website_url": "https://www.apollo.io",
+    "api_docs_url": "https://docs.apollo.io/reference/view-credit-usage-stats",
+    "key_instructions": "Go to Apollo -> Settings -> Integrations -> API -> API keys -> Create new key, scope it to api/v1/usage_stats/credit_usage_stats only, and copy it",
+    "topup_url": "https://app.apollo.io/#/settings/plans/upgrade",
+    "pools": [
+      {
+        "unit": "credits",
+        "label": "Lead Credits",
+        "credit_type": "lead_credit"
+      },
+      {
+        "unit": "credits",
+        "label": "Export Credits",
+        "credit_type": "export_credit"
+      },
+      {
+        "unit": "credits",
+        "label": "Direct Dial Credits",
+        "credit_type": "direct_dial_credit"
+      },
+      {
+        "unit": "credits",
+        "label": "AI Credits",
+        "credit_type": "ai_credit"
+      }
+    ]
+  },
+  {
+    "id": "bettercontact",
+    "name": "BetterContact",
+    "logo_url": "/logos/bettercontact.png",
+    "category": "email_finding",
+    "description": "Waterfall contact enrichment for email and phone, billed from account credits.",
+    "website_url": "https://bettercontact.rocks",
+    "api_docs_url": "https://doc.bettercontact.rocks/api-reference/endpoint/account",
+    "key_instructions": "Go to BetterContact -> Settings -> API and copy your API key",
+    "topup_url": "https://app.bettercontact.rocks",
+    "pools": [
+      {
+        "unit": "credits",
+        "label": "Credits",
+        "credit_type": "credits"
+      }
+    ]
+  },
+  {
+    "id": "bouncer",
+    "name": "Bouncer",
+    "logo_url": "/logos/bouncer.png",
+    "category": "email_verification",
+    "description": "Email verification and deliverability checks, priced per credit.",
+    "website_url": null,
+    "api_docs_url": "https://docs.usebouncer.com/",
+    "key_instructions": "Go to app.usebouncer.com → Settings → API Keys → copy your key",
+    "topup_url": "https://www.usebouncer.com/pricing/",
+    "pools": null
+  },
+  {
+    "id": "bouncify",
+    "name": "Bouncify",
+    "logo_url": "/logos/bouncify.png",
+    "category": "email_verification",
+    "description": "Bulk email verification, priced per verification credit.",
+    "website_url": null,
+    "api_docs_url": "https://bouncify.io/docs/api-docs/account/",
+    "key_instructions": "Go to bouncify.io → Account → API key → copy your key",
+    "topup_url": "https://bouncify.io/pricing.html",
+    "pools": null
+  },
+  {
+    "id": "brightdata",
+    "name": "Bright Data",
+    "logo_url": "/logos/brightdata.png",
+    "category": "data",
+    "description": "Proxies and web data at scale, billed by usage balance.",
+    "website_url": null,
+    "api_docs_url": "https://docs.brightdata.com/api-reference/account-management-api",
+    "key_instructions": "Go to brightdata.com → Account settings → API tokens → create a token",
+    "topup_url": "https://brightdata.com/cp/billing",
+    "pools": null
+  },
+  {
+    "id": "builtwith",
+    "name": "BuiltWith",
+    "logo_url": "/logos/builtwith.png",
+    "category": "data",
+    "description": "Website technology intelligence and lead data APIs, billed from API credits.",
+    "website_url": "https://builtwith.com",
+    "api_docs_url": "https://api.builtwith.com/agent-payment-api",
+    "key_instructions": "Go to BuiltWith Agent Payment API configuration, enable Agent API Billing, and copy the Agent API Key",
+    "topup_url": "https://payments.builtwith.com/agent-payment-api-config",
+    "pools": [
+      {
+        "unit": "credits",
+        "label": "API Credits",
+        "credit_type": "credits"
+      }
+    ]
+  },
+  {
+    "id": "captaindata",
+    "name": "Captain Data",
+    "logo_url": "/logos/captaindata.png",
+    "category": "data",
+    "description": "No-code data extraction and automation, priced per credit.",
+    "website_url": null,
+    "api_docs_url": "https://docs.captaindata.com/v1/api/quotas",
+    "key_instructions": "Go to app.captaindata.com/developers → copy your API key",
+    "topup_url": "https://app.captaindata.com/settings/plans",
+    "pools": null
+  },
+  {
+    "id": "clearout",
+    "name": "Clearout",
+    "logo_url": "/logos/clearout.png",
+    "category": "email_verification",
+    "description": "Email verification and finding from a shared credit balance.",
+    "website_url": null,
+    "api_docs_url": "https://docs.clearout.io/developers/api/overview",
+    "key_instructions": "Go to app.clearout.io → Settings → API → generate an API token",
+    "topup_url": "https://app.clearout.io/public/credits",
+    "pools": null
+  },
+  {
+    "id": "contactout",
+    "name": "ContactOut",
+    "logo_url": "/logos/contactout.png",
+    "category": "email_finding",
+    "description": "B2B contact data and people search, with separate email, phone, and search credit pools.",
+    "website_url": "https://contactout.com",
+    "api_docs_url": "https://api.contactout.com/#api-usage-stats",
+    "key_instructions": "Go to ContactOut -> API and copy your API token",
+    "topup_url": "https://contactout.com/pricing",
+    "pools": [
+      {
+        "unit": "credits",
+        "label": "Email Credits",
+        "credit_type": "email"
+      },
+      {
+        "unit": "credits",
+        "label": "Phone Credits",
+        "credit_type": "phone"
+      },
+      {
+        "unit": "credits",
+        "label": "Search Credits",
+        "credit_type": "search"
+      }
+    ]
+  },
+  {
+    "id": "crawlbase",
+    "name": "Crawlbase",
+    "logo_url": "/logos/crawlbase.png",
+    "category": "data",
+    "description": "Crawling and scraping APIs with remaining monthly credits for subscription products.",
+    "website_url": "https://crawlbase.com",
+    "api_docs_url": "https://crawlbase.com/docs/account-api",
+    "key_instructions": "For subscription products only. Go to Crawlbase -> Tokens, copy your token, and enter one product slug: crawling-api, crawler, smartproxy, scraper-api, leads-api, or screenshot-api. Allow five minutes between checks.",
+    "topup_url": "https://crawlbase.com/pricing",
+    "pools": [
+      {
+        "unit": "credits",
+        "label": "Credits",
+        "credit_type": "credits"
+      }
+    ]
+  },
+  {
+    "id": "dataforseo",
+    "name": "DataForSEO",
+    "logo_url": "/logos/dataforseo.png",
+    "category": "data",
+    "description": "SEO and SERP data APIs, billed from a prepaid balance.",
+    "website_url": null,
+    "api_docs_url": "https://docs.dataforseo.com/v3/appendix-user-data/",
+    "key_instructions": "Go to DataForSEO Dashboard -> API Access and copy your API login and API password",
+    "topup_url": "https://app.dataforseo.com/",
+    "pools": [
+      {
+        "unit": "usd",
+        "label": "Account Balance",
+        "credit_type": "balance"
+      }
+    ]
+  },
+  {
+    "id": "debounce",
+    "name": "DeBounce",
+    "logo_url": "/logos/debounce.png",
+    "category": "email_verification",
+    "description": "Email list cleaning and verification, billed per credit.",
+    "website_url": null,
+    "api_docs_url": "https://developers.debounce.com/api-reference/endpoint/miscellaneous/balance",
+    "key_instructions": "Go to app.debounce.io → API → copy your API key",
+    "topup_url": "https://debounce.com/pricing/",
+    "pools": null
+  },
+  {
+    "id": "deepseek",
+    "name": "DeepSeek",
+    "logo_url": "/logos/deepseek.png",
+    "category": "ai",
+    "description": "DeepSeek's LLM API, billed from a prepaid balance.",
+    "website_url": "https://deepseek.com",
+    "api_docs_url": "https://api-docs.deepseek.com/api/get-user-balance",
+    "key_instructions": "Go to platform.deepseek.com → API Keys → create a key",
+    "topup_url": "https://platform.deepseek.com/top_up",
+    "pools": null
+  },
+  {
+    "id": "dropcontact",
+    "name": "Dropcontact",
+    "logo_url": "/logos/dropcontact.png",
+    "category": "email_finding",
+    "description": "Email finding and B2B enrichment without a database, priced per credit.",
+    "website_url": null,
+    "api_docs_url": "https://developer.dropcontact.com/",
+    "key_instructions": "Go to app.dropcontact.com → API & Integrations → copy your API key",
+    "topup_url": "https://app.dropcontact.com/billing",
+    "pools": null
+  },
+  {
+    "id": "emailable",
+    "name": "Emailable",
+    "logo_url": "/logos/emailable.png",
+    "category": "email_verification",
+    "description": "Email verification for lists and real-time signups, billed per credit.",
+    "website_url": null,
+    "api_docs_url": "https://emailable.com/docs/api/account/",
+    "key_instructions": "Go to app.emailable.com → API → copy your API key",
+    "topup_url": "https://app.emailable.com/checkout/credits",
+    "pools": null
+  },
+  {
+    "id": "emailhippo",
+    "name": "Email Hippo",
+    "logo_url": "/logos/emailhippo.png",
+    "category": "email_verification",
+    "description": "Email verification and quota checks for the MORE API, billed from a credit balance.",
+    "website_url": null,
+    "api_docs_url": "https://help.emailhippo.com/how-to-check-your-more-api-quota-using-the-api",
+    "key_instructions": "Go to Email Hippo -> MORE -> API Keys and copy your license key",
+    "topup_url": "https://app.emailhippo.com/",
+    "pools": [
+      {
+        "unit": "credits",
+        "label": "Quota",
+        "credit_type": "quota"
+      }
+    ]
+  },
+  {
+    "id": "emaillistverify",
+    "name": "EmailListVerify",
+    "logo_url": "/logos/emaillistverify.png",
+    "category": "email_verification",
+    "description": "Bulk and real-time email list verification, priced per credit.",
+    "website_url": null,
+    "api_docs_url": "https://www.emaillistverify.com/docs/",
+    "key_instructions": "Go to apps.emaillistverify.com/api → copy your API key",
+    "topup_url": "https://app.emaillistverify.com/signin",
+    "pools": [
+      {
+        "unit": "credits",
+        "label": "Credits",
+        "credit_type": "ondemand"
+      },
+      {
+        "unit": "credits",
+        "label": "Daily Credits",
+        "credit_type": "subscription"
+      }
+    ]
+  },
+  {
+    "id": "enrichcrm",
+    "name": "Enrich CRM",
+    "logo_url": "/logos/enrichcrm.png",
+    "category": "email_finding",
+    "description": "Real-time CRM enrichment and intent data, billed from a shared credit pool.",
+    "website_url": "https://enrich-crm.com",
+    "api_docs_url": "https://enrich-crm.readme.io/reference/getremainingcredits",
+    "key_instructions": "Go to Enrich CRM -> API settings and copy your API key",
+    "topup_url": "https://app.enrich-crm.com",
+    "pools": [
+      {
+        "unit": "credits",
+        "label": "Credits",
+        "credit_type": "credits"
+      }
+    ]
+  },
+  {
+    "id": "enrow",
+    "name": "Enrow",
+    "logo_url": "/logos/enrow.png",
+    "category": "email_finding",
+    "description": "Email finding and verification for outreach, billed per credit.",
+    "website_url": "https://enrow.io",
+    "api_docs_url": "https://enrow.readme.io/reference/get-account-info",
+    "key_instructions": "Go to app.enrow.io → API → copy your API key",
+    "topup_url": "https://enrow.io/pricing",
+    "pools": null
+  },
+  {
+    "id": "findymail",
+    "name": "Findymail",
+    "logo_url": "/logos/findymail.png",
+    "category": "email_finding",
+    "description": "Verified email finding for outreach, priced per credit.",
+    "website_url": null,
+    "api_docs_url": "https://app.findymail.com/docs/",
+    "key_instructions": "Go to app.findymail.com → Settings → API → copy your key",
+    "topup_url": "https://www.findymail.com/pricing/",
+    "pools": null
+  },
+  {
+    "id": "firecrawl",
+    "name": "Firecrawl",
+    "logo_url": "/logos/firecrawl.png",
+    "category": "data",
+    "description": "Turn websites into clean, LLM-ready data, priced per credit.",
+    "website_url": null,
+    "api_docs_url": "https://docs.firecrawl.dev/api-reference/endpoint/credit-usage",
+    "key_instructions": "Go to Firecrawl dashboard → API Keys → copy your API key",
+    "topup_url": "https://www.firecrawl.dev/pricing",
+    "pools": null
+  },
+  {
+    "id": "fullenrich",
+    "name": "FullEnrich",
+    "logo_url": "/logos/fullenrich.png",
+    "category": "email_finding",
+    "description": "Waterfall contact enrichment across providers, billed per credit.",
+    "website_url": null,
+    "api_docs_url": "https://docs.fullenrich.com/getcredit",
+    "key_instructions": "Go to app.fullenrich.com → Settings → API → copy your key",
+    "topup_url": "https://app.fullenrich.com/app/settings/billing",
+    "pools": null
+  },
+  {
+    "id": "hunter",
+    "name": "Hunter",
+    "logo_url": "/logos/hunter.png",
+    "category": "email_finding",
+    "description": "Find and verify professional email addresses. Bills searches and verifications as separate quotas.",
+    "website_url": null,
+    "api_docs_url": "https://hunter.io/api-documentation/v2",
+    "key_instructions": "Go to hunter.io → API → copy your API key",
+    "topup_url": "https://hunter.io/welcome/upgrade",
+    "pools": [
+      {
+        "unit": "credits",
+        "label": "Searches",
+        "credit_type": "searches"
+      },
+      {
+        "unit": "credits",
+        "label": "Verifications",
+        "credit_type": "verifications"
+      }
+    ]
+  },
+  {
+    "id": "hyperbolic",
+    "name": "Hyperbolic",
+    "logo_url": "/logos/hyperbolic.png",
+    "category": "ai",
+    "description": "Open-model inference and GPUs, billed from a prepaid balance.",
+    "website_url": null,
+    "api_docs_url": "https://docs.hyperbolic.xyz/",
+    "key_instructions": "Go to app.hyperbolic.ai → Settings → API Keys → copy your key",
+    "topup_url": "https://app.hyperbolic.ai/settings/billing",
+    "pools": null
+  },
+  {
+    "id": "keywordseverywhere",
+    "name": "Keywords Everywhere",
+    "logo_url": "/logos/keywordseverywhere.png",
+    "category": "data",
+    "description": "SEO keyword, traffic, and backlink data APIs, billed from account credits.",
+    "website_url": "https://keywordseverywhere.com",
+    "api_docs_url": "https://api.keywordseverywhere.com/docs/#/miscellaneous/get_credits",
+    "key_instructions": "Go to Keywords Everywhere -> API key and copy your API key",
+    "topup_url": "https://keywordseverywhere.com/pricing.html",
+    "pools": [
+      {
+        "unit": "credits",
+        "label": "Credits",
+        "credit_type": "credits"
+      }
+    ]
+  },
+  {
+    "id": "leadmagic",
+    "name": "LeadMagic",
+    "logo_url": "/logos/leadmagic.png",
+    "category": "email_finding",
+    "description": "B2B email finding and enrichment, priced per credit.",
+    "website_url": null,
+    "api_docs_url": "https://docs.leadmagic.io/reference/check-credits",
+    "key_instructions": "Go to app.leadmagic.io → API Keys → copy your key",
+    "topup_url": "https://app.leadmagic.io/settings/billing",
+    "pools": null
+  },
+  {
+    "id": "lusha",
+    "name": "Lusha",
+    "logo_url": "/logos/lusha.png",
+    "category": "email_finding",
+    "description": "B2B contact and company data, priced per credit.",
+    "website_url": null,
+    "api_docs_url": "https://docs.lusha.com/apis/openapi/account-management/getaccountusagestats",
+    "key_instructions": "Go to dashboard.lusha.com → API → generate your API key",
+    "topup_url": "https://dashboard.lusha.com/account",
+    "pools": null
+  },
+  {
+    "id": "mailercheck",
+    "name": "MailerCheck",
+    "logo_url": "/logos/mailercheck.png",
+    "category": "email_verification",
+    "description": "Email verification and list cleaning from MailerLite, priced per verification credit.",
+    "website_url": null,
+    "api_docs_url": "https://developers.mailercheck.com/account",
+    "key_instructions": "Go to MailerCheck -> Profile -> API -> Create token",
+    "topup_url": "https://app.mailercheck.com/",
+    "pools": null
+  },
+  {
+    "id": "meltly",
+    "name": "Melt.ly",
+    "logo_url": "/logos/meltly.png",
+    "category": "ai",
+    "description": "AI sales research and icebreaker generation, billed from subscription and pay-as-you-go credits.",
+    "website_url": "https://melt.ly",
+    "api_docs_url": "https://melt.ly/docs",
+    "key_instructions": "Go to Melt.ly -> API key and copy your API key",
+    "topup_url": "https://melt.ly",
+    "pools": [
+      {
+        "unit": "credits",
+        "label": "Subscription Credits",
+        "credit_type": "subscription"
+      },
+      {
+        "unit": "credits",
+        "label": "Pay-as-you-go Credits",
+        "credit_type": "payg"
+      }
+    ]
+  },
+  {
+    "id": "millionverifier",
+    "name": "MillionVerifier",
+    "logo_url": "/logos/millionverifier.png",
+    "category": "email_verification",
+    "description": "Bulk email list verification with a pay-as-you-go credit balance.",
+    "website_url": null,
+    "api_docs_url": "https://millionverifier.com/api",
+    "key_instructions": "Go to app.millionverifier.com → API → Copy your API key",
+    "topup_url": "https://app.millionverifier.com/",
+    "pools": null
+  },
+  {
+    "id": "myemailverifier",
+    "name": "MyEmailVerifier",
+    "logo_url": "/logos/myemailverifier.png",
+    "category": "email_verification",
+    "description": "Bulk and real-time email verification, priced per credit.",
+    "website_url": "https://myemailverifier.com",
+    "api_docs_url": "https://github.com/pat-myemailverifier/myemailverifier-api",
+    "key_instructions": "Go to client.myemailverifier.com → API Settings → copy your API key",
+    "topup_url": "https://client.myemailverifier.com/login?buyCredit=10000",
+    "pools": null
+  },
+  {
+    "id": "netnut",
+    "name": "NetNut",
+    "logo_url": "/logos/netnut.png",
+    "category": "data",
+    "description": "Residential and static proxies, billed by traffic balance.",
+    "website_url": null,
+    "api_docs_url": "https://help.netnut.io/netnut-documentation/resources/customers-api/usage",
+    "key_instructions": "Go to netnut.io → Dashboard → Customers API → copy your API key",
+    "topup_url": "https://dashboard.netnut.io",
+    "pools": null
+  },
+  {
+    "id": "neverbounce",
+    "name": "NeverBounce",
+    "logo_url": "/logos/neverbounce.png",
+    "category": "email_verification",
+    "description": "Real-time and bulk email verification, priced per verification credit.",
+    "website_url": null,
+    "api_docs_url": "https://developers.neverbounce.com",
+    "key_instructions": "Go to app.neverbounce.com → Settings → API → Copy your API key",
+    "topup_url": "https://app.neverbounce.com/account/billing",
+    "pools": null
+  },
+  {
+    "id": "openrouter",
+    "name": "OpenRouter",
+    "logo_url": "/logos/openrouter.png",
+    "category": "ai",
+    "description": "One API for many LLMs, drawn from a prepaid credit balance.",
+    "website_url": null,
+    "api_docs_url": "https://openrouter.ai/docs/api-reference",
+    "key_instructions": "Go to openrouter.ai → Settings → API Keys → Create a management key",
+    "topup_url": "https://openrouter.ai/credits",
+    "pools": null
+  },
+  {
+    "id": "oppora",
+    "name": "Oppora",
+    "logo_url": "/logos/oppora.png",
+    "category": "email_finding",
+    "description": "Outbound sales automation with contact discovery and phone lookup, billed from data and phone credit pools.",
+    "website_url": "https://oppora.ai",
+    "api_docs_url": "https://oppora.ai/docs/api#/Credits",
+    "key_instructions": "Go to Oppora -> Integrations -> Oppora API -> New key and copy the secret",
+    "topup_url": "https://oppora.ai/pricing",
+    "pools": [
+      {
+        "unit": "credits",
+        "label": "Data Credits",
+        "credit_type": "data"
+      },
+      {
+        "unit": "credits",
+        "label": "Phone Credits",
+        "credit_type": "phone"
+      }
+    ]
+  },
+  {
+    "id": "orthogonal",
+    "name": "Orthogonal",
+    "logo_url": "/logos/orthogonal.png",
+    "category": "data",
+    "description": "Data and enrichment API usage, billed from a credit balance.",
+    "website_url": null,
+    "api_docs_url": "https://docs.orthogonal.com/api-reference/balance",
+    "key_instructions": "Go to Orthogonal -> Dashboard -> API Keys and copy your API key",
+    "topup_url": "https://orthogonal.com/dashboard/balance",
+    "pools": null
+  },
+  {
+    "id": "outscraper",
+    "name": "Outscraper",
+    "logo_url": "/logos/outscraper.png",
+    "category": "data",
+    "description": "Maps, reviews, and web data extraction, billed from a prepaid balance.",
+    "website_url": null,
+    "api_docs_url": "https://docs.outscraper.com/endpoints/profile-balance/",
+    "key_instructions": "Go to Outscraper -> Profile -> API Key and copy your API key",
+    "topup_url": "https://app.outscraper.com/billing",
+    "pools": null
+  },
+  {
+    "id": "prospeo",
+    "name": "Prospeo",
+    "logo_url": "/logos/prospeo.png",
+    "category": "email_finding",
+    "description": "Email and phone finding for B2B prospecting, billed per credit.",
+    "website_url": null,
+    "api_docs_url": "https://prospeo.io/api-docs/account-information",
+    "key_instructions": "Go to prospeo.io → API/Integrations → copy your API key",
+    "topup_url": "https://app.prospeo.io/account/subscription",
+    "pools": null
+  },
+  {
+    "id": "reoon",
+    "name": "Reoon",
+    "logo_url": "/logos/reoon.png",
+    "category": "email_verification",
+    "description": "Email verification with fast bulk processing, billed per credit.",
+    "website_url": null,
+    "api_docs_url": "https://www.reoon.com/articles/api-documentation-of-reoon-email-verifier/",
+    "key_instructions": "Go to emailverifier.reoon.com → account → copy your API key",
+    "topup_url": "https://emailverifier.reoon.com/",
+    "pools": [
+      {
+        "unit": "credits",
+        "label": "Credits",
+        "credit_type": "instant"
+      },
+      {
+        "unit": "credits",
+        "label": "Daily Credits",
+        "credit_type": "daily"
+      }
+    ]
+  },
+  {
+    "id": "rocketreach",
+    "name": "RocketReach",
+    "logo_url": "/logos/rocketreach.png",
+    "category": "email_finding",
+    "description": "Contact and company lookups, priced per lookup credit.",
+    "website_url": null,
+    "api_docs_url": "https://docs.rocketreach.co/reference/rocketreach-api-account",
+    "key_instructions": "Go to rocketreach.co → Settings → API → copy your API key",
+    "topup_url": "https://rocketreach.co/pricing",
+    "pools": null
+  },
+  {
+    "id": "scaleserp",
+    "name": "Scale SERP",
+    "logo_url": "/logos/scaleserp.png",
+    "category": "data",
+    "description": "High-scale Google SERP data API, billed from monthly search credits.",
+    "website_url": "https://trajectdata.com/serp/scale-serp-api/",
+    "api_docs_url": "https://docs.trajectdata.com/scaleserp/account-api",
+    "key_instructions": "Go to app.scaleserp.com -> Dashboard -> copy your API key",
+    "topup_url": "https://trajectdata.com/serp/scale-serp-api/pricing/",
+    "pools": [
+      {
+        "unit": "credits",
+        "label": "Credits",
+        "credit_type": "credits"
+      }
+    ]
+  },
+  {
+    "id": "scrapegraphai",
+    "name": "ScrapeGraphAI",
+    "logo_url": "/logos/scrapegraphai.png",
+    "category": "data",
+    "description": "AI-powered web scraping and extraction, priced per credit.",
+    "website_url": null,
+    "api_docs_url": "https://docs.scrapegraphai.com/api-reference/endpoint/credits",
+    "key_instructions": "Go to ScrapeGraphAI -> Dashboard -> API Keys and copy your API key",
+    "topup_url": "https://scrapegraphai.com/pricing",
+    "pools": null
+  },
+  {
+    "id": "scrapeops",
+    "name": "ScrapeOps",
+    "logo_url": "/logos/scrapeops.png",
+    "category": "data",
+    "description": "Proxy aggregation and scraping monitoring, billed per request.",
+    "website_url": null,
+    "api_docs_url": "https://scrapeops.io/docs/web-scraping-proxy-api-aggregator/account/usage-endpoint/",
+    "key_instructions": "Go to scrapeops.io → Dashboard → API key → copy your key",
+    "topup_url": "https://scrapeops.io/app/login/",
+    "pools": null
+  },
+  {
+    "id": "scraperapi",
+    "name": "ScraperAPI",
+    "logo_url": "/logos/scraperapi.png",
+    "category": "data",
+    "description": "Web scraping with rotating proxies, priced per API credit.",
+    "website_url": null,
+    "api_docs_url": "https://docs.scraperapi.com/",
+    "key_instructions": "Go to dashboard.scraperapi.com → copy your API key",
+    "topup_url": "https://dashboard.scraperapi.com/billing",
+    "pools": null
+  },
+  {
+    "id": "scrapfly",
+    "name": "Scrapfly",
+    "logo_url": "/logos/scrapfly.png",
+    "category": "data",
+    "description": "Web scraping API with anti-bot bypass, billed per credit.",
+    "website_url": null,
+    "api_docs_url": "https://scrapfly.io/docs/account",
+    "key_instructions": "Go to scrapfly.io/dashboard → copy your API key",
+    "topup_url": "https://scrapfly.io/dashboard/billing",
+    "pools": null
+  },
+  {
+    "id": "scrapingant",
+    "name": "ScrapingAnt",
+    "logo_url": "/logos/scrapingant.png",
+    "category": "data",
+    "description": "Web scraping with headless browsers and proxies, priced per credit.",
+    "website_url": null,
+    "api_docs_url": "https://docs.scrapingant.com/api-credits-usage",
+    "key_instructions": "Go to app.scrapingant.com/dashboard → copy your API key",
+    "topup_url": "https://app.scrapingant.com/dashboard",
+    "pools": null
+  },
+  {
+    "id": "scrapingbee",
+    "name": "ScrapingBee",
+    "logo_url": "/logos/scrapingbee.png",
+    "category": "data",
+    "description": "Web scraping API with proxies and headless rendering, billed per credit.",
+    "website_url": null,
+    "api_docs_url": "https://www.scrapingbee.com/documentation/",
+    "key_instructions": "Go to app.scrapingbee.com → Dashboard → copy your API key",
+    "topup_url": "https://app.scrapingbee.com/billing/plans",
+    "pools": null
+  },
+  {
+    "id": "scrapingdog",
+    "name": "Scrapingdog",
+    "logo_url": "/logos/scrapingdog.png",
+    "category": "data",
+    "description": "Web and search scraping API, billed per request credit.",
+    "website_url": null,
+    "api_docs_url": "https://docs.scrapingdog.com/account-api",
+    "key_instructions": "Go to scrapingdog.com → Dashboard → copy your API key",
+    "topup_url": "https://www.scrapingdog.com/pricing/",
+    "pools": null
+  },
+  {
+    "id": "searchapi",
+    "name": "SearchApi",
+    "logo_url": "/logos/searchapi.png",
+    "category": "data",
+    "description": "Real-time SERP and search data API, priced per search.",
+    "website_url": null,
+    "api_docs_url": "https://www.searchapi.io/docs/account-api",
+    "key_instructions": "Go to searchapi.io → Dashboard → API Key → copy your key",
+    "topup_url": "https://www.searchapi.io/pricing",
+    "pools": null
+  },
+  {
+    "id": "semrush",
+    "name": "Semrush",
+    "logo_url": "/logos/semrush.png",
+    "category": "data",
+    "description": "SEO and competitive intelligence APIs, billed from API units.",
+    "website_url": "https://www.semrush.com",
+    "api_docs_url": "https://developer.semrush.com/api/get-started/api-units-balance/",
+    "key_instructions": "Go to Semrush -> Subscription info -> API units and copy your API key",
+    "topup_url": "https://www.semrush.com/billing-admin/profile/subscription/api-units",
+    "pools": [
+      {
+        "unit": "credits",
+        "label": "API Units",
+        "credit_type": "units"
+      }
+    ]
+  },
+  {
+    "id": "serpapi",
+    "name": "SerpApi",
+    "logo_url": "/logos/serpapi.png",
+    "category": "data",
+    "description": "Search engine results as structured data, priced per search.",
+    "website_url": null,
+    "api_docs_url": "https://serpapi.com/account-api",
+    "key_instructions": "Go to serpapi.com → Dashboard → Your Account → copy your API key",
+    "topup_url": "https://serpapi.com/change-plan",
+    "pools": null
+  },
+  {
+    "id": "serpwow",
+    "name": "SerpWow",
+    "logo_url": "/logos/serpwow.png",
+    "category": "data",
+    "description": "Search engine results across engines, billed per credit.",
+    "website_url": "https://serpwow.com",
+    "api_docs_url": "https://docs.trajectdata.com/serpwow/account-api",
+    "key_instructions": "Go to app.serpwow.com → Dashboard → copy your API key",
+    "topup_url": "https://app.serpwow.com/",
+    "pools": null
+  },
+  {
+    "id": "shodan",
+    "name": "Shodan",
+    "logo_url": "/logos/shodan.png",
+    "category": "data",
+    "description": "Internet intelligence and search APIs, billed from query and scan credits.",
+    "website_url": "https://shodan.io",
+    "api_docs_url": "https://developer.shodan.io/api",
+    "key_instructions": "Go to account.shodan.io -> Account -> API key and copy your key",
+    "topup_url": "https://account.shodan.io/billing",
+    "pools": [
+      {
+        "unit": "credits",
+        "label": "Query Credits",
+        "credit_type": "query"
+      },
+      {
+        "unit": "credits",
+        "label": "Scan Credits",
+        "credit_type": "scan"
+      }
+    ]
+  },
+  {
+    "id": "skrapp",
+    "name": "Skrapp",
+    "logo_url": "/logos/skrapp.png",
+    "category": "email_finding",
+    "description": "B2B email finding and verification for outreach, billed from monthly email credits.",
+    "website_url": "https://skrapp.io",
+    "api_docs_url": "https://skrapp.io/api",
+    "key_instructions": "Go to Skrapp Account Settings -> API Access Key and copy your API key",
+    "topup_url": "https://skrapp.io/pricing",
+    "pools": [
+      {
+        "unit": "credits",
+        "label": "Email Credits",
+        "credit_type": "email"
+      }
+    ]
+  },
+  {
+    "id": "snov",
+    "name": "Snov.io",
+    "logo_url": "/logos/snov.png",
+    "category": "email_finding",
+    "description": "Email finding, verification, and outreach automation, billed from account credits.",
+    "website_url": "https://snov.io",
+    "api_docs_url": "https://snov.io/api",
+    "key_instructions": "Go to Snov.io -> Account -> API and copy your API User ID and API Secret",
+    "topup_url": "https://app.snov.io/billing",
+    "pools": null
+  },
+  {
+    "id": "surfe",
+    "name": "Surfe",
+    "logo_url": "/logos/surfe.png",
+    "category": "email_finding",
+    "description": "Contact data and enrichment inside your CRM, billed per credit.",
+    "website_url": null,
+    "api_docs_url": "https://developers.surfe.com/",
+    "key_instructions": "Go to app.surfe.com → Settings → API → generate an API key",
+    "topup_url": "https://app.surfe.com/lighthouse/home?open-buy-credits=true",
+    "pools": [
+      {
+        "unit": "credits",
+        "label": "Email Credits",
+        "credit_type": "email"
+      },
+      {
+        "unit": "credits",
+        "label": "Mobile Credits",
+        "credit_type": "mobile"
+      },
+      {
+        "unit": "credits",
+        "label": "Search Credits",
+        "credit_type": "search"
+      }
+    ]
+  },
+  {
+    "id": "tavily",
+    "name": "Tavily",
+    "logo_url": "/logos/tavily.png",
+    "category": "data",
+    "description": "Search, extraction, crawl, and research APIs for AI agents, billed from API credits.",
+    "website_url": "https://tavily.com",
+    "api_docs_url": "https://docs.tavily.com/documentation/api-reference/endpoint/usage",
+    "key_instructions": "Go to app.tavily.com -> API Keys and copy your API key",
+    "topup_url": "https://app.tavily.com/billing",
+    "pools": [
+      {
+        "unit": "credits",
+        "label": "Plan Credits",
+        "credit_type": "plan"
+      },
+      {
+        "unit": "credits",
+        "label": "Pay-as-you-go Credits",
+        "credit_type": "paygo"
+      },
+      {
+        "unit": "credits",
+        "label": "API Key Credits",
+        "credit_type": "key"
+      }
+    ]
+  },
+  {
+    "id": "tomba",
+    "name": "Tomba",
+    "logo_url": "/logos/tomba.png",
+    "category": "email_finding",
+    "description": "Email finding and verification for B2B outreach, billed from account credits.",
+    "website_url": null,
+    "api_docs_url": "https://docs.tomba.io/api/account",
+    "key_instructions": "Go to Tomba -> Dashboard -> API Keys and copy your API key and API secret",
+    "topup_url": "https://app.tomba.io/billing",
+    "pools": [
+      {
+        "unit": "credits",
+        "label": "Searches",
+        "credit_type": "searches"
+      },
+      {
+        "unit": "credits",
+        "label": "Verifications",
+        "credit_type": "verifications"
+      },
+      {
+        "unit": "credits",
+        "label": "Phones",
+        "credit_type": "phones"
+      },
+      {
+        "unit": "credits",
+        "label": "B2B",
+        "credit_type": "b2b"
+      }
+    ]
+  },
+  {
+    "id": "valueserp",
+    "name": "ValueSERP",
+    "logo_url": "/logos/valueserp.png",
+    "category": "data",
+    "description": "Google search results as an API, priced per search credit.",
+    "website_url": "https://valueserp.com",
+    "api_docs_url": "https://docs.trajectdata.com/valueserp/account-api",
+    "key_instructions": "Go to app.valueserp.com → Dashboard → copy your API key",
+    "topup_url": "https://app.valueserp.com/",
+    "pools": [
+      {
+        "unit": "credits",
+        "label": "Monthly Credits",
+        "credit_type": "monthly"
+      },
+      {
+        "unit": "credits",
+        "label": "Top-up Credits",
+        "credit_type": "topup"
+      }
+    ]
+  },
+  {
+    "id": "verifalia",
+    "name": "Verifalia",
+    "logo_url": "/logos/verifalia.png",
+    "category": "email_verification",
+    "description": "Email verification and list cleaning, billed from credit packs and optional free daily credits.",
+    "website_url": "https://verifalia.com",
+    "api_docs_url": "https://verifalia.com/developers/credits",
+    "key_instructions": "Go to Verifalia -> Client area -> Users or API credentials and copy your username and password",
+    "topup_url": "https://verifalia.com/client-area",
+    "pools": [
+      {
+        "unit": "credits",
+        "label": "Credit Packs",
+        "credit_type": "credit_packs"
+      },
+      {
+        "unit": "credits",
+        "label": "Free Daily Credits",
+        "credit_type": "free_daily"
+      }
+    ]
+  },
+  {
+    "id": "wiza",
+    "name": "Wiza",
+    "logo_url": "/logos/wiza.png",
+    "category": "email_finding",
+    "description": "Email and phone finding from LinkedIn searches, priced per credit.",
+    "website_url": null,
+    "api_docs_url": "https://docs.wiza.co/api-reference/credits/get-credits",
+    "key_instructions": "Go to wiza.co → Settings → API → generate an API key",
+    "topup_url": "https://wiza.co/app/settings/billing",
+    "pools": null
+  },
+  {
+    "id": "zenserp",
+    "name": "Zenserp",
+    "logo_url": "/logos/zenserp.png",
+    "category": "data",
+    "description": "SERP scraping API across search engines, billed per request.",
+    "website_url": null,
+    "api_docs_url": "https://app.zenserp.com/documentation",
+    "key_instructions": "Go to app.zenserp.com → Dashboard → copy your apikey",
+    "topup_url": "https://zenserp.com/pricing-plans/",
+    "pools": null
+  },
+  {
+    "id": "zerobounce",
+    "name": "ZeroBounce",
+    "logo_url": "/logos/zerobounce.png",
+    "category": "email_verification",
+    "description": "Email verification, scoring, and data appends, billed per credit.",
+    "website_url": null,
+    "api_docs_url": "https://www.zerobounce.net/docs/email-validation-api-quickstart/v2-credit-balance",
+    "key_instructions": "Go to app.zerobounce.net → API → API Keys → copy your API key",
+    "topup_url": "https://www.zerobounce.net/members/pricing",
+    "pools": null
+  }
+]

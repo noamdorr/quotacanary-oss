@@ -39,8 +39,7 @@ export default function GlobalError({
           Something broke. It wasn&apos;t you.
         </h1>
         <p style={{ maxWidth: "28rem", fontSize: "14px", color: "#6b6b66" }}>
-          An unexpected error stopped the whole page. Try again - if it keeps
-          happening, it&apos;s on us.
+          An unexpected error stopped the whole page. Nothing was changed.
         </p>
         <button
           type="button"

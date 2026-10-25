@@ -31,6 +31,11 @@ const SECRET = "test-poll-secret"
 // array: it honours `.gt`/`.order`/`.limit` keyset paging and clamps every
 // response to `maxRows`, because the truncation this route has to survive
 // happens in the API layer, not in the client.
+function rpcResponse(data: unknown, error: unknown = null) {
+  const promise = Promise.resolve({ data, error })
+  return Object.assign(promise, { abortSignal: () => promise })
+}
+
 function fakeSupabase(
   rows = [{ id: "c1", tool_id: "hunter" }],
   options: {
@@ -105,6 +110,7 @@ function fakeSupabase(
   // biome-ignore lint/suspicious/noExplicitAny: test double for the builder
   const pollRuns: any = {
     select: () => pollRuns,
+    eq: vi.fn(() => pollRuns),
     order: () => pollRuns,
     limit: () => pollRuns,
     maybeSingle: async () => ({
@@ -125,7 +131,10 @@ function fakeSupabase(
   return {
     from: (table: string) =>
       table === "poll_runs" ? pollRuns : connectionsBuilder(),
-    rpc: vi.fn(async () => ({ data: 0, error: null })),
+    rpc: vi.fn((name: string, _args?: Record<string, unknown>) =>
+      rpcResponse(name === "prune_balances" ? 0 : true)
+    ),
+    previousFilters: pollRuns.eq,
     summaries,
     pages,
   }
@@ -165,6 +174,29 @@ describe("POST /api/poll", () => {
     // 5xx is what makes the cron run itself go red (QUO-30).
     expect(res.status).toBe(500)
     expect(body).toMatchObject({ outcome: "failed", alertsDegraded: true })
+  })
+
+  it("hands each failed read's stopped-checking evaluation to dispatch (QUO-289)", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {})
+    const stopped = {
+      connectionId: "c1",
+      userId: "u1",
+      toolName: "Hunter",
+      connectionName: "Hunter main",
+      alertEnabled: true,
+      consecutiveFailures: 3,
+      keyRejected: false,
+      failureAlertedAt: null,
+    }
+    mockRefresh.mockResolvedValue({
+      ok: false,
+      error: "Couldn't reach Hunter.",
+      stopped,
+    })
+
+    await POST(pollRequest())
+
+    expect(mockDispatch).toHaveBeenCalledWith(expect.anything(), [], [stopped])
   })
 
   it("reports a healthy dispatch as not degraded", async () => {
@@ -669,5 +701,99 @@ describe("POST /api/poll alarms", () => {
 
     expect(res.status).toBe(500)
     expect(await res.json()).toMatchObject({ outcome: "failed" })
+  })
+})
+
+describe("poll overlap guard", () => {
+  it("skips a second invocation before vendor/alert work and allows a later run", async () => {
+    const db = fakeSupabase()
+    let owner: unknown = null
+    db.rpc.mockImplementation((name, args) => {
+      if (name === "claim_poll_run") {
+        if (owner) return rpcResponse(false)
+        owner = args?.p_owner_id
+        return rpcResponse(true)
+      }
+      if (name === "release_poll_run") {
+        if (owner === args?.p_owner_id) owner = null
+        return rpcResponse(true)
+      }
+      return rpcResponse(
+        name === "prune_balances" ? 0 : owner === args?.p_owner_id
+      )
+    })
+    mockAdmin.mockReturnValue(db as never)
+    let finish: () => void = () => {}
+    const blocked = new Promise<void>((resolve) => {
+      finish = resolve
+    })
+    mockRefresh.mockImplementationOnce(async () => {
+      await blocked
+      return { ok: true, balances: [] }
+    })
+    const first = POST(pollRequest())
+    await vi.waitFor(() => expect(mockRefresh).toHaveBeenCalledTimes(1))
+    const second = await POST(pollRequest())
+    expect(second.status).toBe(200)
+    expect(await second.json()).toEqual({
+      outcome: "skipped",
+      reason: "overlap",
+    })
+    expect(mockRefresh).toHaveBeenCalledTimes(1)
+    expect(mockDispatch).not.toHaveBeenCalled()
+    expect(mockSendEmail).not.toHaveBeenCalled()
+    expect(db.summaries[0]).toMatchObject({
+      skipped_overlap: true,
+      connections_polled: 0,
+    })
+    finish()
+    expect((await first).status).toBe(200)
+    expect(owner).toBeNull()
+    expect((await POST(pollRequest())).status).toBe(200)
+    expect(mockRefresh).toHaveBeenCalledTimes(2)
+    expect(db.previousFilters).toHaveBeenCalledWith("skipped_overlap", false)
+  })
+
+  it("fails closed before vendor calls when the lease RPC is unavailable", async () => {
+    const db = fakeSupabase()
+    db.rpc.mockReturnValue(rpcResponse(null, { message: "missing RPC" }))
+    mockAdmin.mockReturnValue(db as never)
+    const res = await POST(pollRequest())
+    expect(res.status).toBe(503)
+    expect(mockRefresh).not.toHaveBeenCalled()
+    expect(mockDispatch).not.toHaveBeenCalled()
+    expect(db.summaries[0].outcome).toBe("failed")
+  })
+
+  it("stops before the next batch and alerts if lease ownership is lost", async () => {
+    const rows = Array.from({ length: 9 }, (_, i) => ({
+      id: `c${i}`,
+      tool_id: "hunter",
+    }))
+    const db = fakeSupabase(rows)
+    let renewals = 0
+    db.rpc.mockImplementation((name) =>
+      rpcResponse(name === "renew_poll_run" ? ++renewals < 3 : true)
+    )
+    mockAdmin.mockReturnValue(db as never)
+    const res = await POST(pollRequest())
+    expect(res.status).toBe(503)
+    expect(mockRefresh).toHaveBeenCalledTimes(8)
+    expect(mockDispatch).not.toHaveBeenCalled()
+    expect(db.summaries[0]).toMatchObject({
+      outcome: "failed",
+      connections_polled: 8,
+      refresh_ok: 8,
+    })
+    expect(db.rpc.mock.calls.at(-1)?.[0]).toBe("release_poll_run")
+  })
+
+  it("releases its lease on the existing query-error early return", async () => {
+    const db = fakeSupabase([], {
+      connectionsError: { message: "query failed" },
+    })
+    mockAdmin.mockReturnValue(db as never)
+    expect((await POST(pollRequest())).status).toBe(500)
+    expect(db.rpc.mock.calls.at(-1)?.[0]).toBe("release_poll_run")
   })
 })

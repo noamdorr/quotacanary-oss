@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { reoonAdapter } from "./reoon"
+import { catalogAdapterFor } from "./catalog"
+
+const reoonAdapter = catalogAdapterFor("reoon")
 afterEach(() => vi.restoreAllMocks())
 describe("reoon adapter", () => {
   it("returns instant and daily readings", async () => {

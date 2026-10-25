@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { scrapeopsAdapter } from "./scrapeops"
+import { catalogAdapterFor } from "./catalog"
+
+const scrapeopsAdapter = catalogAdapterFor("scrapeops")
 afterEach(() => vi.restoreAllMocks())
 describe("scrapeops adapter", () => {
   it("derives balance from plan minus used", async () => {

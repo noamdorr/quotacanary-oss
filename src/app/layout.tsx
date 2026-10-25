@@ -1,8 +1,10 @@
 import { PlausibleAnalytics } from "@/components/analytics/PlausibleAnalytics"
 import { ConsoleEgg } from "@/components/brand/ConsoleEgg"
+import { NONCE_HEADER } from "@/lib/csp"
 import { cn } from "@/lib/utils"
 import type { Metadata } from "next"
 import { Fraunces, Inter, JetBrains_Mono } from "next/font/google"
+import { headers } from "next/headers"
 import "./globals.css"
 
 const inter = Inter({
@@ -29,8 +31,12 @@ export const metadata: Metadata = {
   description:
     "The bird that sings before the credits die. Credit-balance monitoring for the API tools you connect.",
   icons: {
-    icon: [{ url: "/favicon.svg", type: "image/svg+xml" }],
-    apple: [{ url: "/apple-touch-icon.png" }],
+    // ?v=2: browsers cache icons past a normal reload; bump on a logo change.
+    icon: [
+      { url: "/favicon.ico?v=2", sizes: "32x32" },
+      { url: "/favicon.svg?v=2", type: "image/svg+xml" },
+    ],
+    apple: [{ url: "/apple-touch-icon.png?v=2" }],
   },
   openGraph: {
     type: "website",
@@ -64,11 +70,17 @@ export const metadata: Metadata = {
   },
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode
 }>) {
+  // The per-request CSP nonce minted by the proxy. Reading the request here
+  // also opts every route into dynamic rendering, which the nonce needs: Next
+  // only stamps its inline scripts with it while rendering a live request,
+  // never in a build-time prerender.
+  const nonce = (await headers()).get(NONCE_HEADER) ?? undefined
+
   return (
     <html
       lang="en"
@@ -78,7 +90,7 @@ export default function RootLayout({
         {children}
         <ConsoleEgg />
       </body>
-      <PlausibleAnalytics />
+      <PlausibleAnalytics nonce={nonce} />
     </html>
   )
 }

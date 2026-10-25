@@ -28,7 +28,7 @@ export function AlertEventList({ events }: { events: AlertEvent[] }) {
                     event.level === "critical" ? "destructive" : "default"
                   }
                 >
-                  {event.level}
+                  {event.kind === "stopped_checking" ? "stopped" : event.level}
                 </Badge>
                 {!event.read_at && <Badge variant="secondary">Unread</Badge>}
                 <time className="text-xs text-muted-foreground">

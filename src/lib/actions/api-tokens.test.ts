@@ -201,3 +201,36 @@ describe("revokeApiToken", () => {
     expect(db.rpcCalls).toHaveLength(0)
   })
 })
+
+describe("createApiToken scope choice", () => {
+  it("issues a read-only token when no scope is chosen", async () => {
+    const db = fakeSupabase()
+    const { createApiToken } = await importActions(db)
+
+    await createApiToken(null, formData({ name: "CI key" }))
+
+    expect(db.rpcCalls[0][1]).toMatchObject({ p_scopes: ["read"] })
+  })
+
+  it("issues read plus write when the write scope is chosen", async () => {
+    const db = fakeSupabase()
+    const { createApiToken } = await importActions(db)
+
+    await createApiToken(null, formData({ name: "Mac app", scope: "write" }))
+
+    expect(db.rpcCalls[0][1]).toMatchObject({ p_scopes: ["read", "write"] })
+  })
+
+  it("rejects an unknown scope before touching the database", async () => {
+    const db = fakeSupabase()
+    const { createApiToken } = await importActions(db)
+
+    const result = await createApiToken(
+      null,
+      formData({ name: "Key", scope: "admin" })
+    )
+
+    expect(result).toEqual({ ok: false, error: "Pick a token scope." })
+    expect(db.rpcCalls).toHaveLength(0)
+  })
+})

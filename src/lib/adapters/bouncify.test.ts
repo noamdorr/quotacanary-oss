@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { bouncifyAdapter } from "./bouncify"
+import { catalogAdapterFor } from "./catalog"
+
+const bouncifyAdapter = catalogAdapterFor("bouncify")
 afterEach(() => vi.restoreAllMocks())
 describe("bouncify adapter", () => {
   it("returns credits_remaining as balance", async () => {

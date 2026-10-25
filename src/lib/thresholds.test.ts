@@ -1,71 +1,47 @@
-import type { ConnectionWithBalance } from "@/lib/types"
 import { describe, expect, it } from "vitest"
-import { resolvePoolThresholds, thresholdOrderError } from "./thresholds"
+import {
+  criticalFor,
+  parsePoolThresholds,
+  thresholdOrderError,
+  warnBelowError,
+} from "./thresholds"
 
-function make(
-  conn: { low: number | null; critical: number | null },
-  tool: { low: number | null; critical: number | null }
-): ConnectionWithBalance {
-  return {
-    low_threshold: conn.low,
-    alert_threshold: conn.critical,
-    tool: {
-      id: "t",
-      name: "T",
-      logo_url: null,
-      topup_url: null,
-      default_low_threshold: tool.low,
-      default_alert_threshold: tool.critical,
-    },
-  } as ConnectionWithBalance
-}
-
-function makePool(
-  poolThresholds: ConnectionWithBalance["pool_thresholds"],
-  conn: { low: number | null; critical: number | null },
-  tool: { low: number | null; critical: number | null }
-): ConnectionWithBalance {
-  return {
-    ...make(conn, tool),
-    pool_thresholds: poolThresholds,
-  }
-}
-
-describe("resolvePoolThresholds", () => {
-  it("prefers per-pool thresholds", () => {
-    const c = makePool(
-      { verifications: { low: 200, critical: 50 } },
-      { low: 10, critical: 5 },
-      { low: 1, critical: 1 }
-    )
-    expect(resolvePoolThresholds(c, "verifications")).toEqual({
-      low: 200,
-      critical: 50,
-    })
+describe("criticalFor", () => {
+  it("is a third of Warn below, rounded down, from 3 up", () => {
+    expect(criticalFor(900)).toBe(300)
+    expect(criticalFor(1000)).toBe(333)
+    expect(criticalFor(15)).toBe(5)
+    expect(criticalFor(3)).toBe(1)
+    // 266.67 and 1.67: rounding to nearest would give 267 and 2.
+    expect(criticalFor(800)).toBe(266)
+    expect(criticalFor(5)).toBe(1)
   })
-
-  it("falls back to connection-level when no per-pool override", () => {
-    const c = makePool(
-      null,
-      { low: 10, critical: 5 },
-      { low: 30, critical: 10 }
-    )
-    expect(resolvePoolThresholds(c, "credits")).toEqual({
-      low: 10,
-      critical: 5,
-    })
+  it("keeps two decimals below 3", () => {
+    expect(criticalFor(2)).toBe(0.67)
+    expect(criticalFor(1)).toBe(0.33)
+    expect(criticalFor(0.01)).toBe(0)
   })
+  it("always lands below Warn below", () => {
+    for (const n of [0.01, 0.5, 1, 2, 2.99, 3, 4, 100, 12345.6]) {
+      expect(criticalFor(n)).toBeLessThan(n)
+    }
+  })
+})
 
-  it("falls back to tool defaults when neither per-pool nor connection set", () => {
-    const c = makePool(
-      null,
-      { low: null, critical: null },
-      { low: 30, critical: 10 }
-    )
-    expect(resolvePoolThresholds(c, "credits")).toEqual({
-      low: 30,
-      critical: 10,
-    })
+describe("warnBelowError", () => {
+  it("allows a number above zero", () => {
+    expect(warnBelowError(900)).toBeNull()
+    expect(warnBelowError(0.5)).toBeNull()
+  })
+  it("allows blank (falls back to the tool default)", () => {
+    expect(warnBelowError(null)).toBeNull()
+  })
+  it("rejects zero, negatives and non-numbers with one message", () => {
+    const message = warnBelowError(0)
+    expect(message).toMatch(/above zero/i)
+    expect(warnBelowError(-5)).toBe(message)
+    expect(warnBelowError(Number.NaN)).toBe(message)
+    expect(warnBelowError(Number.POSITIVE_INFINITY)).toBe(message)
   })
 })
 
@@ -95,5 +71,60 @@ describe("thresholdOrderError", () => {
     expect(thresholdOrderError(-5, null)).toMatch(/number/i)
     expect(thresholdOrderError(null, -1)).toMatch(/number/i)
     expect(thresholdOrderError(Number.POSITIVE_INFINITY, 10)).toMatch(/number/i)
+  })
+})
+
+describe("parsePoolThresholds", () => {
+  it("keeps each balance's Warn below and Critical as sent", () => {
+    expect(
+      parsePoolThresholds({
+        credits: { low: 500, critical: 166 },
+        searches: { low: 1500, critical: 500 },
+      })
+    ).toEqual({
+      ok: true,
+      thresholds: {
+        credits: { low: 500, critical: 166 },
+        searches: { low: 1500, critical: 500 },
+      },
+    })
+  })
+  it("derives Critical from Warn below when it is left out", () => {
+    expect(parsePoolThresholds({ credits: { low: 900 } })).toEqual({
+      ok: true,
+      thresholds: { credits: { low: 900, critical: 300 } },
+    })
+  })
+  it("refuses anything but an object of { low, critical } pairs", () => {
+    for (const bad of [
+      null,
+      [],
+      "500",
+      { credits: 500 },
+      { credits: null },
+      { credits: [] },
+      { "": { low: 500 } },
+    ]) {
+      expect(parsePoolThresholds(bad).ok, JSON.stringify(bad)).toBe(false)
+    }
+  })
+  it("applies the web's Warn below rule and keeps Critical under it", () => {
+    for (const bad of [
+      { credits: { low: 0 } },
+      { credits: { low: -5 } },
+      { credits: { low: null } },
+      { credits: { low: "500" } },
+      { credits: { low: 500, critical: 500 } },
+      { credits: { low: 500, critical: -1 } },
+      { credits: { low: 500, critical: "1" } },
+    ]) {
+      expect(parsePoolThresholds(bad).ok, JSON.stringify(bad)).toBe(false)
+    }
+  })
+  it("caps the number of balances", () => {
+    const many = Object.fromEntries(
+      Array.from({ length: 21 }, (_, i) => [`p${i}`, { low: 10 }])
+    )
+    expect(parsePoolThresholds(many).ok).toBe(false)
   })
 })

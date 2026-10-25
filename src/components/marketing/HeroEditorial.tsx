@@ -1,3 +1,5 @@
+import { existsSync } from "node:fs"
+import { join } from "node:path"
 import { BurnRateDemo } from "@/components/marketing/BurnRateDemo"
 import { HeroMascot } from "@/components/marketing/HeroMascot"
 import { LaunchVideoDialog } from "@/components/marketing/LaunchVideoDialog"
@@ -5,6 +7,12 @@ import { APP_SIGNUP_URL } from "@/components/marketing/constants"
 import { COPY } from "@/components/marketing/copy"
 
 export function HeroEditorial() {
+  // The launch video ships with the hosted deploy but is pruned from the
+  // public mirror; only offer the CTA when the asset is actually servable.
+  const hasLaunchVideo = existsSync(
+    join(process.cwd(), "public/video/quotacanary-launch.mp4")
+  )
+
   return (
     <section style={{ padding: "72px 0 72px" }}>
       <div className="container qc-hero-grid">
@@ -66,7 +74,7 @@ export function HeroEditorial() {
                 <path d="M5 12h14M13 5l7 7-7 7" />
               </svg>
             </a>
-            <LaunchVideoDialog />
+            {hasLaunchVideo && <LaunchVideoDialog />}
           </div>
         </div>
 

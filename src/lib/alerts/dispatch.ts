@@ -4,12 +4,14 @@ import {
   type AlertEmailModel,
   renderAlertEmail,
 } from "@/lib/email/render/alert"
+import { renderStoppedCheckingEmail } from "@/lib/email/render/stopped-checking"
 import type { AlertLevel, NotifiedLevels, NotifyMode } from "@/lib/types"
 import type { SupabaseClient } from "@supabase/supabase-js"
 import {
   type AlertDeliveryLevel,
   type AlertDestinationEvent,
   type AlertDestinationKind,
+  type AlertEventKind,
   type DestinationSendResult,
   isDestinationLevelAllowed,
   postAlertDestination,
@@ -23,6 +25,13 @@ import {
   rollupNotifiedLevel,
   shouldSendEmail,
 } from "./severity"
+import {
+  type StoppedCheckingEvaluation,
+  alertedThisIncident,
+  stoppedCheckingBody,
+  stoppedCheckingDue,
+  stoppedCheckingTitle,
+} from "./stopped-checking"
 
 const DELIVERY_BATCH_SIZE = 50
 
@@ -60,6 +69,7 @@ type EventRow = {
   id: string
   user_id: string
   connection_id: string
+  kind: AlertEventKind
   level: AlertDeliveryLevel
   tool_name: string
   connection_name: string
@@ -96,26 +106,34 @@ type SendResult = SendEmailResult | DestinationSendResult
 // reads exactly like a quiet, healthy poll.
 type DispatchResult = { sent: number; failedSends: number; degraded: boolean }
 
+// `evaluations` are this poll's good reads; `stopped` its failed ones (QUO-289).
 export async function dispatchAlerts(
   supabase: SupabaseClient,
-  evaluations: AlertEvaluation[]
+  evaluations: AlertEvaluation[],
+  stopped: StoppedCheckingEvaluation[] = []
 ): Promise<DispatchResult> {
   // Cancellation runs first and must complete: whatever it fails to cancel is
   // still due, and processing it fires the exact stale alert the cancellation
-  // exists to stop. Both paths cancel - recovery for a healed connection, and
-  // a critical escalation superseding its own earlier low alert.
+  // exists to stop. Three paths cancel - recovery for a healed connection, a
+  // critical escalation superseding its own earlier low alert, and a good read
+  // ending a stopped-checking incident.
   if (
     !(await handleRecoveries(supabase, evaluations)) ||
     !(await supersedeLowAlerts(supabase, evaluations)) ||
-    !(await rearmRecoveredPools(supabase, evaluations))
+    !(await rearmRecoveredPools(supabase, evaluations)) ||
+    !(await closeRecoveredStoppedAlerts(supabase, evaluations))
   ) {
     return { sent: 0, failedSends: 0, degraded: true }
   }
   // Preparation only creates work. A failure there delays new alerts by a poll
   // without making the deliveries already due unsafe to process.
   const prepared = await prepareEscalations(supabase, evaluations)
+  const preparedStopped = await prepareStoppedChecking(supabase, stopped)
   const result = await processDueDeliveries(supabase)
-  return { ...result, degraded: result.degraded || !prepared }
+  return {
+    ...result,
+    degraded: result.degraded || !prepared || !preparedStopped,
+  }
 }
 
 // Recovery re-arms the connection and cancels everything still in flight:
@@ -260,6 +278,103 @@ function sameNotifiedLevels(
   )
 }
 
+// A good read ends a stopped-checking incident (QUO-289). Whatever alert for it
+// is still in flight is stale - a late "isn't being checked" after the key
+// works again would be false - so its pending/paused deliveries are canceled,
+// even on an event already satisfied by another channel, and the stamp is
+// cleared so the next incident alerts. handleRecoveries already does the
+// canceling for a fully healthy connection; this covers every good read, a
+// still-low one included.
+//
+// The candidates are the stamped connections plus any with an active
+// stopped-checking event (delivered nowhere yet, so unstamped). The stamp is
+// cleared last, so a failed write leaves the connection in this set and the
+// next poll finishes the job.
+async function closeRecoveredStoppedAlerts(
+  supabase: SupabaseClient,
+  evaluations: AlertEvaluation[]
+): Promise<boolean> {
+  if (evaluations.length === 0) return true
+
+  const { data: activeEvents, error: activeError } = await supabase
+    .from("alert_events")
+    .select("connection_id")
+    .eq("kind", "stopped_checking")
+    .in(
+      "connection_id",
+      evaluations.map((e) => e.connectionId)
+    )
+    .is("delivery_satisfied_at", null)
+    .is("delivery_canceled_at", null)
+  if (activeError) {
+    logDegraded("probing active stopped-checking events", activeError)
+    return false
+  }
+  const withActiveEvent = new Set(
+    ((activeEvents ?? []) as { connection_id: string }[]).map(
+      (r) => r.connection_id
+    )
+  )
+
+  for (const e of evaluations) {
+    const stamped = e.failureAlertedAt != null
+    if (!stamped && !withActiveEvent.has(e.connectionId)) continue
+
+    const { data: events, error: eventsError } = await supabase
+      .from("alert_events")
+      .select("id")
+      .eq("connection_id", e.connectionId)
+      .eq("kind", "stopped_checking")
+    if (eventsError) {
+      logDegraded(
+        "loading a recovered connection's stopped events",
+        eventsError
+      )
+      return false
+    }
+    const eventIds = ((events ?? []) as { id: string }[]).map((r) => r.id)
+    if (eventIds.length > 0) {
+      const { error: cancelError } = await supabase
+        .from("alert_deliveries")
+        .update({ status: "canceled", updated_at: new Date().toISOString() })
+        .in("event_id", eventIds)
+        .in("status", ["pending", "paused"])
+      if (cancelError) {
+        logDegraded("canceling stale stopped-checking deliveries", cancelError)
+        return false
+      }
+    }
+
+    const { error: closeError } = await supabase
+      .from("alert_events")
+      .update({ delivery_canceled_at: new Date().toISOString() })
+      .eq("connection_id", e.connectionId)
+      .eq("kind", "stopped_checking")
+      .is("delivery_satisfied_at", null)
+      .is("delivery_canceled_at", null)
+    if (closeError) {
+      logDegraded("closing a recovered stopped-checking event", closeError)
+      return false
+    }
+
+    if (stamped) {
+      const { error: rearmError } = await supabase
+        .from("connections")
+        .update({ failure_alerted_at: null })
+        .eq("id", e.connectionId)
+      if (rearmError) {
+        logDegraded(
+          "re-arming a recovered connection's stopped alert",
+          rearmError
+        )
+        return false
+      }
+    }
+  }
+
+  return true
+}
+
 // A critical escalation supersedes the connection's earlier low event: its
 // pending/paused deliveries are canceled (whether or not the low event was
 // already satisfied) and an unsatisfied low event is closed.
@@ -332,43 +447,13 @@ async function prepareEscalations(
     .filter((c): c is { e: AlertEvaluation; esc: Escalation } => c.esc !== null)
   if (candidates.length === 0) return true
 
-  // An absent recipient skips the candidate silently, so a failed lookup
-  // prepares nothing while the poll still reports a healthy alertsSent: 0.
-  const userIds = [...new Set(candidates.map((c) => c.e.userId))]
-  const { data: users, error: usersError } = await supabase
-    .from("users")
-    .select("id, email, notify_mode, updated_at")
-    .in("id", userIds)
-  if (usersError) {
-    logDegraded("loading escalation recipients", usersError)
-    return false
-  }
-  const usersById = new Map(((users ?? []) as UserRow[]).map((u) => [u.id, u]))
-
-  // Absent destinations are read as "no external channel is configured", which
-  // satisfies the event and advances the high-water mark. That decision is not
-  // retryable: the connection never becomes a candidate again until it
-  // recovers, so a failed lookup here silences a live alert for good.
-  const { data: destinations, error: destinationsError } = await supabase
-    .from("alert_destinations")
-    .select("id, user_id, kind, min_level, is_enabled, updated_at")
-    .in("user_id", userIds)
-  if (destinationsError) {
-    logDegraded("loading escalation destinations", destinationsError)
-    return false
-  }
-  const destinationsByUser = new Map<string, DestinationRow[]>()
-  for (const destination of (destinations ?? []) as DestinationRow[]) {
-    if (destination.is_enabled === false) continue
-    destinationsByUser.set(destination.user_id, [
-      ...(destinationsByUser.get(destination.user_id) ?? []),
-      destination,
-    ])
-  }
-
-  const appUrl =
-    process.env.NEXT_PUBLIC_APP_URL ?? "https://app.quotacanary.com"
-  const dashboardUrl = `${appUrl}/dashboard`
+  const recipients = await loadRecipients(
+    supabase,
+    candidates.map((c) => c.e.userId)
+  )
+  if (!recipients) return false
+  const { usersById, destinationsByUser } = recipients
+  const dashboardUrl = appDashboardUrl()
 
   let ok = true
   for (const { e, esc } of candidates) {
@@ -471,6 +556,236 @@ async function prepareEscalations(
   return ok
 }
 
+type Recipients = {
+  usersById: Map<string, UserRow>
+  destinationsByUser: Map<string, DestinationRow[]>
+}
+
+// The users and enabled destinations alerts are prepared for. Null when a
+// lookup failed, and the caller prepares nothing.
+async function loadRecipients(
+  supabase: SupabaseClient,
+  userIdList: string[]
+): Promise<Recipients | null> {
+  // An absent recipient skips the candidate silently, so a failed lookup
+  // prepares nothing while the poll still reports a healthy alertsSent: 0.
+  const userIds = [...new Set(userIdList)]
+  const { data: users, error: usersError } = await supabase
+    .from("users")
+    .select("id, email, notify_mode, updated_at")
+    .in("id", userIds)
+  if (usersError) {
+    logDegraded("loading escalation recipients", usersError)
+    return null
+  }
+  const usersById = new Map(((users ?? []) as UserRow[]).map((u) => [u.id, u]))
+
+  // Absent destinations are read as "no external channel is configured", which
+  // satisfies the event and advances the high-water mark. That decision is not
+  // retryable: the connection never becomes a candidate again until it
+  // recovers, so a failed lookup here silences a live alert for good.
+  const { data: destinations, error: destinationsError } = await supabase
+    .from("alert_destinations")
+    .select("id, user_id, kind, min_level, is_enabled, updated_at")
+    .in("user_id", userIds)
+  if (destinationsError) {
+    logDegraded("loading escalation destinations", destinationsError)
+    return null
+  }
+  const destinationsByUser = new Map<string, DestinationRow[]>()
+  for (const destination of (destinations ?? []) as DestinationRow[]) {
+    if (destination.is_enabled === false) continue
+    destinationsByUser.set(destination.user_id, [
+      ...(destinationsByUser.get(destination.user_id) ?? []),
+      destination,
+    ])
+  }
+  return { usersById, destinationsByUser }
+}
+
+function appDashboardUrl(): string {
+  const appUrl =
+    process.env.NEXT_PUBLIC_APP_URL ?? "https://app.quotacanary.com"
+  return `${appUrl}/dashboard`
+}
+
+// QUO-289. A failed read that reached the alert (stoppedCheckingDue) on a
+// connection whose incident has not alerted yet gets one "isn't being checked"
+// alert through the same ledger as the balance alerts. Like prepareEscalations
+// this only creates work, and it is restart-safe: until a channel succeeds
+// and record_alert_delivery_result stamps the incident, every poll re-prepares
+// it, reusing the active event and its delivery rows rather than adding any.
+//
+// The event carries level "critical": notify_mode "critical" and critical-only
+// destinations hear about it, because a connection nobody is watching is at
+// least as urgent as a balance about to run dry.
+// Returns false when a lookup failed, leaving some candidates unprepared.
+async function prepareStoppedChecking(
+  supabase: SupabaseClient,
+  stopped: StoppedCheckingEvaluation[]
+): Promise<boolean> {
+  let ok = true
+  const candidates: StoppedCheckingEvaluation[] = []
+  for (const s of stopped.filter(stoppedCheckingDue)) {
+    if (s.failureAlertedAt == null) {
+      candidates.push(s)
+      continue
+    }
+    // A stamp only dates the incident it was sent for when no good read came
+    // after it, and the good read in between may have been a manual refresh
+    // the poller never saw.
+    const { data: lastGood, error } = await supabase
+      .from("balances")
+      .select("recorded_at")
+      .eq("connection_id", s.connectionId)
+      .order("recorded_at", { ascending: false })
+      .limit(1)
+      .maybeSingle()
+    if (error) {
+      logDegraded("reading a failing connection's last good read", error)
+      ok = false
+      continue
+    }
+    const lastGoodReadAt =
+      (lastGood as { recorded_at: string } | null)?.recorded_at ?? null
+    if (alertedThisIncident(s.failureAlertedAt, lastGoodReadAt)) continue
+    candidates.push(s)
+  }
+  if (candidates.length === 0) return ok
+
+  const recipients = await loadRecipients(
+    supabase,
+    candidates.map((s) => s.userId)
+  )
+  if (!recipients) return false
+  const dashboardUrl = appDashboardUrl()
+
+  for (const s of candidates) {
+    const u = recipients.usersById.get(s.userId)
+    if (!u) continue
+
+    const event = await ensureStoppedEvent(supabase, s, dashboardUrl)
+    if (!event) {
+      ok = false
+      continue
+    }
+
+    const rows: Record<string, unknown>[] = []
+    if (
+      u.email &&
+      shouldSendEmail({
+        level: "critical",
+        notifyMode: u.notify_mode,
+        alertEnabled: s.alertEnabled,
+      })
+    ) {
+      rows.push({
+        event_id: event.id,
+        delivery_key: "email",
+        channel: "email",
+        target_updated_at: u.updated_at ?? event.created_at,
+      })
+    }
+    for (const destination of recipients.destinationsByUser.get(s.userId) ??
+      []) {
+      if (!isDestinationLevelAllowed(destination.min_level, "critical")) {
+        continue
+      }
+      rows.push({
+        event_id: event.id,
+        delivery_key: `destination:${destination.id}`,
+        channel: destination.kind,
+        destination_id: destination.id,
+        target_updated_at: destination.updated_at,
+      })
+    }
+
+    if (rows.length > 0) {
+      const { error: upsertError } = await supabase
+        .from("alert_deliveries")
+        .upsert(rows, {
+          onConflict: "event_id,delivery_key",
+          ignoreDuplicates: true,
+        })
+      if (upsertError) {
+        logDegraded("recording stopped-checking deliveries", upsertError)
+        ok = false
+      }
+      continue
+    }
+
+    // No external channel: the in-app event is the alert. Stamp FIRST, for
+    // the reason prepareEscalations advances first - a satisfied event cannot
+    // be reused, so satisfying ahead of a failed stamp re-alerts every poll.
+    const { error: stampError } = await supabase
+      .from("connections")
+      .update({ failure_alerted_at: event.created_at })
+      .eq("id", s.connectionId)
+    if (stampError) {
+      logDegraded("stamping a stopped-checking incident", stampError)
+      ok = false
+      continue
+    }
+    const { error: satisfyError } = await supabase
+      .from("alert_events")
+      .update({ delivery_satisfied_at: new Date().toISOString() })
+      .eq("id", event.id)
+      .is("delivery_satisfied_at", null)
+    if (satisfyError) {
+      logDegraded("satisfying an in-app stopped-checking event", satisfyError)
+      ok = false
+    }
+  }
+
+  return ok
+}
+
+// Reuse the connection's active stopped-checking event, otherwise insert one.
+// Race-safe the same way as ensureEvent, on the same partial unique index.
+async function ensureStoppedEvent(
+  supabase: SupabaseClient,
+  s: StoppedCheckingEvaluation,
+  dashboardUrl: string
+): Promise<{ id: string; created_at: string } | null> {
+  const findActive = () =>
+    supabase
+      .from("alert_events")
+      .select("id, created_at")
+      .eq("connection_id", s.connectionId)
+      .eq("kind", "stopped_checking")
+      .is("delivery_satisfied_at", null)
+      .is("delivery_canceled_at", null)
+      .maybeSingle()
+
+  const { data: active } = await findActive()
+  if (active?.id) return active
+
+  const { data: inserted, error } = await supabase
+    .from("alert_events")
+    .insert({
+      user_id: s.userId,
+      connection_id: s.connectionId,
+      kind: "stopped_checking",
+      level: "critical",
+      tool_name: s.toolName,
+      connection_name: s.connectionName,
+      title: stoppedCheckingTitle(s.toolName),
+      body: stoppedCheckingBody(s),
+      pools: [],
+      dashboard_url: dashboardUrl,
+      topup_url: null,
+    })
+    .select("id, created_at")
+    .single()
+
+  if (inserted?.id) return inserted
+  if (error?.code === "23505") {
+    const { data: raced } = await findActive()
+    return raced?.id ? raced : null
+  }
+  return null
+}
+
 // Reuse the connection's active event for this level, otherwise insert one.
 // The partial unique index makes the insert race-safe: a concurrent poll's
 // duplicate insert fails with 23505 and we re-read the winner's row.
@@ -492,6 +807,7 @@ async function ensureEvent(
       .from("alert_events")
       .select("id, created_at, pools, credit_types")
       .eq("connection_id", e.connectionId)
+      .eq("kind", "balance")
       .eq("level", level)
       .is("delivery_satisfied_at", null)
       .is("delivery_canceled_at", null)
@@ -747,6 +1063,14 @@ async function sendEmailDelivery(
     // the delivery's target_updated_at, making it claimable again).
     return { ok: false, error: "No email address on file.", retryable: false }
   }
+  if (event.kind === "stopped_checking") {
+    const { subject, html, text } = renderStoppedCheckingEmail({
+      toolName: event.tool_name,
+      body: event.body,
+      dashboardUrl: event.dashboard_url,
+    })
+    return sendEmail({ to: email, subject, html, text, tag: "alert-stopped" })
+  }
   const model: AlertEmailModel = {
     toolName: event.tool_name,
     severity: event.level,
@@ -809,6 +1133,7 @@ async function sendWebhookDelivery(
 
   const destinationEvent: AlertDestinationEvent = {
     id: event.id,
+    kind: event.kind,
     level: event.level,
     toolName: event.tool_name,
     connectionId: event.connection_id,

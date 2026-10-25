@@ -1,0 +1,31 @@
+---
+import { FOOTER_NOTE, GITHUB_URL, SELF_HOST_URL } from "../lib/copy"
+---
+
+<footer class="site-footer wrap">
+  <div>
+    <a class="brand" href="/" aria-label="QuotaCanary home">
+      <img class="brand-mark" src="/mark.svg" alt="" width="25" height="24" />
+      <img class="brand-word" src="/logo.png" alt="QuotaCanary" width="145" height="32" />
+    </a>
+    <p>{FOOTER_NOTE}</p>
+  </div>
+  <nav aria-label="Footer">
+    <ul class="footer-group">
+      <li><a href="/#features">Features</a></li>
+      <li><a href="/#tools">Tools</a></li>
+      <li><a href="/#why">Why this exists</a></li>
+      <li><a href="/#faq">FAQ</a></li>
+    </ul>
+    <ul class="footer-group">
+      <li><a href="/#download">Mac app</a></li>
+      <li><a href={SELF_HOST_URL}>Self-host</a></li>
+      <li><a href={GITHUB_URL} target="_blank" rel="noopener">GitHub</a></li>
+    </ul>
+    <ul class="footer-group footer-legal">
+      <li><a href="/security">Security</a></li>
+      <li><a href="/privacy">Privacy</a></li>
+      <li><a href="/terms">Terms</a></li>
+    </ul>
+  </nav>
+</footer>

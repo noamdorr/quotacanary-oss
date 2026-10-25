@@ -25,6 +25,7 @@ type AuthContext = { userId: string; tokenId: string }
 const poolPayloadSchema = z.object({
   connectionId: z.string(),
   connectionName: z.string(),
+  keyHint: z.string().nullable(),
   tool: z.object({
     id: z.string(),
     name: z.string(),

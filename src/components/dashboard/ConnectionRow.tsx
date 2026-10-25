@@ -1,11 +1,11 @@
 "use client"
 
-import { effectiveStatus } from "@/lib/balance-status"
 import { formatBalance } from "@/lib/format"
-import { poolEta } from "@/lib/pool-eta"
+import { assessPool } from "@/lib/pool-assessment"
 import type { PoolRow } from "@/lib/pool-rows"
-import { resolvePoolThresholds } from "@/lib/thresholds"
+import { runwayLabel } from "@/lib/runway-copy"
 import { cn } from "@/lib/utils"
+import { warnBelowSummary } from "@/lib/warn-below-summary"
 import { ExternalLink } from "lucide-react"
 import { Sparkline } from "./Sparkline"
 import { StatusPill, statusDotClass } from "./StatusPill"
@@ -31,7 +31,7 @@ function formatPoolBalance(
 }
 
 export const ROW_GRID =
-  "grid grid-cols-[32px_minmax(180px,1.15fr)_minmax(120px,0.75fr)_112px_minmax(160px,0.9fr)_112px] items-center gap-3"
+  "grid grid-cols-[32px_minmax(180px,1.15fr)_minmax(120px,0.75fr)_112px_132px_minmax(160px,0.9fr)_112px] items-center gap-3"
 
 export function ConnectionRow({
   row,
@@ -47,18 +47,8 @@ export function ConnectionRow({
   onOpen: () => void
 }) {
   const { connection: c, pool } = row
-  const { low, critical } = resolvePoolThresholds(c, pool?.creditType ?? "")
-  const status = effectiveStatus({
-    balance: pool?.balance ?? null,
-    low,
-    critical,
-    connectionStatus: c.status,
-  })
-  const tone = status.kind === "level" ? status.level : "neutral"
-  const eta = pool ? poolEta(pool) : null
-  const atRisk =
-    status.kind === "level" &&
-    (status.level === "low" || status.level === "critical")
+  const { status, tone, atRisk, eta } = assessPool(row)
+  const warn = pool ? warnBelowSummary(c, pool) : null
 
   return (
     <div
@@ -70,7 +60,7 @@ export function ConnectionRow({
           "bg-[var(--canary-tint)]/35 before:pointer-events-none before:absolute before:inset-1 before:rounded-lg before:border before:border-[var(--canary)]/60 before:bg-[var(--canary-tint)]/20 before:content-['']"
       )}
     >
-      {/* Overlay button = row-wide click target without nesting the "Get more" link inside a button. */}
+      {/* Overlay button = row-wide click target without nesting the "Top up" link inside a button. */}
       <button
         type="button"
         data-pool-row-key={rowKey}
@@ -115,13 +105,42 @@ export function ConnectionRow({
         <StatusPill status={status} />
       </span>
 
+      <span className="min-w-0 leading-tight">
+        {warn ? (
+          <>
+            {/* A real button above the row overlay, so the number is its own
+                labelled, focusable way into the drawer. */}
+            <button
+              type="button"
+              onClick={onOpen}
+              aria-label={warn.label}
+              className="relative rounded-sm text-sm font-medium tabular-nums text-foreground underline decoration-dotted underline-offset-4 hover:decoration-solid focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+            >
+              {warn.number ?? "Set a warning"}
+            </button>
+            {warn.source && (
+              <span className="ml-1.5 text-xs text-muted-foreground">
+                {warn.source}
+              </span>
+            )}
+            {warn.detail && (
+              <span className="block truncate text-xs text-muted-foreground">
+                {warn.detail}
+              </span>
+            )}
+          </>
+        ) : (
+          <span className="text-xs text-muted-foreground">-</span>
+        )}
+      </span>
+
       <span className="flex min-w-0 flex-col items-end gap-0.5 text-right leading-tight">
         <span className="whitespace-nowrap text-sm font-bold tabular-nums text-foreground">
           {pool
             ? formatPoolBalance(pool.balance, pool.balanceLimit, pool.unit)
             : "-"}
         </span>
-        {eta?.short && (
+        {eta && (
           <span
             className={cn(
               "font-mono text-xs",
@@ -132,7 +151,7 @@ export function ConnectionRow({
                   : "text-muted-foreground"
             )}
           >
-            {eta.short}
+            {runwayLabel(eta)}
           </span>
         )}
       </span>
@@ -146,11 +165,17 @@ export function ConnectionRow({
             className="relative inline-flex rounded-md bg-foreground px-3 py-1.5 text-xs font-semibold text-background hover:opacity-90"
           >
             <span className="flex items-center gap-1">
-              Get more <ExternalLink className="h-3 w-3" />
+              Top up <ExternalLink className="h-3 w-3" />
             </span>
           </a>
         ) : (
-          <span className="text-xs text-muted-foreground">
+          // formatWhen reads Date.now(), so the server render and the hydrating
+          // client render land in different minute buckets. Same fix as
+          // AlertDestinations' Moment.
+          <span
+            className="text-xs text-muted-foreground"
+            suppressHydrationWarning
+          >
             {formatWhen(pool?.recorded_at ?? null)}
           </span>
         )}

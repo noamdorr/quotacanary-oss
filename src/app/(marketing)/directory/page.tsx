@@ -11,9 +11,9 @@ export const metadata: Metadata = {
     "Browse every API tool QuotaCanary monitors for credit balance and burn rate. Find your tool and learn how to check its balance before it runs dry.",
 }
 
-// Regenerate at most hourly so newly activated tools appear without a redeploy.
-export const revalidate = 3600
-
+// Rendered per request (the root layout reads the CSP nonce, which rules out
+// a prerender); the catalog read is cached hourly in lib/db/tools so newly
+// activated tools still appear without a redeploy.
 export default async function DirectoryPage() {
   const tools = sortToolsForDirectory(await getActiveTools())
   return (

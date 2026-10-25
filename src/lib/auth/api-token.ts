@@ -32,6 +32,23 @@ export const RATE_WINDOW_SECONDS = 60
 // constraint biting a different export).
 export const MAX_ACTIVE_TOKENS_PER_USER = 10
 
+// Scope vocabulary. "read" lists pools over REST and MCP; "write" adds
+// connection create, rekey, rename and remove over REST (QUO-187). A write
+// token always carries read as well, so one pasted token covers the Mac app's
+// whole connected mode: it reads pools back through the same token it moved
+// them with.
+export const API_TOKEN_SCOPES = ["read", "write"] as const
+export type ApiTokenScope = (typeof API_TOKEN_SCOPES)[number]
+
+// Maps the creation form's scope choice to the scopes stored on the token.
+// Null for anything outside the vocabulary; the caller refuses rather than
+// defaulting, so a mistyped form value never silently mints a token.
+export function scopesForChoice(choice: string): ApiTokenScope[] | null {
+  if (choice === "read") return ["read"]
+  if (choice === "write") return ["read", "write"]
+  return null
+}
+
 // Looks up a raw token via the service-role admin client (the caller has no
 // Supabase session, so RLS would hide the row). Returns the owning user id,
 // token id and scopes, or null if the token is unknown or revoked.

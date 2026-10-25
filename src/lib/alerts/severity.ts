@@ -28,6 +28,9 @@ export type AlertEvaluation = {
   // badge and for recovery; every alerting decision reads the map.
   notifiedLevels: NotifiedLevels
   pools: EvaluationPool[]
+  // The connection's "stopped checking" stamp (migration 089). Non-null on a
+  // good read means an earlier incident alerted, which leaves cleanup to do.
+  failureAlertedAt?: string | null
 }
 
 // The pools of one escalation: the highest level newly reached on this

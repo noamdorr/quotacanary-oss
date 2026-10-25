@@ -44,3 +44,38 @@ test("skipping onboarding leaves the dashboard in its empty state", async ({
   await expect(page.getByText("No tools connected yet")).toBeVisible()
   await expect(page.getByRole("link", { name: "Connect a tool" })).toBeVisible()
 })
+
+test("@smoke onboarding requires a watched balance and resets defaults when switching tools", async ({
+  page,
+  email,
+}) => {
+  await signIn(page, email)
+  await page.getByRole("button", { name: "Get started" }).click()
+  await page.getByRole("button", { name: "Hunter", exact: true }).click()
+  // This test never submits these synthetic credentials to a vendor.
+  await page.getByLabel("API key").fill("not-a-vendor-key")
+  const pools = page.getByRole("group", { name: "Track which balances?" })
+  const checkboxes = pools.getByRole("checkbox")
+  const submit = page.getByRole("button", { name: "Connect & check balance" })
+  expect(await checkboxes.count()).toBeGreaterThan(1)
+  for (const checkbox of await checkboxes.all()) {
+    await expect(checkbox).toBeChecked()
+    await checkbox.uncheck()
+  }
+  await expect(submit).toBeDisabled()
+  await expect(pools.getByRole("alert")).toHaveText(
+    "Choose at least one balance to track."
+  )
+  await checkboxes.first().check()
+  await expect(submit).toBeEnabled()
+  await expect(pools.getByRole("alert")).toBeHidden()
+
+  await page.getByRole("button", { name: "NeverBounce", exact: true }).click()
+  await expect(pools).toBeHidden()
+  await page.getByLabel("API key").fill("not-a-vendor-key")
+  await expect(submit).toBeEnabled()
+  await page.getByRole("button", { name: "Hunter", exact: true }).click()
+  for (const checkbox of await checkboxes.all()) {
+    await expect(checkbox).toBeChecked()
+  }
+})

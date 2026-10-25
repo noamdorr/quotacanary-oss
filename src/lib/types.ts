@@ -94,6 +94,8 @@ export type AlertEvent = {
   id: string
   user_id: string
   connection_id: string | null
+  // Migration 089: "stopped_checking" events (QUO-289) carry level "critical".
+  kind: "balance" | "stopped_checking"
   level: AlertDeliveryLevel
   tool_name: string
   connection_name: string

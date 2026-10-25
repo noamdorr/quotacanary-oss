@@ -1,4 +1,5 @@
 "use client"
+import { LogoMark } from "@/components/brand/LogoMark"
 
 import { APP_LOGIN_URL, APP_SIGNUP_URL } from "@/components/marketing/constants"
 import { Menu, X } from "lucide-react"
@@ -9,6 +10,7 @@ const LINKS = [
   { href: "/directory", label: "Supported tools" },
   { href: "/#pricing", label: "Pricing - it's free" },
   { href: "/#faq", label: "FAQ" },
+  { href: "/mac", label: "Mac app" },
   { href: "/docs", label: "Docs" },
 ]
 
@@ -19,6 +21,7 @@ export function MarketingNav() {
     <nav className="qc-nav" aria-label="Main">
       <div className="qc-nav-inner">
         <a href="/" className="qc-nav-logo">
+          <LogoMark />
           <img
             src="/logo.png"
             alt="QuotaCanary"
@@ -42,6 +45,9 @@ export function MarketingNav() {
           </a>
           <a href="/#faq" className="nav-item">
             FAQ
+          </a>
+          <a href="/mac" className="nav-item">
+            Mac app
           </a>
           <a href="/docs" className="nav-item">
             Docs

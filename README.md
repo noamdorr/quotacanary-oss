@@ -2,33 +2,26 @@
 
 The bird that sings before the credits die.
 
-QuotaCanary watches the credit balances across your API tool stack (NeverBounce, MillionVerifier, OpenRouter, Hunter, Prospeo, and 60+ tools) and warns you before any of them runs dry. One screen, every balance you connect, no logging into ten dashboards. If a tool you use is not in the catalog yet, [ask for it](mailto:hey@quotacanary.com?subject=Tool%20request) or add the adapter yourself: it is three small files ([CONTRIBUTING.md](CONTRIBUTING.md)).
+QuotaCanary is a free, open-source Mac menu bar app that watches the credit balances across your API tool stack. Your vendor keys stay in your Mac’s login Keychain and never go to QuotaCanary servers. Balance requests go directly to each vendor using its key.
 
-## Use it (free, hosted)
+If you opt in to update checks, the app sends its app version, macOS version and chip to the signed update feed.
 
-The fastest path is the free hosted app. Nothing to install:
+## Use it: QuotaCanary for Mac
 
-**https://quotacanary.com**
+Build from source using [the Mac build instructions](mac/docs/BUILDING.md). A signed public download is not available yet; signing, beta validation and publication are still pending.
 
-That is the recommended way to use QuotaCanary for almost everyone.
+- One row per watched balance, with healthy, low and dry status
+- Local balance history, burn rate and run-out estimates
+- Checks and macOS alerts while the app is running and your Mac is awake and online
+- No account; non-synchronizing login Keychain credentials
+- Read-only balance requests directly to vendors
 
 ## Why this repo exists
 
-QuotaCanary is open source for two reasons:
+1. **Audit it.** Read exactly what leaves your Mac. Start with [SECURITY.md](SECURITY.md) and the source in `mac/`.
+2. **Run your own.** Not on a Mac? [Run the web version yourself](docs/SELF_HOSTING.md). You operate its database, encryption key and polling schedule. The HTTP API and MCP server belong to this self-host path; they do not expose the Mac’s local connections.
 
-1. **Audit it.** You are handing a tool your API keys. You should be able to see exactly how they are stored and used. They are encrypted at rest with AES-256-GCM, the key lives in your server environment (not next to the data), and QuotaCanary only ever makes read-only calls. The details, and the honest limits, are in [SECURITY.md](SECURITY.md).
-2. **Run your own.** If you would rather not hand your keys to any hosted service, self-host it. Your keys never leave your machine. See [docs/SELF_HOSTING.md](docs/SELF_HOSTING.md).
-
-## Features
-
-- One dashboard for every credit balance you connect, with green / low / dry status per tool
-- Background polling keeps balances fresh
-- Burn-rate estimate ("burns out ~Thursday")
-- Alerts before a balance hits zero (email optional)
-- API keys encrypted at rest (AES-256-GCM); read-only access only
-- A small HTTP API + MCP server for your own automations
-
-## Self-hosting in 30 seconds (the gist)
+## Self-hosting (the gist)
 
 ```bash
 git clone https://github.com/noamdorr/quotacanary-oss.git quotacanary
@@ -40,19 +33,11 @@ supabase db reset                  # apply schema + tool catalog
 npm run dev
 ```
 
-Full instructions, including bring-your-own hosted Supabase and deploys to Railway / Fly / Vercel, are in [docs/SELF_HOSTING.md](docs/SELF_HOSTING.md).
-
-## Tech stack
-
-- [Next.js 16](https://nextjs.org) (App Router) + [React 19](https://react.dev)
-- [Tailwind CSS 4](https://tailwindcss.com) + shadcn/ui
-- [Supabase](https://supabase.com) (Auth, Postgres, RLS)
-- Hosted on [Railway](https://railway.app)
-- [Biome](https://biomejs.dev) (lint + format), [Vitest](https://vitest.dev) (tests)
+The self-host web app uses Next.js, React and Supabase. See [the full setup guide](docs/SELF_HOSTING.md) for configuration, scheduling and deployment options.
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md). Adding a tool is three small files.
+See [CONTRIBUTING.md](CONTRIBUTING.md). If a tool is missing, [ask for it](mailto:hey@quotacanary.com?subject=Tool%20request) or contribute an adapter.
 
 ## License
 

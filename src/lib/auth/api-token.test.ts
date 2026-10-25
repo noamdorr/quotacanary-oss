@@ -400,3 +400,21 @@ describe("consumeRateLimit", () => {
     warn.mockRestore()
   })
 })
+
+describe("token scope vocabulary", () => {
+  it("issues read-only scopes for the default choice", async () => {
+    const { scopesForChoice } = await import("./api-token")
+    expect(scopesForChoice("read")).toEqual(["read"])
+  })
+
+  it("issues read plus write for the write choice, so one token serves the Mac app", async () => {
+    const { scopesForChoice } = await import("./api-token")
+    expect(scopesForChoice("write")).toEqual(["read", "write"])
+  })
+
+  it("refuses an unknown choice instead of guessing", async () => {
+    const { scopesForChoice } = await import("./api-token")
+    expect(scopesForChoice("admin")).toBeNull()
+    expect(scopesForChoice("")).toBeNull()
+  })
+})

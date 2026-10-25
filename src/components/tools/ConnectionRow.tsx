@@ -1,10 +1,10 @@
 "use client"
 
+import { CredentialFields } from "@/components/connect/CredentialFields"
 import { StatusDot } from "@/components/dashboard/StatusDot"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import {
   refreshConnection,
   removeConnection,
@@ -13,11 +13,6 @@ import {
 } from "@/lib/actions/connections"
 import { staleAdjustedStatus } from "@/lib/balance-status"
 import { runClientAction } from "@/lib/client-action"
-import {
-  credentialFieldsFor,
-  credentialInputName,
-  credentialPlaceholder,
-} from "@/lib/credentials"
 import { formatBalance } from "@/lib/format"
 import { newestRecordedAt } from "@/lib/pool-rows"
 import type { ConnectionWithBalance } from "@/lib/types"
@@ -36,9 +31,6 @@ export function ConnectionRow({
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const pools = connection.pools
-  const credentialFields = credentialFieldsFor(
-    connection.tool.credential_fields
-  )
   // Same aging the dashboard applies in toPoolRows: a silent connection must
   // read "stale" here too, not keep its last "Active" dot.
   const status = staleAdjustedStatus({
@@ -166,39 +158,13 @@ export function ConnectionRow({
           }
           className="flex flex-col gap-2 sm:flex-row sm:flex-wrap"
         >
-          {credentialFields.map((field) => {
-            const inputId = `rekey-${connection.id}-${credentialInputName(field)}`
-            return (
-              <div
-                key={field.name}
-                className="flex min-w-0 flex-1 basis-40 flex-col gap-1"
-              >
-                <Label htmlFor={inputId} className="text-xs">
-                  {field.label}
-                </Label>
-                <Input
-                  id={inputId}
-                  name={credentialInputName(field)}
-                  type={field.type}
-                  placeholder={credentialPlaceholder(
-                    connection.tool.name,
-                    field
-                  )}
-                  className="h-8 w-full"
-                  // A secret, not a login: keep password managers out and
-                  // stop mobile keyboards from capitalizing or "correcting"
-                  // a pasted key.
-                  autoComplete="off"
-                  data-1p-ignore
-                  data-lpignore="true"
-                  autoCapitalize="off"
-                  autoCorrect="off"
-                  spellCheck={false}
-                  required
-                />
-              </div>
-            )
-          })}
+          <CredentialFields
+            toolName={connection.tool.name}
+            fields={connection.tool.credential_fields}
+            required
+            compact
+            fieldClassName="flex min-w-0 flex-1 basis-40 flex-col gap-1"
+          />
           <Button type="submit" size="sm" disabled={pending}>
             Save credentials
           </Button>

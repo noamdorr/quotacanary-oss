@@ -12,7 +12,6 @@ export type FeaturedTool = Pick<
   | "id"
   | "name"
   | "logo_url"
-  | "key_instructions"
   | "default_low_threshold"
   | "default_alert_threshold"
   | "pools"

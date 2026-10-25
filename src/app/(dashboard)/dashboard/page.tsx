@@ -53,7 +53,7 @@ export default async function DashboardPage({
     } = await supabase
       .from("tools")
       .select(
-        "id, name, logo_url, key_instructions, default_low_threshold, default_alert_threshold, pools, credential_fields",
+        "id, name, logo_url, default_low_threshold, default_alert_threshold, pools, credential_fields",
         { count: "exact" }
       )
       .eq("is_active", true)

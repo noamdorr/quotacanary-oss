@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { shodanAdapter } from "./shodan"
+import { catalogAdapterFor } from "./catalog"
+
+const shodanAdapter = catalogAdapterFor("shodan")
 
 afterEach(() => vi.restoreAllMocks())
 
@@ -92,6 +94,60 @@ describe("shodan adapter", () => {
           unit: "credits",
         },
       ],
+    })
+  })
+
+  // Pinned at the catalog conversion (QUO-189). The hand-written adapter read a
+  // null credit as a healthy 0 and a zero usage_limit as a 0 cap; the catalog
+  // treats a null balance as missing and reports a cap only when it is above
+  // zero. Vetoable: moving Shodan back to a hand-written adapter restores both.
+  it("drops a pool whose credit is null and reports a zero cap as no cap", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          ({
+            ok: true,
+            status: 200,
+            json: async () => ({
+              query_credits: null,
+              scan_credits: 40,
+              usage_limits: { query_credits: 100, scan_credits: 0 },
+            }),
+          }) as unknown as Response
+      )
+    )
+
+    expect(await shodanAdapter.readBalance("api-key")).toEqual({
+      ok: true,
+      balances: [
+        {
+          creditType: "scan",
+          label: "Scan Credits",
+          balance: 40,
+          balanceLimit: null,
+          unit: "credits",
+        },
+      ],
+    })
+  })
+
+  it("reports an unexpected response when every credit is null", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          ({
+            ok: true,
+            status: 200,
+            json: async () => ({ query_credits: null, scan_credits: null }),
+          }) as unknown as Response
+      )
+    )
+
+    expect(await shodanAdapter.readBalance("api-key")).toEqual({
+      ok: false,
+      error: "Shodan returned an unexpected response.",
     })
   })
 

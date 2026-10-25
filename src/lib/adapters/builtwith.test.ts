@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { builtwithAdapter } from "./builtwith"
+import { catalogAdapterFor } from "./catalog"
+
+const builtwithAdapter = catalogAdapterFor("builtwith")
 
 afterEach(() => vi.restoreAllMocks())
 
@@ -96,7 +98,7 @@ describe("builtwith adapter", () => {
     })
   })
 
-  it("returns suspended billing errors", async () => {
+  it("reads a 403 (suspended billing) as a rejected key", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(
@@ -113,7 +115,7 @@ describe("builtwith adapter", () => {
 
     expect(result).toEqual({
       ok: false,
-      error: "BuiltWith billing is suspended for this account.",
+      error: "BuiltWith rejected this key.",
     })
   })
 

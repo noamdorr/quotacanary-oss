@@ -8,8 +8,15 @@ export function formatBalance(balance: number, unit: string): string {
         style: "currency",
         currency: "USD",
       })
+    case "eur":
+      return balance.toLocaleString(undefined, {
+        style: "currency",
+        currency: "EUR",
+      })
     case "gb":
       return `${balance.toLocaleString(undefined, { maximumFractionDigits: 2 })} GB`
+    case "minutes":
+      return `${balance.toLocaleString(undefined, { maximumFractionDigits: 2 })} min`
     default:
       return balance.toLocaleString()
   }

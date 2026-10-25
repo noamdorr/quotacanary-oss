@@ -11,6 +11,23 @@ import {
   preloadRotatingToolLogos,
 } from "@/lib/marketing-rotating-tools"
 
+// Parse seed.sql directly: getActiveTools() returns empty under
+// APP_ONLY=true and Vitest has no live Supabase, so a DB-backed
+// assertion would pass on an empty set.
+function seedToolIds(active: boolean): string[] {
+  const seed = readFileSync(resolve(process.cwd(), "supabase/seed.sql"), "utf8")
+  const rows = [
+    ...seed.matchAll(
+      /\(\s*'([^']+)',\s*'(?:[^']|'')*',\s*'\/logos\/[^']+',[\s\S]*?,\s*(true|false)\s*\)/g
+    ),
+  ]
+
+  return rows
+    .filter((row) => row[2] === String(active))
+    .map((row) => row[1])
+    .sort()
+}
+
 describe("marketing rotating tool logos", () => {
   it("uses four visible logo slots", () => {
     expect(ROTATING_TOOL_SLOT_COUNT).toBe(4)
@@ -29,9 +46,15 @@ describe("marketing rotating tool logos", () => {
     }
   })
 
-  it("includes one optimized rotating asset for every catalog logo", () => {
+  it("includes one optimized rotating asset for every active catalog logo", () => {
+    // A retired tool keeps its PNG for the rows that still reference it, but
+    // leaves the marquee.
+    const retiredIds = new Set(seedToolIds(false))
     const localLogos = readdirSync(resolve(process.cwd(), "public/logos"))
-      .filter((file) => file.endsWith(".png"))
+      .filter(
+        (file) =>
+          file.endsWith(".png") && !retiredIds.has(file.replace(/\.png$/, ""))
+      )
       .map((file) => `/logos/rotating/${file.replace(/\.png$/, ".webp")}`)
       .sort()
     const rotatingLogos = ROTATING_TOOL_LOGOS.map((tool) => tool.logo).sort()
@@ -39,6 +62,16 @@ describe("marketing rotating tool logos", () => {
 
     expect(rotatingLogos).toEqual(localLogos)
     expect(new Set(names).size).toBe(names.length)
+  })
+
+  it("rotates exactly the active tools in the seed catalog", () => {
+    const activeIds = seedToolIds(true)
+    const rotatingIds = ROTATING_TOOL_LOGOS.map((tool) =>
+      tool.logo.replace(/^\/logos\/rotating\//, "").replace(/\.webp$/, "")
+    ).sort()
+
+    expect(activeIds.length).toBeGreaterThanOrEqual(50)
+    expect(rotatingIds).toEqual(activeIds)
   })
 
   it("starts with four spaced-out real logos", () => {
@@ -86,6 +119,36 @@ describe("marketing rotating tool logos", () => {
     expect(decoded).toEqual(["/logos/one.webp", "/logos/two.webp"])
   })
 
+  it("fetches only the next queued logo instead of the whole set", () => {
+    const component = readFileSync(
+      resolve(process.cwd(), "src/components/marketing/RotatingToolLogos.tsx"),
+      "utf8"
+    )
+
+    expect(component).toMatch(
+      /preloadRotatingToolLogos\(\[\s*ROTATING_TOOL_LOGOS\[logoQueue\.current\[0\]\]\.logo,?\s*\]\)/
+    )
+    expect(component).not.toMatch(/preloadRotatingToolLogos\(\s*\)/)
+  })
+
+  it("serves the founder portrait as small retina WebP variants", () => {
+    const founder = readFileSync(
+      resolve(process.cwd(), "src/components/marketing/FounderNote.tsx"),
+      "utf8"
+    )
+
+    expect(founder).not.toContain("founder-noam.png")
+    expect(founder).toContain('loading="lazy"')
+
+    for (const size of [48, 96, 144]) {
+      const file = `founder-noam-${size}.webp`
+      const path = resolve(process.cwd(), "public", file)
+
+      expect(founder).toContain(`/${file}`)
+      expect(statSync(path).size).toBeLessThanOrEqual(8192)
+    }
+  })
+
   it("changes tools at a calm cadence with an opacity-led crossfade", () => {
     const component = readFileSync(
       resolve(process.cwd(), "src/components/marketing/RotatingToolLogos.tsx"),
@@ -102,7 +165,8 @@ describe("marketing rotating tool logos", () => {
     expect(component).toContain('closest("section")')
     expect(component).toContain('root.current?.matches(":hover")')
     expect(component).toContain("section?.contains(document.activeElement)")
-    expect(component).toContain("void preloadRotatingToolLogos()")
+    expect(component).not.toContain("void preloadRotatingToolLogos()")
+    expect(component).toContain("preloadUpcomingLogo()")
     expect(component).toContain("if (reducedMotion)")
     expect(component).not.toContain("logosReady")
     expect(component).not.toContain("hoverPaused")

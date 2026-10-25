@@ -1,9 +1,11 @@
 import { timingSafeEqual } from "node:crypto"
 import { dispatchAlerts } from "@/lib/alerts/dispatch"
 import type { AlertEvaluation } from "@/lib/alerts/severity"
+import type { StoppedCheckingEvaluation } from "@/lib/alerts/stopped-checking"
 import { sendEmail } from "@/lib/email/client"
 import { renderPollAlarmEmail } from "@/lib/email/render/poll-alarm"
 import { heartbeatSuffix, shouldEmailOperator } from "@/lib/poll-alarm"
+import { type PollLease, claimPollLease } from "@/lib/poll-lease"
 import {
   type PollOutcome,
   classifyPollRun,
@@ -27,6 +29,7 @@ type RunSummary = {
   alerts_degraded: boolean
   pruned: number
   missed_runs: number
+  skipped_overlap?: boolean
 }
 
 // When the previous run started, so this one can tell a quiet schedule from a
@@ -39,6 +42,7 @@ async function previousRun(
   const { data, error } = await supabase
     .from("poll_runs")
     .select("started_at, outcome")
+    .eq("skipped_overlap", false)
     .order("started_at", { ascending: false })
     .limit(1)
     .maybeSingle()
@@ -205,8 +209,56 @@ export async function POST(request: NextRequest) {
 
   const supabase = createAdminClient()
   const startedAt = new Date()
+  const progress: RunSummary = {
+    outcome: "failed",
+    connections_polled: 0,
+    refresh_ok: 0,
+    refresh_failed: 0,
+    alerts_sent: 0,
+    alerts_failed: 0,
+    alerts_degraded: false,
+    pruned: 0,
+    missed_runs: 0,
+  }
+  let lease: PollLease | null = null
+  try {
+    lease = await claimPollLease(supabase)
+    if (!lease) {
+      await recordRun(supabase, startedAt, {
+        ...progress,
+        outcome: "ok",
+        skipped_overlap: true,
+      })
+      console.info("[poll] skipped overlapping invocation")
+      // Do not ping success or reset the previous-outcome alarm on a skip.
+      return NextResponse.json({ outcome: "skipped", reason: "overlap" })
+    }
+    return await runPoll(supabase, startedAt, lease, progress)
+  } catch (error) {
+    console.error("[poll] interrupted before completion:", error)
+    await recordRun(supabase, startedAt, progress)
+    await raiseAlarms(progress, null)
+    return NextResponse.json(
+      { error: "poll interrupted", outcome: "failed" },
+      { status: 503 }
+    )
+  } finally {
+    // Wait for the work to settle before releasing; losing a Promise.race
+    // would leave a refresh running after its lease had been handed away.
+    await lease?.release()
+  }
+}
+
+async function runPoll(
+  supabase: SupabaseClient,
+  startedAt: Date,
+  lease: PollLease,
+  progress: RunSummary
+) {
+  await lease.check()
   const previous = await previousRun(supabase)
   const missedRuns = missedRunsSince(previous?.startedAt ?? null)
+  progress.missed_runs = missedRuns
   if (missedRuns > 0) {
     // The schedule lives outside this repo, so a paused or retimed cron leaves
     // no other trace. Reported on the first run after the gap.
@@ -249,7 +301,9 @@ export async function POST(request: NextRequest) {
   let ok = 0
   let failed = 0
   const evaluations: AlertEvaluation[] = []
+  const stopped: StoppedCheckingEvaluation[] = []
   for (let i = 0; i < all.length; i += CONCURRENCY) {
+    await lease.check()
     const chunk = all.slice(i, i + CONCURRENCY)
     const settled = await Promise.allSettled(
       chunk.map((c) => refreshConnectionWith(supabase, c.id))
@@ -260,6 +314,9 @@ export async function POST(request: NextRequest) {
         if (s.value.alert) evaluations.push(s.value.alert)
       } else {
         failed++
+        if (s.status === "fulfilled" && !s.value.ok && s.value.stopped) {
+          stopped.push(s.value.stopped)
+        }
         // Server-side only (like the query-failure log above): the response
         // counts failures but can't say WHO, and the row's error status heals
         // on the next successful poll, so this log is the only durable trace.
@@ -274,14 +331,25 @@ export async function POST(request: NextRequest) {
         )
       }
     }
+    progress.connections_polled = ok + failed
+    progress.refresh_ok = ok
+    progress.refresh_failed = failed
   }
+
+  await lease.check()
 
   // alertsDegraded is the only signal that alert delivery is broken: a dispatch
   // that failed outright still reports alertsSent: 0, exactly like a quiet poll.
   const { sent, failedSends, degraded } = await dispatchAlerts(
     supabase,
-    evaluations
+    evaluations,
+    stopped
   )
+
+  progress.alerts_sent = sent
+  progress.alerts_failed = failedSends
+  progress.alerts_degraded = degraded
+  await lease.check()
 
   // Retention (migration 038): drop readings past 90 days, keeping the newest
   // 50 per pool. Non-fatal - a prune failure must not fail the poll run.
@@ -293,6 +361,8 @@ export async function POST(request: NextRequest) {
     // ignore: pruning is best-effort housekeeping
   }
 
+  progress.pruned = pruned
+  await lease.check()
   const outcome = classifyPollRun({
     polled: all.length,
     failed,

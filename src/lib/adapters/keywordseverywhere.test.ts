@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { keywordseverywhereAdapter } from "./keywordseverywhere"
+import { catalogAdapterFor } from "./catalog"
+
+const keywordseverywhereAdapter = catalogAdapterFor("keywordseverywhere")
 
 afterEach(() => vi.restoreAllMocks())
 

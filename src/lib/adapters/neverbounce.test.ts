@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { neverbounceAdapter } from "./neverbounce"
+import { catalogAdapterFor } from "./catalog"
+
+const neverbounceAdapter = catalogAdapterFor("neverbounce")
 
 afterEach(() => vi.restoreAllMocks())
 

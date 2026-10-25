@@ -1,0 +1,95 @@
+---
+import Layout from "../../layouts/Layout.astro"
+import Arrow from "../../components/Arrow.astro"
+import { TOOLS, categoryLabel, toolSubheading, toolWebsiteUrl, withUtm } from "../../lib/tools"
+import type { Tool } from "../../lib/tools"
+
+export function getStaticPaths() {
+  return TOOLS.map((tool) => ({ params: { id: tool.id }, props: { tool } }))
+}
+
+const { tool } = Astro.props as { tool: Tool }
+
+// Copy carried over from the Next /directory/[id] page (live on master).
+const title = `${tool.name} credit balance - check it and get warned before it runs dry`
+const description =
+  tool.description ??
+  `${toolSubheading(tool.name)}. QuotaCanary watches your ${tool.name} credits and warns you before they run out.`
+
+const topupUrl = withUtm(tool.topup_url, { medium: "tool-page" })
+const websiteUrl = toolWebsiteUrl(tool)
+const websiteLink = withUtm(websiteUrl, { medium: "tool-page", campaign: "website" })
+
+const jsonLd = JSON.stringify({
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  name: tool.name,
+  applicationCategory: categoryLabel(tool.category),
+  ...(tool.description ? { description: tool.description } : {}),
+  ...(websiteUrl ? { url: websiteUrl } : {}),
+}).replace(/</g, "\\u003c")
+---
+
+<Layout title={title} description={description} path={`/directory/${tool.id}`} jsonLd={jsonLd}>
+  <article class="page page-narrow wrap">
+    <a class="tool-back" href="/directory"><Arrow />All tools</a>
+
+    <header class="tool-head">
+      {tool.logo_url && <img src={tool.logo_url} alt="" width="48" height="48" />}
+      <div>
+        <h1>{tool.name}</h1>
+        <p class="eyebrow">{categoryLabel(tool.category)}</p>
+      </div>
+    </header>
+
+    <p class="tool-sub">{toolSubheading(tool.name)}</p>
+    {tool.description && <p class="page-lead" style="margin-top:10px">{tool.description}</p>}
+
+    {
+      tool.pools && tool.pools.length > 1 && (
+        <section class="tool-section">
+          <p class="eyebrow">Metered on</p>
+          <div class="pool-chips">
+            {tool.pools.map((pool) => (
+              <span>{pool.label}</span>
+            ))}
+          </div>
+        </section>
+      )
+    }
+
+    <section class="tool-section">
+      <p class="eyebrow">Balance warnings</p>
+      <p>
+        Track your {tool.name} credits from your Mac’s menu bar. Get a warning when they’re running low.
+      </p>
+    </section>
+
+    <div class="tool-actions">
+      <a class="button primary" href="/#download">Get the bird</a>
+      {
+        websiteUrl && (
+          <a class="button" href={websiteLink} target="_blank" rel="noopener noreferrer">
+            Website
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6M20 4 10 14M18 13v6H5V6h6" /></svg>
+          </a>
+        )
+      }
+      {
+        tool.topup_url && (
+          <a class="button" href={topupUrl} target="_blank" rel="noopener noreferrer">
+            Top up
+          </a>
+        )
+      }
+      {
+        tool.api_docs_url && (
+          <a class="button" href={tool.api_docs_url} target="_blank" rel="noopener noreferrer">
+            API docs
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6M20 4 10 14M18 13v6H5V6h6" /></svg>
+          </a>
+        )
+      }
+    </div>
+  </article>
+</Layout>

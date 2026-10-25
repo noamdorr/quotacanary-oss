@@ -1,4 +1,5 @@
 import { logout } from "@/app/(auth)/login/actions"
+import { LogoMark } from "@/components/brand/LogoMark"
 import { FeedbackTrigger } from "@/components/dashboard/FeedbackDialog"
 import { MobileNav, Sidebar } from "@/components/dashboard/Sidebar"
 import { Button } from "@/components/ui/button"
@@ -25,6 +26,7 @@ export default function DashboardLayout({
           className="qc-nav-logo rounded-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
           aria-label="QuotaCanary dashboard"
         >
+          <LogoMark />
           <img
             src="/logo.png"
             alt="QuotaCanary"

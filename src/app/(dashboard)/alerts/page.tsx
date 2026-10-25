@@ -22,7 +22,7 @@ export default async function AlertsPage() {
   const { data: events, error: eventsError } = await supabase
     .from("alert_events")
     .select(
-      "id, user_id, connection_id, level, tool_name, connection_name, title, body, pools, dashboard_url, topup_url, read_at, created_at"
+      "id, user_id, connection_id, kind, level, tool_name, connection_name, title, body, pools, dashboard_url, topup_url, read_at, created_at"
     )
     .eq("user_id", user.id)
     .order("created_at", { ascending: false })

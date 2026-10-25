@@ -1,29 +1,21 @@
 "use client"
 
+import { CredentialFields } from "@/components/connect/CredentialFields"
 import { Button } from "@/components/ui/button"
 import { DialogClose } from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import {
   refreshConnection,
   removeConnection,
   setPoolThresholds,
   updateKey,
 } from "@/lib/actions/connections"
-import { effectiveStatus } from "@/lib/balance-status"
-import { burnRate } from "@/lib/burn-rate"
 import { runClientAction } from "@/lib/client-action"
-import {
-  type CredentialValues,
-  credentialFieldsFor,
-  credentialInputName,
-  credentialPlaceholder,
-  credentialsComplete,
-} from "@/lib/credentials"
+import { type CredentialValues, credentialsComplete } from "@/lib/credentials"
 import { formatBalance } from "@/lib/format"
-import { poolEta } from "@/lib/pool-eta"
+import { assessPool } from "@/lib/pool-assessment"
 import type { PoolRow } from "@/lib/pool-rows"
-import { resolvePoolThresholds, thresholdOrderError } from "@/lib/thresholds"
+import { RUNWAY_HEADING } from "@/lib/runway-copy"
+import { criticalFor, warnBelowError } from "@/lib/thresholds"
 import { Dialog as DialogPrimitive } from "@base-ui/react/dialog"
 import { Check, ExternalLink, KeyRound, Trash2, X } from "lucide-react"
 import { useState, useTransition } from "react"
@@ -45,34 +37,50 @@ export function ConnectionDrawer({
   const [confirmRemove, setConfirmRemove] = useState(false)
   const [credentialValues, setCredentialValues] = useState<CredentialValues>({})
   const [keySaved, setKeySaved] = useState(false)
-  const initial = row
-    ? resolvePoolThresholds(row.connection, row.pool?.creditType ?? "")
-    : { low: null, critical: null }
-  const [lowValue, setLow] = useState(
-    initial.low != null ? String(initial.low) : ""
-  )
-  const [critValue, setCritical] = useState(
-    initial.critical != null ? String(initial.critical) : ""
+  // Same assessment the row it opened from renders, so the two never disagree.
+  const assessment = row ? assessPool(row) : null
+  const initialLow = assessment?.thresholds.low ?? null
+  const [warnBelowValue, setWarnBelow] = useState(
+    initialLow != null ? String(initialLow) : ""
   )
 
-  if (!row) return null
+  if (!row || !assessment) return null
   const { connection: c, pool } = row
-  const credentialFields = credentialFieldsFor(c.tool.credential_fields)
   const balanceText = pool
     ? pool.balanceLimit != null
       ? `${formatBalance(pool.balance, pool.unit)} / ${formatBalance(pool.balanceLimit, pool.unit)}`
       : formatBalance(pool.balance, pool.unit)
     : "-"
-  const eta = pool ? poolEta(pool) : null
-  const burn = pool ? burnRate(pool.history) : null
-  // Mirror ConnectionRow so the drawer never disagrees with the row it opened from.
-  const status = effectiveStatus({
-    balance: pool?.balance ?? null,
-    low: initial.low,
-    critical: initial.critical,
-    connectionStatus: c.status,
-  })
-  const tone = status.kind === "level" ? status.level : "neutral"
+  const { status, tone, eta, burn } = assessment
+  // The red point shown is the one in force now, so an older override that is
+  // not a third shows its real value. Saving re-derives it (a third of the
+  // number, or the connection/tool default when the field is blank), so when
+  // that would move it, say so before the user saves.
+  const warnBelowText = warnBelowValue.trim()
+  const warnBelow = warnBelowText ? Number(warnBelowText) : null
+  const redPoint = assessment.thresholds.critical
+  const redPointAfterSave =
+    warnBelow == null
+      ? assessment.inherited.critical
+      : warnBelowError(warnBelow)
+        ? null
+        : criticalFor(warnBelow)
+  // Same notation as the row and card ("red at $5.00"); a row with no reading
+  // yet has no unit to format with.
+  const showNumber = (n: number) =>
+    pool ? formatBalance(n, pool.unit) : n.toLocaleString()
+  const redPointLine =
+    redPoint == null
+      ? redPointAfterSave != null
+        ? `Turns red at ${showNumber(redPointAfterSave)} once saved.`
+        : null
+      : redPointAfterSave == null
+        ? `Turns red at ${showNumber(redPoint)}.`
+        : redPointAfterSave !== redPoint
+          ? `Turns red at ${showNumber(redPoint)}. Saving sets it to ${showNumber(redPointAfterSave)}.`
+          : warnBelow != null
+            ? `Turns red at ${showNumber(redPoint)}, a third of that.`
+            : `Turns red at ${showNumber(redPoint)}.`
 
   return (
     <DialogPrimitive.Root
@@ -134,6 +142,9 @@ export function ConnectionDrawer({
 
           {eta && (
             <div className="mb-4">
+              <p className="mb-1 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+                {RUNWAY_HEADING}
+              </p>
               <p className="font-mono text-sm font-semibold text-foreground">
                 {eta.short}
               </p>
@@ -149,32 +160,30 @@ export function ConnectionDrawer({
           <p className="mb-2 mt-6 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
             Thresholds
           </p>
-          <label className="mb-2 flex items-center justify-between rounded-lg border border-border px-3 py-2 text-sm">
-            <span className="text-muted-foreground">Low warning at</span>
-            <input
-              value={lowValue}
-              onChange={(e) => {
-                setLow(e.target.value)
-                setSaved(false)
-                setError(null)
-              }}
-              inputMode="numeric"
-              className="w-24 rounded-md border border-border px-2 py-1.5 text-right tabular-nums"
-            />
-          </label>
           <label className="flex items-center justify-between rounded-lg border border-border px-3 py-2 text-sm">
-            <span className="text-muted-foreground">Critical at</span>
+            <span className="text-muted-foreground">Warn below</span>
             <input
-              value={critValue}
+              value={warnBelowValue}
               onChange={(e) => {
-                setCritical(e.target.value)
+                setWarnBelow(e.target.value)
                 setSaved(false)
                 setError(null)
               }}
-              inputMode="numeric"
+              inputMode="decimal"
+              aria-describedby={
+                redPointLine ? "warn-below-red-point" : undefined
+              }
               className="w-24 rounded-md border border-border px-2 py-1.5 text-right tabular-nums"
             />
           </label>
+          {redPointLine && (
+            <p
+              id="warn-below-red-point"
+              className="mt-1.5 text-xs text-muted-foreground"
+            >
+              {redPointLine}
+            </p>
+          )}
 
           <div className="mt-5 flex gap-2">
             <Button
@@ -184,16 +193,14 @@ export function ConnectionDrawer({
               onClick={() =>
                 startTransition(async () => {
                   if (!pool) return
-                  const low = lowValue ? Number(lowValue) : null
-                  const critical = critValue ? Number(critValue) : null
-                  const orderError = thresholdOrderError(low, critical)
-                  if (orderError) {
-                    setError(orderError)
+                  const invalid = warnBelowError(warnBelow)
+                  if (invalid) {
+                    setError(invalid)
                     return
                   }
                   setError(null)
                   const res = await runClientAction(() =>
-                    setPoolThresholds(c.id, pool.creditType, low, critical)
+                    setPoolThresholds(c.id, pool.creditType, warnBelow)
                   )
                   if (res.ok) setSaved(true)
                   else setError(res.error)
@@ -239,7 +246,7 @@ export function ConnectionDrawer({
               className="mt-3 block rounded-lg border border-border py-2 text-center text-sm font-medium text-foreground hover:bg-muted"
             >
               <span className="flex items-center justify-center gap-1">
-                Get more <ExternalLink className="h-3.5 w-3.5" />
+                Top up <ExternalLink className="h-3.5 w-3.5" />
               </span>
             </a>
           )}
@@ -317,39 +324,17 @@ export function ConnectionDrawer({
                   })
                 }}
               >
-                {credentialFields.map((field) => {
-                  const inputId = `rekey-${credentialInputName(field)}`
-                  return (
-                    <div key={field.name} className="space-y-1.5">
-                      <Label htmlFor={inputId}>{field.label}</Label>
-                      <Input
-                        id={inputId}
-                        name={credentialInputName(field)}
-                        value={credentialValues[field.name] ?? ""}
-                        onChange={(event) => {
-                          setCredentialValues((values) => ({
-                            ...values,
-                            [field.name]: event.target.value,
-                          }))
-                          setError(null)
-                          setKeySaved(false)
-                        }}
-                        type={field.type}
-                        placeholder={credentialPlaceholder(c.tool.name, field)}
-                        // A secret, not a login: keep password managers out
-                        // and stop mobile keyboards from capitalizing or
-                        // "correcting" a pasted key.
-                        autoComplete="off"
-                        data-1p-ignore
-                        data-lpignore="true"
-                        autoCapitalize="off"
-                        autoCorrect="off"
-                        spellCheck={false}
-                        disabled={pending}
-                      />
-                    </div>
-                  )
-                })}
+                <CredentialFields
+                  toolName={c.tool.name}
+                  fields={c.tool.credential_fields}
+                  values={credentialValues}
+                  onValuesChange={(update) => {
+                    setCredentialValues(update)
+                    setError(null)
+                    setKeySaved(false)
+                  }}
+                  disabled={pending}
+                />
                 <Button type="submit" className="w-full" disabled={pending}>
                   {pending ? "Checking credentials..." : "Save new credentials"}
                 </Button>

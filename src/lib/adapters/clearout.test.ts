@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest"
-import { clearoutAdapter } from "./clearout"
+import { catalogAdapterFor } from "./catalog"
+
+const clearoutAdapter = catalogAdapterFor("clearout")
 afterEach(() => vi.restoreAllMocks())
 describe("clearout adapter", () => {
   it("returns balance and balanceLimit from total", async () => {

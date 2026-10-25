@@ -1,3 +1,4 @@
+import { withScopesHeader } from "@/lib/api/authorize"
 import { jsonError, jsonOk } from "@/lib/api/respond"
 import { type PoolPayload, serializePoolRow } from "@/lib/api/serialize"
 import { KNOWN_STATUSES, parseStatusFilter } from "@/lib/api/status-filter"
@@ -14,6 +15,21 @@ import type { NextRequest } from "next/server"
 
 export const dynamic = "force-dynamic"
 export const maxDuration = 15
+
+// The verified email of the token's owner, or null when Auth cannot say;
+// a missing identity never fails the pools read.
+async function accountIdentity(
+  supabase: ReturnType<typeof createAdminClient>,
+  userId: string
+): Promise<{ email: string } | null> {
+  try {
+    const { data, error } = await supabase.auth.admin.getUserById(userId)
+    const email = data?.user?.email
+    return error || !email ? null : { email }
+  } catch {
+    return null
+  }
+}
 
 export async function GET(req: NextRequest) {
   // 1. Authenticate
@@ -36,7 +52,7 @@ export async function GET(req: NextRequest) {
       "This token does not have the read scope."
     )
     res.headers.set("WWW-Authenticate", 'Bearer error="insufficient_scope"')
-    return res
+    return withScopesHeader(res, auth)
   }
 
   // 3. Rate limit
@@ -49,16 +65,19 @@ export async function GET(req: NextRequest) {
     res.headers.set("RateLimit-Limit", String(RATE_LIMIT))
     res.headers.set("RateLimit-Remaining", "0")
     res.headers.set("RateLimit-Reset", reset)
-    return res
+    return withScopesHeader(res, auth)
   }
 
   // 4. Parse status filter
   const filter = parseStatusFilter(req.nextUrl.searchParams.get("status"))
   if (!filter.ok) {
-    return jsonError(
-      400,
-      "invalid_status",
-      `Invalid status value. Valid values: ${KNOWN_STATUSES.join(", ")}.`
+    return withScopesHeader(
+      jsonError(
+        400,
+        "invalid_status",
+        `Invalid status value. Valid values: ${KNOWN_STATUSES.join(", ")}.`
+      ),
+      auth
     )
   }
 
@@ -69,10 +88,9 @@ export async function GET(req: NextRequest) {
     const connections = await listConnectionsWithBalance(supabase, auth.userId)
     pools = toPoolRows(connections).map(serializePoolRow)
   } catch {
-    return jsonError(
-      500,
-      "internal",
-      "Failed to fetch pools. Try again shortly."
+    return withScopesHeader(
+      jsonError(500, "internal", "Failed to fetch pools. Try again shortly."),
+      auth
     )
   }
 
@@ -82,8 +100,15 @@ export async function GET(req: NextRequest) {
     pools = pools.filter((p) => statuses.has(p.status))
   }
 
-  // 7. Respond (fail-open leaves remaining/reset unknown; omit those headers)
-  const res = jsonOk({ pools })
+  // 7. Opt-in account identity (QUO-274): the Mac names the account a
+  //    one-way move lands in. Looked up by the token's userId only.
+  const account =
+    req.nextUrl.searchParams.get("include") === "account"
+      ? await accountIdentity(supabase, auth.userId)
+      : null
+
+  // 8. Respond (fail-open leaves remaining/reset unknown; omit those headers)
+  const res = jsonOk(account ? { pools, account } : { pools })
   res.headers.set("RateLimit-Limit", String(RATE_LIMIT))
   if (rate.remaining !== null) {
     res.headers.set("RateLimit-Remaining", String(rate.remaining))
@@ -91,5 +116,5 @@ export async function GET(req: NextRequest) {
   if (rate.resetSeconds !== null) {
     res.headers.set("RateLimit-Reset", String(rate.resetSeconds))
   }
-  return res
+  return withScopesHeader(res, auth)
 }

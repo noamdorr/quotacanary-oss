@@ -43,7 +43,7 @@ export const HERO_DEMO_TOOLS: HeroDemoTool[] = [
     name: "Bright Data",
     logo: "/logos/brightdata.png",
     balance: "$42.10",
-    eta: "burns out Friday",
+    eta: "in ~3 days",
     status: { kind: "level", level: "low" },
   },
 ]

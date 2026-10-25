@@ -1,22 +1,20 @@
 "use client"
 
 import { Canary } from "@/components/brand/Canary"
+import { CredentialFields } from "@/components/connect/CredentialFields"
 import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
 import { completeOnboarding, connectTool } from "@/lib/actions/connections"
 import { effectiveStatus } from "@/lib/balance-status"
 import {
   type CredentialValues,
   appendCredentialValues,
-  credentialFieldsFor,
-  credentialInputName,
-  credentialPlaceholder,
   credentialsComplete,
 } from "@/lib/credentials"
 import type { FeaturedTool } from "@/lib/featured-tools"
 import { formatBalance } from "@/lib/format"
+import { keyRequirement } from "@/lib/key-requirements"
 import { FUNNEL_EVENTS, trackPlausibleEvent } from "@/lib/plausible-events"
+import { WARN_BELOW_FIRST_RUN_HINT } from "@/lib/warn-below-summary"
 import { Check } from "lucide-react"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
@@ -94,13 +92,12 @@ export function OnboardingFlow({
   const router = useRouter()
   const [step, setStep] = useState<Step>("welcome")
   const [selected, setSelected] = useState<FeaturedTool | null>(null)
-  // Which pools to watch for a multi-pool tool. Empty = watch all (also the
-  // single-pool case, where no picker is shown).
+  const selectedRequirement = selected ? keyRequirement(selected.id) : null
+  // Multi-pool tools start with all selected and require at least one.
+  // Single-pool tools use the implicit default without showing a picker.
   const [watched, setWatched] = useState<string[]>([])
+  const missingPool = (selected?.pools?.length ?? 0) > 1 && watched.length === 0
   const [credentialValues, setCredentialValues] = useState<CredentialValues>({})
-  // Credential fields the user has left, so a required-field error only shows
-  // after they had a chance to fill it, never on a pristine form.
-  const [touched, setTouched] = useState<string[]>([])
   // biome-ignore format: source contract requires this initializer verbatim
   const [createRequestId, setCreateRequestId] = useState(() => crypto.randomUUID())
   const [error, setError] = useState<string | null>(null)
@@ -132,6 +129,7 @@ export function OnboardingFlow({
   function submit() {
     if (
       !selected ||
+      missingPool ||
       !credentialsComplete(selected.credential_fields, credentialValues)
     )
       return
@@ -262,6 +260,9 @@ export function OnboardingFlow({
                 key={t.id}
                 type="button"
                 aria-pressed={selected?.id === t.id}
+                // An in-flight attempt owns the form until it settles, so its
+                // late result can't land on a tool picked in the meantime.
+                disabled={pending}
                 onClick={() => {
                   setSelected(t)
                   setWatched(
@@ -270,7 +271,6 @@ export function OnboardingFlow({
                       : []
                   )
                   setCredentialValues({})
-                  setTouched([])
                   setCreateRequestId(crypto.randomUUID())
                   setError(null)
                 }}
@@ -304,82 +304,26 @@ export function OnboardingFlow({
 
           {selected && (
             <div className="mb-4 max-w-md">
-              {selected.key_instructions && (
+              {selectedRequirement && (
                 <p
                   id={KEY_HELP_ID}
                   className="mb-3 rounded-lg bg-[var(--low-bg)] px-3 py-2 text-xs text-[var(--low-text)]"
                 >
-                  {selected.key_instructions}
+                  {selectedRequirement}
                 </p>
               )}
               <div className="space-y-3">
-                {credentialFieldsFor(selected.credential_fields).map(
-                  (field) => {
-                    const inputId = `onboarding-${credentialInputName(field)}`
-                    const errorId = `${inputId}-error`
-                    const missing =
-                      touched.includes(field.name) &&
-                      !credentialValues[field.name]?.trim()
-                    const describedBy = [
-                      missing ? errorId : null,
-                      selected.key_instructions ? KEY_HELP_ID : null,
-                    ].filter(Boolean)
-                    return (
-                      <div key={field.name} className="space-y-1.5">
-                        <Label htmlFor={inputId}>{field.label}</Label>
-                        <Input
-                          id={inputId}
-                          name={credentialInputName(field)}
-                          type={field.type}
-                          value={credentialValues[field.name] ?? ""}
-                          onChange={(e) =>
-                            setCredentialValues((values) => ({
-                              ...values,
-                              [field.name]: e.target.value,
-                            }))
-                          }
-                          onBlur={() =>
-                            setTouched((names) =>
-                              names.includes(field.name)
-                                ? names
-                                : [...names, field.name]
-                            )
-                          }
-                          placeholder={credentialPlaceholder(
-                            selected.name,
-                            field
-                          )}
-                          // An API key is a secret, not a login. Password
-                          // managers must not offer the user's account
-                          // password here or save this as one, and mobile
-                          // keyboards must not capitalize or "correct" a
-                          // pasted key.
-                          autoComplete="off"
-                          data-1p-ignore
-                          data-lpignore="true"
-                          autoCapitalize="off"
-                          autoCorrect="off"
-                          spellCheck={false}
-                          aria-invalid={missing || undefined}
-                          aria-describedby={
-                            describedBy.length
-                              ? describedBy.join(" ")
-                              : undefined
-                          }
-                        />
-                        {missing && (
-                          <p
-                            id={errorId}
-                            role="alert"
-                            className="text-xs text-[var(--dry)]"
-                          >
-                            {field.label} is required.
-                          </p>
-                        )}
-                      </div>
-                    )
-                  }
-                )}
+                <CredentialFields
+                  // A tool pick, even of the same tool, rotates the request id;
+                  // remounting on it clears which fields count as touched.
+                  key={createRequestId}
+                  toolName={selected.name}
+                  fields={selected.credential_fields}
+                  values={credentialValues}
+                  onValuesChange={setCredentialValues}
+                  validateOnBlur
+                  helpId={selectedRequirement ? KEY_HELP_ID : undefined}
+                />
               </div>
               <p className="mt-2 text-xs text-muted-foreground">
                 Read-only: we check your balance, never spend credits or touch
@@ -395,7 +339,11 @@ export function OnboardingFlow({
                 </a>
               </p>
               {selected.pools && selected.pools.length > 1 && (
-                <fieldset className="mt-3 space-y-2">
+                <fieldset
+                  className="mt-3 space-y-2"
+                  aria-describedby="onboarding-pools-help"
+                  aria-invalid={missingPool || undefined}
+                >
                   <legend className="text-sm font-medium text-foreground">
                     Track which balances?
                   </legend>
@@ -419,6 +367,17 @@ export function OnboardingFlow({
                       {p.label}
                     </label>
                   ))}
+                  <p
+                    id="onboarding-pools-help"
+                    role={missingPool ? "alert" : undefined}
+                    className={
+                      missingPool
+                        ? "text-xs text-[var(--dry)]"
+                        : "text-xs text-muted-foreground"
+                    }
+                  >
+                    Choose at least one balance to track.
+                  </p>
                 </fieldset>
               )}
             </div>
@@ -451,6 +410,7 @@ export function OnboardingFlow({
               onClick={submit}
               disabled={
                 pending ||
+                missingPool ||
                 !selected ||
                 !credentialsComplete(
                   selected.credential_fields,
@@ -496,6 +456,12 @@ export function OnboardingFlow({
             or jump into your dashboard.
           </p>
 
+          {connected.low != null && (
+            <p className="mb-4 max-w-md text-sm text-muted-foreground">
+              {WARN_BELOW_FIRST_RUN_HINT}
+            </p>
+          )}
+
           <div className="mb-6 max-w-sm space-y-2">
             {connected.pools.map((p) => (
               <div
@@ -518,6 +484,11 @@ export function OnboardingFlow({
                     {formatBalance(p.balance, p.unit)}
                   </div>
                   <div className="text-xs text-muted-foreground">{p.label}</div>
+                  {connected.low != null && (
+                    <div className="text-xs text-muted-foreground">
+                      Warn below {formatBalance(connected.low, p.unit)}
+                    </div>
+                  )}
                 </div>
                 <span className="ml-auto">
                   <StatusPill
@@ -543,7 +514,6 @@ export function OnboardingFlow({
                 setSelected(null)
                 setWatched([])
                 setCredentialValues({})
-                setTouched([])
                 setError(null)
                 setStep("connect")
               }}

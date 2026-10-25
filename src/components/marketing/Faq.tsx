@@ -5,7 +5,7 @@ import { type ReactNode, useState } from "react"
 const FAQS = [
   {
     q: "What can you do that the tool's own dashboard can't?",
-    a: 'Three things. We translate balances into deadlines ("burns out next Thursday," not "120 left"), watch all your connected tools at once instead of making you check seven tabs, and warn you before the credits hit zero. That\'s the whole product.',
+    a: 'Three things. We translate balances into deadlines ("burns out in ~3 days," not "120 left"), watch all your connected tools at once instead of making you check seven tabs, and warn you before the credits hit zero. That\'s the whole product.',
   },
   {
     q: "Will it send me notifications I don't want?",
@@ -28,11 +28,12 @@ const FAQS = [
     a: (
       <>
         QuotaCanary tracks tools that expose quota through a simple read-only
-        API call. We don&apos;t track dashboard-only or traffic-header-only
-        platforms like RapidAPI and Apollo today, because that turns a free tool
-        into a science project. If they add a clean quota endpoint, we&apos;ll
-        add them. <a href="/directory">The directory</a> is the full list; if
-        yours is missing,{" "}
+        API call. Platforms like RapidAPI that only expose usage through
+        dashboards or traffic headers are out today, because chasing those turns
+        a free tool into a science project. Ship a clean quota endpoint and
+        we&apos;ll add you: Apollo used to be named right here, and now
+        it&apos;s tracked. <a href="/directory">The directory</a> is the full
+        list; if yours is missing,{" "}
         <a href="mailto:hey@quotacanary.com?subject=Tool%20request">ask</a>
         {" and we'll take a look."}
       </>

@@ -226,6 +226,27 @@ describe("list_balances", () => {
     expect(res.content[0].text).toContain("Apollo")
   })
 
+  // QUO-292: same read scope as /api/v1/pools, and the last 4 is already on
+  // the dashboard, so the MCP payload carries the key hint too.
+  it("carries the key hint, and it fits the declared outputSchema", async () => {
+    mockConsume.mockResolvedValue({
+      allowed: true,
+      remaining: 59,
+      resetSeconds: 42,
+    })
+    mockList.mockResolvedValue([APOLLO_CONN])
+
+    const tools = register()
+    const res = await callTool(tools, "list_balances", {})
+
+    const pools = res.structuredContent?.pools as { keyHint: unknown }[]
+    expect(pools[0].keyHint).toBe("xxxx")
+    const schema = tools.get("list_balances")?.config.outputSchema as {
+      pools: { parse: (v: unknown) => { keyHint?: unknown }[] }
+    }
+    expect(schema.pools.parse(pools)[0].keyHint).toBe("xxxx")
+  })
+
   it("calls listConnectionsWithBalance with the token userId (tenancy)", async () => {
     mockConsume.mockResolvedValue({
       allowed: true,

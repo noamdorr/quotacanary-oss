@@ -1,136 +1,91 @@
 import { ahrefsAdapter } from "./ahrefs"
-import { anymailfinderAdapter } from "./anymailfinder"
 import { apifyAdapter } from "./apify"
-import { bettercontactAdapter } from "./bettercontact"
-import { bouncerAdapter } from "./bouncer"
-import { bouncifyAdapter } from "./bouncify"
-import { brightdataAdapter } from "./brightdata"
-import { builtwithAdapter } from "./builtwith"
-import { captaindataAdapter } from "./captaindata"
-import { clearoutAdapter } from "./clearout"
+import { apolloAdapter } from "./apollo"
+import { brevoAdapter } from "./brevo"
+import { catalogAdapters } from "./catalog"
 import { contactoutAdapter } from "./contactout"
+import { crawlbaseAdapter } from "./crawlbase"
 import { dataforseoAdapter } from "./dataforseo"
-import { debounceAdapter } from "./debounce"
+import { decodoAdapter } from "./decodo"
+import { deepgramAdapter } from "./deepgram"
 import { deepseekAdapter } from "./deepseek"
-import { dropcontactAdapter } from "./dropcontact"
+import { diffbotAdapter } from "./diffbot"
 import { E2E_MOCK_TOOL_ID, e2eMockAdapter } from "./e2e-mock"
-import { emailableAdapter } from "./emailable"
-import { emailhippoAdapter } from "./emailhippo"
-import { emaillistverifyAdapter } from "./emaillistverify"
 import { enrichcrmAdapter } from "./enrichcrm"
-import { enrowAdapter } from "./enrow"
-import { findymailAdapter } from "./findymail"
 import { firecrawlAdapter } from "./firecrawl"
-import { fullenrichAdapter } from "./fullenrich"
-import { hunterAdapter } from "./hunter"
+import { hlrlookupAdapter } from "./hlrlookup"
 import { hyperbolicAdapter } from "./hyperbolic"
-import { keywordseverywhereAdapter } from "./keywordseverywhere"
-import { leadmagicAdapter } from "./leadmagic"
-import { lushaAdapter } from "./lusha"
-import { mailercheckAdapter } from "./mailercheck"
+import { icypeasAdapter } from "./icypeas"
+import { lemlistAdapter } from "./lemlist"
+import { majesticAdapter } from "./majestic"
+import { mangoolsAdapter } from "./mangools"
 import { meltlyAdapter } from "./meltly"
-import { millionverifierAdapter } from "./millionverifier"
-import { myemailverifierAdapter } from "./myemailverifier"
 import { netnutAdapter } from "./netnut"
-import { neverbounceAdapter } from "./neverbounce"
 import { openrouterAdapter } from "./openrouter"
-import { opporaAdapter } from "./oppora"
 import { orthogonalAdapter } from "./orthogonal"
-import { outscraperAdapter } from "./outscraper"
-import { prospeoAdapter } from "./prospeo"
-import { proxycurlAdapter } from "./proxycurl"
-import { reoonAdapter } from "./reoon"
+import { peopledatalabsAdapter } from "./peopledatalabs"
+import { phantombusterAdapter } from "./phantombuster"
+import { plivoAdapter } from "./plivo"
+import { predictleadsAdapter } from "./predictleads"
 import { rocketreachAdapter } from "./rocketreach"
-import { scrapegraphaiAdapter } from "./scrapegraphai"
-import { scrapeopsAdapter } from "./scrapeops"
-import { scraperapiAdapter } from "./scraperapi"
-import { scrapflyAdapter } from "./scrapfly"
-import { scrapingantAdapter } from "./scrapingant"
-import { scrapingbeeAdapter } from "./scrapingbee"
-import { scrapingdogAdapter } from "./scrapingdog"
-import { searchapiAdapter } from "./searchapi"
 import { semrushAdapter } from "./semrush"
-import { serpapiAdapter } from "./serpapi"
-import { serpwowAdapter } from "./serpwow"
-import { shodanAdapter } from "./shodan"
-import { skrappAdapter } from "./skrapp"
 import { snovAdapter } from "./snov"
-import { surfeAdapter } from "./surfe"
 import { tavilyAdapter } from "./tavily"
+import { thecompaniesapiAdapter } from "./thecompaniesapi"
 import { tombaAdapter } from "./tomba"
+import { twilioAdapter } from "./twilio"
 import type { ToolAdapter } from "./types"
-import { valueserpAdapter } from "./valueserp"
 import { verifaliaAdapter } from "./verifalia"
-import { wizaAdapter } from "./wiza"
-import { zenserpAdapter } from "./zenserp"
+import { vonageAdapter } from "./vonage"
+import { webshareAdapter } from "./webshare"
+import { youcomAdapter } from "./youcom"
 import { zerobounceAdapter } from "./zerobounce"
 
-const ADAPTERS: Record<string, ToolAdapter> = {
-  [neverbounceAdapter.toolId]: neverbounceAdapter,
-  [millionverifierAdapter.toolId]: millionverifierAdapter,
+// Adapters the declarative catalog cannot express; everything else lives in
+// catalog/tools.json (see wiki/raw/2026-10-11-adapter-catalog-inventory.md).
+const HAND_WRITTEN: Record<string, ToolAdapter> = {
   [openrouterAdapter.toolId]: openrouterAdapter,
-  [opporaAdapter.toolId]: opporaAdapter,
   [zerobounceAdapter.toolId]: zerobounceAdapter,
-  [bouncerAdapter.toolId]: bouncerAdapter,
-  [emailableAdapter.toolId]: emailableAdapter,
-  [serpapiAdapter.toolId]: serpapiAdapter,
-  [hunterAdapter.toolId]: hunterAdapter,
-  [leadmagicAdapter.toolId]: leadmagicAdapter,
-  [prospeoAdapter.toolId]: prospeoAdapter,
-  [findymailAdapter.toolId]: findymailAdapter,
-  [fullenrichAdapter.toolId]: fullenrichAdapter,
   [deepseekAdapter.toolId]: deepseekAdapter,
   [hyperbolicAdapter.toolId]: hyperbolicAdapter,
-  [scrapingbeeAdapter.toolId]: scrapingbeeAdapter,
-  [scraperapiAdapter.toolId]: scraperapiAdapter,
-  [scrapingdogAdapter.toolId]: scrapingdogAdapter,
-  [brightdataAdapter.toolId]: brightdataAdapter,
-  [builtwithAdapter.toolId]: builtwithAdapter,
-  [keywordseverywhereAdapter.toolId]: keywordseverywhereAdapter,
-  [apifyAdapter.toolId]: apifyAdapter,
-  [emaillistverifyAdapter.toolId]: emaillistverifyAdapter,
-  [clearoutAdapter.toolId]: clearoutAdapter,
+  [apolloAdapter.toolId]: apolloAdapter,
   [dataforseoAdapter.toolId]: dataforseoAdapter,
   [firecrawlAdapter.toolId]: firecrawlAdapter,
-  [reoonAdapter.toolId]: reoonAdapter,
-  [myemailverifierAdapter.toolId]: myemailverifierAdapter,
-  [debounceAdapter.toolId]: debounceAdapter,
-  [bouncifyAdapter.toolId]: bouncifyAdapter,
   [rocketreachAdapter.toolId]: rocketreachAdapter,
-  [anymailfinderAdapter.toolId]: anymailfinderAdapter,
-  [wizaAdapter.toolId]: wizaAdapter,
-  [surfeAdapter.toolId]: surfeAdapter,
-  [lushaAdapter.toolId]: lushaAdapter,
-  [enrowAdapter.toolId]: enrowAdapter,
-  [dropcontactAdapter.toolId]: dropcontactAdapter,
-  [valueserpAdapter.toolId]: valueserpAdapter,
-  [serpwowAdapter.toolId]: serpwowAdapter,
-  [searchapiAdapter.toolId]: searchapiAdapter,
-  [zenserpAdapter.toolId]: zenserpAdapter,
-  [scrapingantAdapter.toolId]: scrapingantAdapter,
-  [scrapflyAdapter.toolId]: scrapflyAdapter,
-  [captaindataAdapter.toolId]: captaindataAdapter,
-  [scrapeopsAdapter.toolId]: scrapeopsAdapter,
   [netnutAdapter.toolId]: netnutAdapter,
-  [scrapegraphaiAdapter.toolId]: scrapegraphaiAdapter,
-  [mailercheckAdapter.toolId]: mailercheckAdapter,
-  [emailhippoAdapter.toolId]: emailhippoAdapter,
-  [outscraperAdapter.toolId]: outscraperAdapter,
   [orthogonalAdapter.toolId]: orthogonalAdapter,
   [tombaAdapter.toolId]: tombaAdapter,
   [snovAdapter.toolId]: snovAdapter,
   [contactoutAdapter.toolId]: contactoutAdapter,
-  [proxycurlAdapter.toolId]: proxycurlAdapter,
+  [crawlbaseAdapter.toolId]: crawlbaseAdapter,
+  [predictleadsAdapter.toolId]: predictleadsAdapter,
+  [diffbotAdapter.toolId]: diffbotAdapter,
+  [majesticAdapter.toolId]: majesticAdapter,
   [ahrefsAdapter.toolId]: ahrefsAdapter,
-  [bettercontactAdapter.toolId]: bettercontactAdapter,
-  [shodanAdapter.toolId]: shodanAdapter,
   [verifaliaAdapter.toolId]: verifaliaAdapter,
   [tavilyAdapter.toolId]: tavilyAdapter,
   [enrichcrmAdapter.toolId]: enrichcrmAdapter,
   [semrushAdapter.toolId]: semrushAdapter,
   [meltlyAdapter.toolId]: meltlyAdapter,
-  [skrappAdapter.toolId]: skrappAdapter,
+  [mangoolsAdapter.toolId]: mangoolsAdapter,
+  [lemlistAdapter.toolId]: lemlistAdapter,
+  [twilioAdapter.toolId]: twilioAdapter,
+  [plivoAdapter.toolId]: plivoAdapter,
+  [vonageAdapter.toolId]: vonageAdapter,
+  [peopledatalabsAdapter.toolId]: peopledatalabsAdapter,
+  [phantombusterAdapter.toolId]: phantombusterAdapter,
+  [deepgramAdapter.toolId]: deepgramAdapter,
+  [webshareAdapter.toolId]: webshareAdapter,
+  [decodoAdapter.toolId]: decodoAdapter,
+  [brevoAdapter.toolId]: brevoAdapter,
+  [apifyAdapter.toolId]: apifyAdapter,
+  [hlrlookupAdapter.toolId]: hlrlookupAdapter,
+  [icypeasAdapter.toolId]: icypeasAdapter,
+  [thecompaniesapiAdapter.toolId]: thecompaniesapiAdapter,
+  [youcomAdapter.toolId]: youcomAdapter,
 }
+
+export const HAND_WRITTEN_TOOL_IDS = Object.keys(HAND_WRITTEN)
 
 export function getAdapter(toolId: string): ToolAdapter | undefined {
   // The browser smoke suite's vendor-free adapter, kept out of the table above so
@@ -139,5 +94,5 @@ export function getAdapter(toolId: string): ToolAdapter | undefined {
   if (toolId === E2E_MOCK_TOOL_ID) {
     return process.env.E2E_MOCK_TOOL === "true" ? e2eMockAdapter : undefined
   }
-  return ADAPTERS[toolId]
+  return HAND_WRITTEN[toolId] ?? catalogAdapters()[toolId]
 }

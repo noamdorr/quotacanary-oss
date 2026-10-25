@@ -15,47 +15,10 @@ const dashboardPage = readFileSync(
 )
 
 describe("onboarding credential accessibility", () => {
-  it("labels every credential field instead of leaning on the placeholder", () => {
-    expect(onboardingFlow).toContain(
-      "<Label htmlFor={inputId}>{field.label}</Label>"
-    )
-    expect(onboardingFlow).toContain("id={inputId}")
-    expect(onboardingFlow).toContain(
-      "const inputId = `onboarding-${credentialInputName(field)}`"
-    )
-    // The placeholder survives as an example, but it is no longer the only
-    // thing naming the field.
-    expect(onboardingFlow).toContain("placeholder={credentialPlaceholder(")
-  })
-
-  it("hangs the key help text off every field programmatically", () => {
-    expect(onboardingFlow).toContain(
-      'const KEY_HELP_ID = "onboarding-key-help"'
-    )
-    expect(onboardingFlow).toContain("id={KEY_HELP_ID}")
-    expect(onboardingFlow).toContain("aria-describedby={")
-    expect(onboardingFlow).toContain(
-      "selected.key_instructions ? KEY_HELP_ID : null"
-    )
-  })
-
-  it("reports a missing credential on the field, once it has been touched", () => {
-    expect(onboardingFlow).toContain("const errorId = `${inputId}-error`")
-    expect(onboardingFlow).toContain("touched.includes(field.name)")
-    expect(onboardingFlow).toContain("aria-invalid={missing || undefined}")
-    expect(onboardingFlow).toContain("missing ? errorId : null")
-    expect(onboardingFlow).toContain("{field.label} is required.")
-    // The form-level failure from the server action announces itself too.
+  // The credential fields' own wiring lives in CredentialFields and is tested
+  // there (src/components/connect/CredentialFields.test.ts).
+  it("announces the form-level failure from the server action", () => {
     expect(onboardingFlow).toContain('<p role="alert" className="mb-4')
-  })
-
-  it("treats credentials as secrets rather than logins", () => {
-    expect(onboardingFlow).toContain('autoComplete="off"')
-    expect(onboardingFlow).toContain("data-1p-ignore")
-    expect(onboardingFlow).toContain('data-lpignore="true"')
-    expect(onboardingFlow).toContain('autoCapitalize="off"')
-    expect(onboardingFlow).toContain('autoCorrect="off"')
-    expect(onboardingFlow).toContain("spellCheck={false}")
   })
 
   it("keeps the step indicator and the actions inside a narrow viewport", () => {
