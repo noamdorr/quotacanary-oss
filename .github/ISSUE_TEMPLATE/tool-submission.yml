@@ -1,0 +1,70 @@
+# Template for the public mirror's .github/ISSUE_TEMPLATE/tool-submission.yml.
+# scripts/sync-public.sh preserves the mirror's .github/ untouched, so this file
+# reaches the mirror only by the hand copy in docs/RELEASING.md (QUO-333).
+# Intro copy approved by Noam on 2026-10-29.
+name: Submit a tool
+description: Ask QuotaCanary to watch your tool's credit balance.
+title: "Tool submission: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Built an API tool that bills in credits? Tell us where the balance lives and we'll take a look.
+
+        **Never paste an API key, token or any other secret here.** This is a public issue. Docs links and sanitized example responses only.
+
+        What happens next: we check that a read-only balance endpoint exists, write the integration and its tests, and a maintainer approves it before it ships in a release. A submission is a request for review, not a promise of support.
+  - type: input
+    id: name
+    attributes:
+      label: Tool name
+    validations:
+      required: true
+  - type: input
+    id: website
+    attributes:
+      label: Website
+      placeholder: https://
+    validations:
+      required: true
+  - type: textarea
+    id: about
+    attributes:
+      label: What it does
+      description: One or two sentences, and what its credits are spent on.
+    validations:
+      required: true
+  - type: input
+    id: api-docs
+    attributes:
+      label: API documentation
+      description: Link to the official docs. This alone is enough to submit.
+      placeholder: https://
+    validations:
+      required: true
+  - type: textarea
+    id: balance-endpoint
+    attributes:
+      label: Balance endpoint (optional)
+      description: The read-only call that returns the remaining balance, how it authenticates (header name, query parameter), and a sanitized example response. Remove keys, emails and account IDs.
+      render: text
+    validations:
+      required: false
+  - type: textarea
+    id: reset
+    attributes:
+      label: Units, resets and limits (optional)
+      description: What the balance counts (credits, minutes, requests), when it resets and where that's documented, polling rate limits, and whether the balance call itself costs anything.
+    validations:
+      required: false
+  - type: dropdown
+    id: relationship
+    attributes:
+      label: Your relationship to the tool
+      options:
+        - I work on it
+        - I use it
+        - Other
+    validations:
+      required: true
