@@ -1,5 +1,6 @@
 import Combine
 import Foundation
+import Observation
 
 // The one alert evaluator (QUO-310): low, critical and empty notifications for
 // every balance shown (QUO-131), and the "checks keep failing"
@@ -17,10 +18,11 @@ public enum AlertSubject: Hashable, Sendable {
 }
 
 @MainActor
-public final class AlertEvaluator: ObservableObject {
+@Observable
+public final class AlertEvaluator {
   /// Notifications that are due but did not reach macOS, and why. Cleared
   /// once handed over, recovered, or no longer due.
-  @Published public private(set) var undelivered: [AlertSubject: AlertProblem] = [:]
+  public private(set) var undelivered: [AlertSubject: AlertProblem] = [:]
   /// Every balance delivery attempt, oldest first (tests and diagnostics).
   public private(set) var attempts: [AlertAttempt] = []
   /// Every monitoring delivery attempt, oldest first (tests).
@@ -31,6 +33,11 @@ public final class AlertEvaluator: ObservableObject {
   /// Deliveries in progress, so overlapping evaluations never submit the
   /// same notification twice.
   private var inFlight: Set<String> = []
+  /// Recovery starts a new incident even when an older delivery is still in
+  /// progress. These generations only need to live as long as this evaluator.
+  private var generations: [PoolKey: Int] = [:]
+  private var active: Set<PoolKey> = []
+  private var connectionChanges: AnyCancellable?
   private var tasks: [Task<Void, Never>] = []
 
   public init(
@@ -38,6 +45,20 @@ public final class AlertEvaluator: ObservableObject {
   ) {
     self.service = service
     self.center = center
+    active = Self.activeKeys(service.connections)
+    connectionChanges = service.connectionsChanged.sink { [weak self] connections in
+      self?.observe(connections)
+    }
+  }
+
+  private static func activeKeys(_ connections: [Connection]) -> Set<PoolKey> {
+    Set(connections.flatMap(\.poolRows).filter(\.alerts).map(\.key))
+  }
+
+  private func observe(_ connections: [Connection]) {
+    let next = Self.activeKeys(connections)
+    for key in active.subtracting(next) { generations[key, default: 0] += 1 }
+    active = next
   }
 
   /// The most serious reason any notification is not reaching macOS.
@@ -67,6 +88,7 @@ public final class AlertEvaluator: ObservableObject {
     var subject: AlertSubject
     var key: PoolKey
     var severity: AlertSeverity
+    var generation: Int
     var token: String
     var content: AlertNotification
   }
@@ -84,10 +106,13 @@ public final class AlertEvaluator: ObservableObject {
 
     let permission = await center.status()
     for item in due {
+      guard isCurrent(item) else { continue }
       let outcome = await handOver(item.content, permission: permission)
       attempts.append(AlertAttempt(key: item.key, severity: item.severity, outcome: outcome))
-      record(item.subject, outcome)
-      if outcome == .handedToMacOS { markDelivered(item) }
+      if isCurrent(item) {
+        record(item.subject, outcome)
+        if outcome == .handedToMacOS { markDelivered(item) }
+      }
     }
   }
 
@@ -122,12 +147,20 @@ public final class AlertEvaluator: ObservableObject {
       undelivered[.balance(row.key)] = nil
       return nil
     }
-    let token = "\(row.key.connectionID)|\(row.key.creditType)|\(severity.rawValue)"
+    let generation = generations[row.key, default: 0]
+    let token = "\(row.key.connectionID)|\(row.key.creditType)|\(generation)|\(severity.rawValue)"
     guard !inFlight.contains(token) else { return nil }
     return Due(
       subject: .balance(row.key), key: row.key, severity: severity,
-      token: token, content: content(severity)
+      generation: generation, token: token, content: content(severity)
     )
+  }
+
+  private func isCurrent(_ item: Due) -> Bool {
+    guard generations[item.key, default: 0] == item.generation,
+          let connection = service.connections.first(where: { $0.id == item.key.connectionID }),
+          let row = connection.poolRows.first(where: { $0.key == item.key }) else { return false }
+    return row.alerts
   }
 
   /// Upward only: a slow low-level success never demotes a newer mark.

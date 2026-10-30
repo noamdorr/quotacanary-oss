@@ -239,17 +239,30 @@ enum InteractionSmoke {
     let buttons = toolbarButtons(stack, after: search)
     check(buttons.count >= 3, "toolbar shows refresh, add and settings buttons (\(buttons.count) found)")
     guard buttons.count >= 3 else { return }
+    // QUO-346: the menu's Add tool opens the form in the panel, never a sheet here.
+    model.beginAdding(on: .panel)
+    try? await Task.sleep(for: .milliseconds(400))
+    check(stack.attachedSheet == nil && model.showsConnectForm, "Add tool in the menu leaves the stack without a sheet")
+    model.cancelAdding()
     buttons[buttons.count - 2].performClick(nil)
     await expect("Add connection opens as a sheet with its key field") {
-      model.isAddingConnection && stack.attachedSheet.map { textFields($0).contains { $0 is NSSecureTextField } } == true
+      model.isAddingInWindow && stack.attachedSheet.map { textFields($0).contains { $0 is NSSecureTextField } } == true
     }
     guard let sheet = stack.attachedSheet else { return }
     await toolList(sheet, model)
     key(sheet, "\u{1b}", code: 53)
     await expect("Escape dismisses Add connection and keeps no key") {
-      stack.attachedSheet == nil && !model.isAddingConnection && model.keyInput.isEmpty
+      stack.attachedSheet == nil && !model.isAddingInWindow && model.keyInput.isEmpty
     }
     check(stack.contentLayoutRect.size == size, "the stack keeps its size after the sheet")
+    // QUO-352: Add tool in the menu closes this sheet and keeps the panel's form.
+    buttons[buttons.count - 2].performClick(nil)
+    await expect("Add connection opens again as a sheet") { stack.attachedSheet != nil }
+    model.beginAdding(on: .panel)
+    await expect("Add tool in the menu takes the form from the sheet and keeps it") {
+      stack.attachedSheet == nil && model.isAddingInPanel
+    }
+    model.cancelAdding()
     let all = balances(model, .all)
     guard all.count > 1 else { return }
     clickRow(stack, 1)
@@ -277,7 +290,7 @@ enum InteractionSmoke {
     key(sheet, "\u{F701}", code: 125)
     key(sheet, "\r", code: 36)
     await expect("Down then Return in the tool search picks \(next?.displayName ?? "-") and drops the key") {
-      model.provider == next && model.keyInput.isEmpty && model.isAddingConnection && !model.isBusy
+      model.provider == next && model.keyInput.isEmpty && model.isAddingInWindow && !model.isBusy
     }
     await expect("picking a tool moves focus to its key field") {
       editing(sheet).map { $0 is NSSecureTextField } == true
@@ -465,6 +478,7 @@ enum InteractionSmoke {
   /// A segmented control's segment, found by its label in the AppKit view tree.
   /// Not through accessibility: SwiftUI fills its in-process accessibility tree
   /// only once an assistive client is attached, which a CI runner never has.
+  @MainActor
   private struct Segment {
     let control: NSSegmentedControl
     let index: Int

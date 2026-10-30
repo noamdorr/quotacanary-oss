@@ -12,17 +12,9 @@ const read = (path: string) =>
 
 // Every surface that makes a coverage claim, per the QUO-22 audit.
 const COPY_SURFACES = [
-  "src/components/marketing/SupportedTools.tsx",
-  "src/components/marketing/copy.ts",
-  "src/components/marketing/Faq.tsx",
-  "src/components/marketing/FounderNote.tsx",
-  "src/components/marketing/MacSection.tsx",
-  "src/app/(marketing)/mac/page.tsx",
-  "src/components/marketing/ToolsDirectory.tsx",
   "src/components/auth/AuthBrandPanel.tsx",
   "src/components/dashboard/OnboardingFlow.tsx",
   "src/app/layout.tsx",
-  "src/app/(marketing)/page.tsx",
   "README.md",
 ]
 
@@ -46,20 +38,4 @@ describe("coverage claims", () => {
       }
     })
   }
-
-  it("tells an unsupported-tool visitor what to do next, on every public surface that lists tools", () => {
-    for (const surface of [
-      "src/components/marketing/SupportedTools.tsx",
-      "src/components/marketing/ToolsDirectory.tsx",
-      "src/components/marketing/Faq.tsx",
-    ]) {
-      expect(read(surface)).toContain("mailto:hey@quotacanary.com")
-    }
-  })
-
-  it("points the homepage at the directory as the bounded list", () => {
-    expect(read("src/components/marketing/SupportedTools.tsx")).toContain(
-      "/directory"
-    )
-  })
 })

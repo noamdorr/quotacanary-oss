@@ -125,6 +125,28 @@ extension StackScenario {
     return StackScenario(connections: connections, history: false)
   }
 
+  /// QUO-351: a free-plan Hunter muted at empty sits dimmed in the quiet
+  /// group while a low one still fills Needs attention. No history.
+  public static var muted: StackScenario {
+    let connections = [("Free plan", 0.0, true), ("Paid plan", 1000.0, false)].enumerated().map { index, item in
+      let (name, verifications, muted) = item
+      let id = "muted-\(index)"
+      var searches = ProviderID.hunter.pools[0]
+      searches.cap = 10_000
+      var pool = ProviderID.hunter.pools[1]
+      pool.cap = 10_000
+      return Connection(
+        id: id, provider: .hunter, name: "\(name) Hunter", credentialRef: id,
+        lastReading: Reading(
+          balances: [PoolBalance(pool: searches, balance: 4000), PoolBalance(pool: pool, balance: verifications)],
+          checkedAt: Scenarios.checkedAt
+        ),
+        mutedAt: muted ? [pool.creditType: verifications] : [:]
+      )
+    }
+    return StackScenario(connections: connections, history: false)
+  }
+
   /// QUO-265: a two-balance Hunter whose second balance is the only low one,
   /// so a panel row must open its own balance, not the connection's top one.
   public static func twoBalanceHunter(checkedAt: Date) -> Connection {

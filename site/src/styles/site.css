@@ -6,6 +6,10 @@
    Mac download jump (QUO-212 pick 3B). */
 .download-nav{gap:10px}
 .download-nav .apple-icon{width:13px;height:16px}
+/* The nav GitHub link only where the row fits it; the footer, the download facts and the mobile menu carry it below (QUO-369). */
+@media(max-width:900px){.desktop-nav .nav-github{display:none}}
+.nav-github{display:inline-flex;align-items:center;gap:7px}
+.nav-github .github-icon{width:16px;height:16px;flex-shrink:0}
 
 /* The pricing gag (carried over from the Next nav): hover slides "Pricing"
    out and "It's free!" in on a gold chip. */
@@ -21,28 +25,33 @@
 /* Hero: the design pass's Mac section, promoted. */
 .hero-mac{padding-top:44px}
 .hero-mac .mac-copy :is(h1,h2){font-size:clamp(34px,3.2vw,46px);line-height:1.1}
+.hero-support{margin-top:16px;font-size:17px;line-height:1.65;color:var(--muted);max-width:45ch}
 .download{display:flex;flex-direction:column;align-items:flex-start;gap:12px;margin-top:30px}
 .download-button{gap:12px;cursor:default}
+a.download-button{cursor:pointer}
 .download-button .apple-icon{width:15px;height:18px}
 .download-facts{font-size:13px;color:var(--muted);line-height:1.5}
+.download-facts a{color:var(--ink);text-underline-offset:3px}
 
 /* Pricing is a short permanent-free promise, without a feature list. */
 .pricing-section{grid-template-areas:"lead action";grid-template-rows:auto}
 .pricing-actions p{font-size:17px;line-height:1.65;margin:0 0 24px;max-width:45ch}
 
 /* Feature rows: text left, real screenshot right. */
-.features-section{padding-block:80px}
-.feature-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.35fr);gap:48px 96px;align-items:center;padding-block:40px}
+.features-section{padding-block:64px}
+.feature-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.35fr);gap:48px 96px;align-items:center;padding-block:24px}
 .feature-row+.feature-row{border-top:1px solid var(--line)}
-.feature-row h2{font-size:30px;line-height:1.15}
 .feature-row p{margin-top:16px;font-size:16px;line-height:1.65;color:var(--muted);max-width:52ch}
 /* Screenshots sit inside a warm card as UI fragments: the menu renders are
    centred and run off the bottom edge, the window renders are anchored top
    left and run off the right and bottom edges. */
-.feature-media{min-width:0;position:relative;overflow:hidden;aspect-ratio:4/3;background:linear-gradient(160deg,#fbf6e4,var(--warm));border:1px solid var(--line);border-radius:16px}
+.feature-media{min-width:0;width:100%;max-width:600px;justify-self:end;position:relative;overflow:hidden;aspect-ratio:16/10;background:linear-gradient(160deg,#fbf6e4,var(--warm));border:1px solid var(--line);border-radius:16px}
 .feature-media img{position:absolute;display:block;height:auto;border-radius:12px;box-shadow:0 24px 50px -24px #332a1a66}
 .feature-row:not([data-wide]) .feature-media img{left:50%;top:36px;width:min(380px,76%);transform:translateX(-50%)}
 .feature-row[data-wide] .feature-media img{left:32px;top:32px;width:130%;max-width:none;border-radius:10px 0 0 0;box-shadow:0 24px 50px -24px #332a1a80}
+.feature-shot{display:contents}
+.feature-link{margin-top:8px;font-size:13px}
+.directory-head .directory-submit{margin-top:12px}
 
 /* Self-hosting is a secondary option near the footer, below the FAQ. */
 .web-section{padding-block:40px}
@@ -119,8 +128,10 @@
 .tool-head img{width:48px;height:48px;object-fit:contain;flex-shrink:0}
 .tool-head .eyebrow{margin-top:6px}
 .tool-sub{font-size:19px;font-weight:550;margin-top:20px;letter-spacing:-.01em}
+.tool-lead{margin-top:10px}
 .tool-section{margin-top:28px}
 .tool-section .eyebrow{margin-bottom:8px}
+.tool-key-where{margin-top:8px;font-size:14px;color:var(--muted)}
 .pool-chips{display:flex;flex-wrap:wrap;gap:8px}
 .pool-chips span{padding:6px 12px;border:1px solid var(--line);border-radius:8px;font-size:13px;background:#fffef9}
 .tool-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:32px}
@@ -129,24 +140,28 @@
 
 /* 404 */
 .notfound{padding-block:96px;text-align:left}
+.notfound h1{font-size:clamp(32px,3.15vw,46px);line-height:1.12;font-weight:650}
 .notfound p{margin-top:16px;font-size:17px;color:var(--muted);max-width:50ch}
 .notfound .button{margin-top:28px}
 
 @media(max-width:1100px){
   .feature-row,.web-intro{gap:32px 48px}
-  .feature-row h2{font-size:26px}
 }
 @media(max-width:720px){
   .hero-mac{padding-top:28px}
   .hero-mac .mac-copy :is(h1,h2){font-size:34px}
+  .hero-support{font-size:16px}
   .download{margin-top:22px;width:100%}
   .download-button{width:100%;justify-content:center}
   .features-section{padding-block:54px}
   .feature-row{display:block;padding-block:32px}
-  .feature-row h2{font-size:24px}
   .feature-media{margin-top:20px;border-radius:12px}
   .feature-row:not([data-wide]) .feature-media img{top:24px;width:82%}
   .feature-row[data-wide] .feature-media img{left:20px;top:20px;width:150%}
+  /* Phone crops keep the whole Balance column and the whole connect form in view. */
+  #eta .feature-media img{left:-8px;top:-46px;width:600px;border-radius:0}
+  #keys .feature-media{aspect-ratio:auto;height:130px}
+  #keys .feature-media img{left:12px;top:-104px;width:calc(100% - 24px);max-width:none;transform:none}
   .web-section{padding-block:32px}
   .web-intro{display:block;margin-bottom:0}
   .web-intro p{margin-top:16px;font-size:16px}
@@ -161,3 +176,8 @@
 
 /* The hero download button keeps the brand gold (the design pass styled the Mac section button white for a secondary link; this one is the primary call). */
 .mac-copy .download-button.primary{background:var(--gold);border-color:var(--gold);color:var(--ink)}
+
+/* Feature titles are h3 under the features section; these keep the size and weight they had as h2. */
+.feature-row h3{margin:0;font-size:30px;line-height:1.15;font-weight:650;letter-spacing:-.035em;text-wrap:balance}
+@media(max-width:1100px){.feature-row h3{font-size:26px}}
+@media(max-width:720px){.feature-row h3{font-size:24px}}

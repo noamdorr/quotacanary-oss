@@ -55,17 +55,26 @@ public struct PoolRow: Equatable, Identifiable, Sendable {
   public var balance: Double?
   public var settings: PoolSettings
   public var status: PoolStatus
+  /// Muted until its reading changes (QUO-351).
+  public var muted = false
 
   public var id: PoolKey { key }
 
-  /// Whether this pool would raise an alert: monitored and actually running
-  /// low. Unavailable and unknown pools never count.
-  public var alerts: Bool { settings.monitored && status.isWarning }
+  /// Whether this pool would raise an alert: monitored, not muted and
+  /// actually running low. Unavailable and unknown pools never count.
+  public var alerts: Bool { settings.monitored && !muted && status.isWarning }
 }
 
 public extension Connection {
   func settings(for creditType: String) -> PoolSettings {
     poolSettings[creditType] ?? provider.defaultSettings
+  }
+
+  /// A new reading ends every mute whose balance moved (QUO-351), so the
+  /// old value coming back later alerts again.
+  mutating func dropEndedMutes() {
+    let current = Dictionary((lastReading?.balances ?? []).map { ($0.pool.creditType, $0.balance) }) { first, _ in first }
+    mutedAt = mutedAt.filter { current[$0.key] == $0.value }
   }
 
   /// The watched balances (QUO-283): what the panel, stack and alerts use.
@@ -88,7 +97,8 @@ public extension Connection {
         pool: reading?.pool ?? catalogPool,
         balance: reading?.balance,
         settings: settings,
-        status: PoolStatus.of(reading, settings: settings)
+        status: PoolStatus.of(reading, settings: settings),
+        muted: reading.map { mutedAt[catalogPool.creditType] == $0.balance } ?? false
       )
     }
   }
@@ -114,16 +124,22 @@ public enum Thresholds {
     warnBelow >= 3 ? floor(warnBelow / 3) : (warnBelow / 3 * 100).rounded() / 100
   }
 
-  /// Parses the single editable threshold. Zero is not a warning threshold.
-  public static func parse(_ text: String) -> Double? {
+  /// Parses the single editable threshold in the user's locale ("12,5" under
+  /// fr_FR). The whole string must be a number: a lenient parse would read
+  /// "12.5" under fr_FR as 12. Zero is not a warning threshold.
+  public static func parse(_ text: String, locale: Locale = .autoupdatingCurrent) -> Double? {
     let trimmed = text.trimmingCharacters(in: .whitespaces)
-    guard let value = Double(trimmed), value.isFinite, value > 0 else { return nil }
+    let formatter = NumberFormatter()
+    formatter.locale = locale
+    formatter.numberStyle = .decimal
+    formatter.isLenient = false
+    guard let value = formatter.number(from: trimmed)?.doubleValue, value.isFinite, value > 0 else { return nil }
     return value
   }
 
-  public static func text(_ value: Double) -> String {
-    if value == value.rounded(), abs(value) < 1e15 { return String(Int64(value)) }
-    return String(value)
+  /// The field text for a saved threshold, in the locale `parse` reads back.
+  public static func text(_ value: Double, locale: Locale = .autoupdatingCurrent) -> String {
+    value.formatted(.number.locale(locale).grouping(.never).precision(.fractionLength(0...10)))
   }
 }
 

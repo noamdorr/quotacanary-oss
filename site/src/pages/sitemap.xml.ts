@@ -17,12 +17,15 @@ const PAGES: Array<{ path: string; changefreq: string; priority: number }> = [
   })),
 ]
 
+// The site is a static build, so the build date is each page's lastmod.
+const LASTMOD = new Date().toISOString().slice(0, 10)
+
 export const GET: APIRoute = () => {
   const body = `<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
 ${PAGES.map(
   (page) =>
-    `  <url><loc>${SITE_URL}${page.path}</loc><changefreq>${page.changefreq}</changefreq><priority>${page.priority}</priority></url>`
+    `  <url><loc>${SITE_URL}${page.path}</loc><lastmod>${LASTMOD}</lastmod><changefreq>${page.changefreq}</changefreq><priority>${page.priority}</priority></url>`
 ).join("\n")}
 </urlset>
 `

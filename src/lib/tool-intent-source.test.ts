@@ -14,13 +14,8 @@ const loginActions = read("src/app/(auth)/login/actions.ts")
 const connectPage = read("src/app/(dashboard)/connect/page.tsx")
 const toolGrid = read("src/components/connect/ToolGrid.tsx")
 const connectModal = read("src/components/connect/ConnectModal.tsx")
-const directoryPage = read("src/app/(marketing)/directory/[id]/page.tsx")
 
-describe("tool intent survives directory -> login -> email -> connect", () => {
-  it("still emits the tool id from the directory CTA", () => {
-    expect(directoryPage).toContain("&tool=${tool.id}")
-  })
-
+describe("tool intent survives login -> email -> connect", () => {
   it("reads the tool param on the login page and hands it to the form", () => {
     expect(loginPage).toContain("tool?: string")
     expect(loginPage).toContain("sanitizeToolId(params.tool)")

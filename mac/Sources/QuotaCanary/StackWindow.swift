@@ -4,13 +4,14 @@ import SwiftUI
 
 /// Shared state lets the menu bar select a connection in the existing window.
 @MainActor
-final class StackWindowState: ObservableObject {
-  @Published var selection: PoolKey?
-  @Published var query = ""
-  @Published var filter: ConnectionFilter = .all
-  @Published var searchRequest = 0
+@Observable
+final class StackWindowState {
+  var selection: PoolKey?
+  var query = ""
+  var filter: ConnectionFilter = .all
+  var searchRequest = 0
   /// The toolbar toggle's choice; nil follows the window width (QUO-269).
-  @Published var inspectorOverride: Bool?
+  var inspectorOverride: Bool?
   /// Threshold drafts per balance, kept while the selection moves (QUO-263).
   let drafts = DraftStore()
 
@@ -60,8 +61,9 @@ enum StackWindow {
       window.focusSearch = { state.searchRequest += 1 }
       window.unsavedGuard = UnsavedChangesGuard(model: model, store: state.drafts) { state.select($0) }
       window.delegate = window.unsavedGuard
+      // Center only on first launch; a saved frame wins.
+      if !window.setFrameUsingName("QuotaCanaryStack") { window.center() }
       window.setFrameAutosaveName("QuotaCanaryStack")
-      window.center()
       self.window = window
     }
     if let window, window.contentViewController == nil {
@@ -72,7 +74,7 @@ enum StackWindow {
       window.contentMinSize = NSSize(width: 760, height: 480)
       window.setContentSize(contentSize)
     }
-    NSApp.activate(ignoringOtherApps: true)
+    NSApp.activate()
     window?.makeKeyAndOrderFront(nil)
   }
 }
@@ -107,31 +109,33 @@ private final class StackNSWindow: NSWindow {
 }
 
 struct StackView: View {
-  @ObservedObject var model: AppModel
-  @ObservedObject var state: StackWindowState
+  @Bindable var model: AppModel
+  @Bindable var state: StackWindowState
   @FocusState private var searchFocused: Bool
   @FocusState private var tableFocused: Bool
   /// Mirrors the width rule for the toolbar toggle; the layout reads the width itself.
   @State private var inspectorByDefault = true
 
-  private var presented: [StackItem] { rows(state.filter) }
-  private func rows(_ filter: ConnectionFilter) -> [StackItem] {
-    model.shown.stackItems(query: state.query, filter: filter)
-  }
-
   var body: some View {
+    // Built once per body: each filter's rows feed the picker counts, and the
+    // picked one is the table, the inspector and the selection rules.
+    let shown = model.shown
+    let rows = Dictionary(uniqueKeysWithValues: ConnectionFilter.allCases.map {
+      ($0, shown.stackItems(query: state.query, filter: $0))
+    })
+    let presented = rows[state.filter] ?? []
     VStack(spacing: 0) {
-      toolbar
+      toolbar(counts: rows.mapValues(\.count))
       Divider()
 
       GeometryReader { geometry in
         let byDefault = StackLayout.showsInspectorByDefault(width: geometry.size.width)
         HStack(spacing: 0) {
-          table
+          table(presented, shown: shown)
           // Folds away at narrow widths so every column stays in view (QUO-269).
           if state.inspectorOverride ?? byDefault {
             Divider()
-            inspector.frame(width: StackLayout.inspectorWidth)
+            inspector(presented).frame(width: StackLayout.inspectorWidth)
           }
         }
         .onChange(of: byDefault, initial: true) { _, value in
@@ -148,23 +152,28 @@ struct StackView: View {
       if let selected = state.selection, ids.contains(selected) { return }
       state.selection = ids.first
     }
-    .sheet(isPresented: $model.isAddingConnection, onDismiss: { model.cancelAdding() }) {
+    .sheet(isPresented: $model.isAddingInWindow, onDismiss: { model.windowSheetDismissed() }) {
       ConnectStep(model: model).padding(20).frame(width: 380)
     }
   }
 
-  private var toolbar: some View {
+  /// The count is the segment's value, so VoiceOver reads "All, 3" and not one glued string.
+  private func filterSegment(_ title: String, count: Int) -> some View {
+    Text("\(title) \(count)").accessibilityLabel(title).accessibilityValue("\(count)")
+  }
+
+  private func toolbar(counts: [ConnectionFilter: Int]) -> some View {
     HStack(spacing: 12) {
       Text(Copy.stackTitle).font(.headline)
       Picker(Copy.stackFilter, selection: $state.filter) {
-        Text("\(Copy.stackAll) \(rows(.all).count)").tag(ConnectionFilter.all)
-        Text("\(Copy.stackAtRisk) \(rows(.atRisk).count)").tag(ConnectionFilter.atRisk)
-        Text("\(Copy.stackFailing) \(rows(.failing).count)").tag(ConnectionFilter.failing)
+        filterSegment(Copy.stackAll, count: counts[.all] ?? 0).tag(ConnectionFilter.all)
+        filterSegment(Copy.stackAtRisk, count: counts[.atRisk] ?? 0).tag(ConnectionFilter.atRisk)
+        filterSegment(Copy.stackFailing, count: counts[.failing] ?? 0).tag(ConnectionFilter.failing)
       }
       .pickerStyle(.segmented).labelsHidden().fixedSize()
       Spacer(minLength: 0)
       HStack(spacing: 4) {
-        Image(systemName: "magnifyingglass").foregroundStyle(.secondary)
+        Image(systemName: "magnifyingglass").foregroundStyle(.secondary).accessibilityHidden(true)
         TextField(Copy.stackSearch, text: $state.query)
           .textFieldStyle(.plain).focused($searchFocused)
       }
@@ -181,7 +190,7 @@ struct StackView: View {
       }
       .disabled(model.isBusy || model.refreshProgress.isChecking).keyboardShortcut("r")
       .help(Copy.refreshButton).accessibilityLabel(Copy.refreshButton)
-      Button { model.isAddingConnection = true } label: { Image(systemName: "plus") }
+      Button { model.beginAdding(on: .window) } label: { Image(systemName: "plus") }
         .disabled(model.isBusy).help(Copy.addConnectionButton).accessibilityLabel(Copy.addConnectionButton)
       Button { SettingsWindow.show(model: model) } label: { Image(systemName: "gearshape") }
         .keyboardShortcut(",").help(Copy.settingsButton).accessibilityLabel(Copy.settingsButton)
@@ -190,7 +199,7 @@ struct StackView: View {
     .padding(.horizontal, 16).padding(.vertical, 12)
   }
 
-  private var table: some View {
+  private func table(_ presented: [StackItem], shown: BalancesAsShown) -> some View {
     GeometryReader { geometry in
       // Preserve numeric columns at the minimum window width. Header and rows
       // share horizontal scrolling; only the rows scroll vertically.
@@ -200,9 +209,10 @@ struct StackView: View {
           Divider()
           ScrollViewReader { scroll in
             ScrollView(.vertical) {
-              let shown = model.shown
               LazyVStack(spacing: 0) {
                 ForEach(presented) { item in
+                  // Sorts the pool's history: once per row, shared with its label.
+                  let eta = model.eta(for: item.row)
                   Button {
                     state.selection = item.id
                     tableFocused = true
@@ -210,17 +220,20 @@ struct StackView: View {
                     switch item {
                     case let .local(balance):
                       BalanceTableRow(
-                        model: model, item: balance, failing: shown.isFailing(balance.connection),
+                        item: balance, eta: eta, failing: shown.isFailing(balance.connection),
                         selected: state.selection == item.id
                       )
                     }
                   }
                   .buttonStyle(.plain)
                   .accessibilityElement(children: .ignore)
-                  .accessibilityLabel(rowLabel(item, shown: shown))
+                  .accessibilityLabel(rowLabel(item, eta: eta, shown: shown))
                   .accessibilityAddTraits(.isButton)
                   .accessibilityAddTraits(state.selection == item.id ? .isSelected : [])
-                  .contextMenu { TopUpButton(url: item.topupURL) }
+                  .contextMenu {
+                    TopUpButton(url: item.topupURL)
+                    MuteButton(model: model, row: item.row)
+                  }
                   .id(item.id)
                 }
               }
@@ -228,8 +241,8 @@ struct StackView: View {
               .frame(maxWidth: .infinity, alignment: .leading)
             }
             .focusable().focusEffectDisabled().focused($tableFocused)
-            .onKeyPress(.downArrow) { moveSelection(1); return .handled }
-            .onKeyPress(.upArrow) { moveSelection(-1); return .handled }
+            .onKeyPress(.downArrow) { moveSelection(1, in: presented); return .handled }
+            .onKeyPress(.upArrow) { moveSelection(-1, in: presented); return .handled }
             // Initial too: `show` selects before a fresh hosting controller mounts (QUO-180).
             .onChange(of: state.selection, initial: true) { _, key in
               if let key { scroll.scrollTo(key) }
@@ -259,25 +272,25 @@ struct StackView: View {
   }
 
   /// Name, balance, monitoring health and last success, then the ETA (QUO-262).
-  private func rowLabel(_ item: StackItem, shown: BalancesAsShown) -> String {
+  private func rowLabel(_ item: StackItem, eta: BurnEta?, shown: BalancesAsShown) -> String {
     let relative = { (date: Date) in ConnectedView.relative(date, now: Date()) }
     switch item {
     case let .local(balance):
       return shown.health(of: item).rowAccessibilityLabel(
         name: balance.connection.name,
         summary: PoolRowView.summary(balance.row),
-        extra: model.eta(for: balance.row).map { [$0.long] } ?? [], relative: relative
+        extra: eta.map { [$0.long] } ?? [], relative: relative
       )
     }
   }
 
-  private func moveSelection(_ offset: Int) {
+  private func moveSelection(_ offset: Int, in presented: [StackItem]) {
     guard !presented.isEmpty else { return }
     let current = presented.firstIndex { $0.id == state.selection } ?? (offset > 0 ? -1 : presented.count)
     state.selection = presented[min(presented.count - 1, max(0, current + offset))].id
   }
 
-  @ViewBuilder private var inspector: some View {
+  @ViewBuilder private func inspector(_ presented: [StackItem]) -> some View {
     if let item = presented.first(where: { $0.id == state.selection }) {
       switch item {
       case let .local(balance): BalanceInspector(model: model, item: balance, drafts: state.drafts).id(item.id)
@@ -308,8 +321,8 @@ private struct BalanceTableHeader: View {
 }
 
 private struct BalanceTableRow: View {
-  @ObservedObject var model: AppModel
   let item: PresentedBalance
+  let eta: BurnEta?
   let failing: Bool
   let selected: Bool
   @Environment(\.referenceDate) private var referenceDate
@@ -324,12 +337,13 @@ private struct BalanceTableRow: View {
           // Beside the name, so it shows without scrolling to Checked (QUO-262).
           CheckCue(health: .local(item.connection, failing: failing))
           NotMonitoredCue(row: item.row)
+          MutedCue(row: item.row)
         }
       }
       .frame(maxWidth: .infinity, alignment: .leading).help(item.connection.name)
       VStack(alignment: .leading, spacing: 2) {
         Text(item.row.pool.label).foregroundStyle(.secondary).lineLimit(1).help(item.row.pool.label)
-        if let eta = model.eta(for: item.row) {
+        if let eta {
           Text(eta.short).font(.caption).monospacedDigit().lineLimit(1)
             .foregroundStyle(item.row.alerts ? StatusIndicator.textColor(item.row.status) : Color.secondary)
             .help(eta.long)
@@ -353,7 +367,8 @@ private struct BalanceTableRow: View {
       }
     }
     .font(.callout)
-    .padding(.horizontal, 16).frame(height: 40)
+    .opacity(item.row.muted ? MutedCue.dimming : 1)
+    .padding(.horizontal, 16).frame(minHeight: 40)
     .background(selected ? Color(nsColor: .selectedContentBackgroundColor).opacity(0.18) : Color.clear)
     .contentShape(Rectangle())
     .overlay(alignment: .bottom) { Color(nsColor: .separatorColor).opacity(0.4).frame(height: 0.5) }
@@ -393,7 +408,7 @@ struct BalanceMeter: View {
 }
 
 private struct BalanceInspector: View {
-  @ObservedObject var model: AppModel
+  var model: AppModel
   let item: PresentedBalance
   let drafts: DraftStore
 
@@ -402,7 +417,6 @@ private struct BalanceInspector: View {
       VStack(alignment: .leading, spacing: 20) {
         VStack(alignment: .leading, spacing: 8) {
           ConnectionTitle(connection: item.connection, font: .headline)
-          Text(item.connection.provider.displayName).font(.caption).foregroundStyle(.secondary)
           let record = model.monitor.record(for: item.connection.id)
           HealthLine(connection: item.connection, health: record.health)
           ErrorLine(message: record.message)

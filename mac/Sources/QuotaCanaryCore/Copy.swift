@@ -218,10 +218,20 @@ public enum Copy {
   public static let apifyUsagePoolLabel = "Monthly Usage Left"
   // Pool label mirrors the QUO-249 web adapter (youcom.ts).
   public static let youComBalancePoolLabel = "Balance"
+  // Credential field labels mirror tools.credential_fields (migration 094).
+  public static let icypeasEmailLabel = "Account email"
+  public static let theCompaniesAPITeamIDLabel = "Team ID"
   // Vendor-error copy, verbatim from the web adapters (contactout.ts, meltly.ts, firecrawl.ts).
   public static let contactOutError = "ContactOut returned an error."
   public static let meltlyError = "Melt.ly returned an error."
   public static let firecrawlRejected = "Firecrawl rejected the credit usage request."
+  // Vendor-error copy, verbatim from the web adapters (icypeas.ts, thecompaniesapi.ts).
+  public static let icypeasEmailNotAccepted = "Icypeas did not accept this account email."
+  public static let theCompaniesAPINoTeam = "The Companies API has no team with this ID for this token."
+  // treg (QUO-349): field label mirrors migration 098, copy verbatim from treg.ts.
+  public static let tregOrgIDLabel = "Org ID"
+  public static let tregBalancePoolLabel = "Balance"
+  public static let tregOrgNotReadable = "This treg token can't read the balance of this org ID."
   // Vendor-error copy, verbatim from the web adapters (enrichcrm.ts, majestic.ts).
   public static let enrichCRMCreditsUnreadable = "Enrich CRM couldn't read credits for this key."
   public static let enrichCRMError = "Enrich CRM returned an error."
@@ -309,7 +319,7 @@ public enum Copy {
   public static let startAtLoginNeedsApproval =
     "Waiting for your OK in System Settings, General, Login Items."
   public static let monitoringLimits =
-    "QuotaCanary checks about every 15 minutes, but only while it is running on an awake, online Mac. Nothing is checked while the Mac sleeps, is offline, or is shut down, and a fast spender can drain a balance between two checks."
+    "Checks run about every 15 minutes while QuotaCanary is open and the Mac is awake and online."
 
   // Notifications (QUO-131)
   /// "Hunter" or "Hunter · Client work". A middle dot, never an em dash.
@@ -415,7 +425,7 @@ public enum Copy {
   public static let updatesSection = "Updates"
   public static let updatesAutomaticToggle = "Check for updates automatically"
   public static let updatesPrivacyNote =
-    "Once a day, QuotaCanary asks \(UpdateFeed.url.host!) for a newer version. It sends the app version, macOS version and chip type, nothing else. Nothing installs until you say so."
+    "Once a day, QuotaCanary asks \(UpdateFeed.url.host!) for a newer version. It sends the app version, macOS version and chip type, nothing else. Nothing installs until you say so. Updates download from GitHub."
   public static let updatesCheckButton = "Check for updates"
   public static func updatesInstalledVersion(_ version: String) -> String { "You have version \(version)." }
   public static let updatesNotChecked = "Not checked yet."
@@ -557,18 +567,18 @@ public extension Copy {
     let d = Int(days.rounded())
     return "Last \(d) day\(d == 1 ? "" : "s")"
   }
-  static let etaGoneShort = "already gone"
+  static let etaGoneShort = "empty now"
   static let etaGoneLong = "Already empty."
-  static func etaHoursShort(_ hours: Int) -> String { "~\(hours)h" }
+  static func etaHoursShort(_ hours: Int) -> String { "in ~\(hours)h" }
   static func etaHoursLong(_ hours: Int) -> String { "Empties in ~\(hours) hour\(hours == 1 ? "" : "s")." }
-  static let etaTomorrowShort = "burns out tomorrow"
+  static let etaTomorrowShort = "tomorrow"
   static let etaTomorrowLong = "Empties tomorrow."
   static func etaDaysShort(_ days: Int) -> String { "in ~\(days) day\(days == 1 ? "" : "s")" }
   static func etaDaysLong(_ days: Int) -> String { "Empties in ~\(days) day\(days == 1 ? "" : "s")." }
-  static func etaWeeksShort(_ weeks: Int) -> String { "~\(weeks) week\(weeks == 1 ? "" : "s")" }
-  static func etaMonthsShort(_ months: Int) -> String { "~\(months) month\(months == 1 ? "" : "s")" }
+  static func etaWeeksShort(_ weeks: Int) -> String { "in ~\(weeks) week\(weeks == 1 ? "" : "s")" }
+  static func etaMonthsShort(_ months: Int) -> String { "in ~\(months) month\(months == 1 ? "" : "s")" }
   static func etaMonthsLong(_ months: Int) -> String { "Empties in ~\(months) month\(months == 1 ? "" : "s")." }
-  static let etaNextYearShort = "~next year"
+  static let etaNextYearShort = "next year or later"
   static let etaNextYearLong = "Plenty of runway."
   /// The web drawer's line under the ETA: "Burning ~200/day".
   static func burningPerDay(_ amount: String) -> String { "Burning ~\(amount)/day" }
@@ -605,4 +615,8 @@ public extension Copy {
 
 public extension Copy {
   static let topUpButton = "Top up"
+  // QUO-351: approved 2026-10-29.
+  static let muteButton = "Mute until it changes"
+  static let muted = "muted"
+  static let unmuteButton = "Unmute"
 }

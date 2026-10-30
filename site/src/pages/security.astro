@@ -3,13 +3,13 @@ import Layout from "../layouts/Layout.astro"
 import { SELF_HOST_URL, UPDATE_DISCLOSURE, MAC } from "../lib/copy"
 // QUO-325: complete Security page copy approved by Noam on 2026-10-23.
 // Operator name supplied by Noam: QuotaCanary; Terms use Israeli governing law.
-// Publication date and merge remain open. No completed shutdown is asserted.
+// Published 2026-10-29 on Noam's go. No completed shutdown is asserted.
 ---
 
 <Layout title="Security - QuotaCanary" description="How QuotaCanary for Mac handles vendor keys and update checks." path="/security">
   <article class="page page-narrow wrap">
     <h1>Security</h1>
-    <p class="eyebrow page-meta">Draft for review. Publication date pending.</p>
+    <p class="eyebrow page-meta">Last updated 29 October 2026.</p>
     <div class="prose">
       <h2>The Mac app</h2>
 <p>{MAC.securityParagraph}</p>
@@ -18,7 +18,7 @@ import { SELF_HOST_URL, UPDATE_DISCLOSURE, MAC } from "../lib/copy"
 <h2>Local data and deletion</h2>
 <p>Connection settings and balance history live in the app’s local storage. Remove a connection to remove its stored key and history, or use Erase local data to remove all app-owned credentials and local files. Uninstalling alone does not erase that data.</p>
 <h2>Self-hosting</h2>
-<p>Not on a Mac? Run the web version yourself. You operate its server and database, and its server can decrypt the vendor keys it stores. Encryption at rest does not protect against someone with both the database and the server secrets. <a href={SELF_HOST_URL}>Read the self-host guide</a>.</p>
+<p>Not on a Mac? Run the web version yourself. You operate its server and database, and its server can decrypt the vendor keys it stores. Encryption at rest does not protect against someone with both the database and the server secrets. <a href={SELF_HOST_URL} target="_blank" rel="noopener">Read the self-host guide</a>.</p>
 <h2>Limit access</h2>
 <p>Use read-only or narrowly scoped credentials where a vendor supports them. Some adapters put credentials in URL parameters, which may appear in vendor or proxy logs even over HTTPS.</p>
 <h2>Reporting a vulnerability</h2>

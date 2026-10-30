@@ -39,7 +39,7 @@ struct BirdLabel: View {
 }
 
 struct PanelView: View {
-  @ObservedObject var model: AppModel
+  var model: AppModel
   @Environment(\.referenceDate) private var referenceDate
 
   var body: some View {
@@ -89,7 +89,7 @@ struct PanelView: View {
       FirstRunPrompts(model: model, notifications: model.notifications, login: model.startAtLogin, updater: model.updater)
       UpdateReadyLine(updater: model.updater, model: model)
       Divider().padding(.horizontal, 8)
-      menuAction(Copy.addConnectionMenu) { model.isAddingConnection = true }.disabled(model.isBusy)
+      menuAction(Copy.addConnectionMenu) { model.beginAdding(on: .panel) }.disabled(model.isBusy)
       menuAction(Copy.settingsButton, shortcut: "⌘,") { SettingsWindow.show(model: model) }.keyboardShortcut(",")
       menuAction(Copy.openWindowButton) { StackWindow.show(model: model) }
       Divider().padding(.horizontal, 8)
@@ -126,7 +126,10 @@ struct PanelView: View {
       balanceRowButton(connection, row: row, extra: extra)
       if topUp { TopUpButton(url: connection.provider.topupURL).buttonStyle(.bordered).controlSize(.small) }
     }
-    .contextMenu { TopUpButton(url: connection.provider.topupURL) }
+    .contextMenu {
+      TopUpButton(url: connection.provider.topupURL)
+      MuteButton(model: model, row: row)
+    }
   }
 
   private func balanceRowButton(_ connection: Connection, row: PoolRow, extra: Int) -> some View {
@@ -136,9 +139,11 @@ struct PanelView: View {
         ProviderLogo(provider: connection.provider)
       } trailing: {
         NotMonitoredCue(row: row, compact: true)
+        MutedCue(row: row)
         Text(Self.compactAmount(row)).monospacedDigit().fixedSize()
         if extra > 0 { Text("+\(extra)").foregroundStyle(.secondary).fixedSize() }
       }
+      .opacity(row.muted ? MutedCue.dimming : 1)
     }
     .buttonStyle(QuietMenuStyle())
     .help(connection.name + ", " + PoolRowView.summary(row))
@@ -240,7 +245,7 @@ private struct QuietMenuStyle: ButtonStyle {
 }
 
 struct ConnectForm: View {
-  @ObservedObject var model: AppModel
+  @Bindable var model: AppModel
   /// Tool search first, then the picked tool's first credential (QUO-270).
   @FocusState private var searchFocused: Bool
   @FocusState private var keyFocused: Bool
@@ -319,19 +324,26 @@ struct ConnectForm: View {
 /// list of logo rows. Typing only narrows the list (QUO-267); a click, or
 /// Return on the row the arrow keys highlight, picks.
 struct ProviderList: View {
-  @ObservedObject var model: AppModel
+  @Bindable var model: AppModel
   var searchFocused: FocusState<Bool>.Binding
   @State private var highlighted: ProviderID?
 
   private var rows: [ProviderID] { ProviderSearch.filter(model.providerSearch, among: model.availableProviders) }
+
+  /// 26-point rows 1 point apart, 4 points above and below; room for the
+  /// no-matches note when nothing is listed.
+  private var listHeight: CGFloat {
+    let shown = CGFloat(ProviderPicker.visibleRows(rows.count))
+    return shown == 0 ? 60 : shown * 26 + (shown - 1) + 8
+  }
 
   var body: some View {
     VStack(alignment: .leading, spacing: 6) {
       TextField(Copy.providerSearchPlaceholder, text: $model.providerSearch)
         .textFieldStyle(.roundedBorder)
         .focused(searchFocused)
-        .onKeyPress(.downArrow) { highlighted = ProviderPicker.move(highlighted, by: 1, in: rows); return .handled }
-        .onKeyPress(.upArrow) { highlighted = ProviderPicker.move(highlighted, by: -1, in: rows); return .handled }
+        .onKeyPress(.downArrow) { moveHighlight(by: 1); return .handled }
+        .onKeyPress(.upArrow) { moveHighlight(by: -1); return .handled }
         // Return picks here rather than submitting the form.
         .onKeyPress(.return) {
           if let highlighted { model.provider = highlighted }
@@ -342,12 +354,11 @@ struct ProviderList: View {
           LazyVStack(spacing: 1) {
             ForEach(rows) { row($0).id($0) }
           }
-          .padding(4)
+          .padding(.vertical, 4)
         }
-        .frame(height: 166)
+        // Rows sit on the panel, no well, and the list fits them (QUO-347).
+        .frame(height: listHeight)
         .overlay { if rows.isEmpty { noMatches } }
-        .background(Color(nsColor: .textBackgroundColor), in: RoundedRectangle(cornerRadius: 6))
-        .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(Color(nsColor: .separatorColor)))
         .onChange(of: highlighted) { _, id in if let id { proxy.scrollTo(id) } }
         .onAppear { proxy.scrollTo(model.provider, anchor: .center) }
       }
@@ -358,6 +369,13 @@ struct ProviderList: View {
       highlighted = ProviderPicker.highlight(current: model.provider, in: rows)
     }
     .onChange(of: model.provider) { _, provider in highlighted = provider }
+  }
+
+  /// Focus stays in the search field while the arrows move the highlight, so
+  /// VoiceOver hears the row it landed on.
+  private func moveHighlight(by step: Int) {
+    highlighted = ProviderPicker.move(highlighted, by: step, in: rows)
+    if let highlighted { AccessibilityNotification.Announcement(highlighted.displayName).post() }
   }
 
   private func row(_ provider: ProviderID) -> some View {
@@ -372,7 +390,7 @@ struct ProviderList: View {
         }
       }
       .padding(.horizontal, 6)
-      .frame(height: 26)
+      .frame(minHeight: 26)
       .contentShape(Rectangle())
       .background(
         selected ? Color.accentColor.opacity(0.18) : provider == highlighted ? Color.primary.opacity(0.07) : .clear,
@@ -432,7 +450,7 @@ private extension View {
 /// One connection: its pools (one row each), when it was checked, and any
 /// error from its last refresh.
 struct ConnectedView: View {
-  @ObservedObject var model: AppModel
+  var model: AppModel
   let connection: Connection
   var onlyAtRisk = false
 
@@ -461,15 +479,21 @@ struct ConnectedView: View {
 
   static func relative(_ date: Date, now: Date) -> String {
     if now.timeIntervalSince(date) < 60 { return Copy.justNow }
-    let formatter = RelativeDateTimeFormatter()
-    formatter.unitsStyle = .full
-    return formatter.localizedString(for: date, relativeTo: now)
+    return relativeFormatter.localizedString(for: date, relativeTo: now)
   }
+
+  /// One for every row and line. Pinned to English: the copy around it is English-only (QUO-356).
+  private static let relativeFormatter: RelativeDateTimeFormatter = {
+    let formatter = RelativeDateTimeFormatter()
+    formatter.locale = Locale(identifier: "en")
+    formatter.unitsStyle = .full
+    return formatter
+  }()
 }
 
 /// Refresh, Settings, and Add connection, below the connections.
 struct PanelActions: View {
-  @ObservedObject var model: AppModel
+  var model: AppModel
 
   var body: some View {
     VStack(alignment: .leading, spacing: 6) {
@@ -487,9 +511,9 @@ struct PanelActions: View {
         Button(Copy.settingsButton) { SettingsWindow.show(model: model) }
           .keyboardShortcut(",")
       }
-      if !model.isAddingConnection {
+      if !model.isAddingInPanel {
         Button {
-          model.isAddingConnection = true
+          model.beginAdding(on: .panel)
         } label: {
           Label(Copy.addConnectionButton, systemImage: "plus")
         }
@@ -581,7 +605,7 @@ private struct HealthLabelStyle: LabelStyle {
 /// First-run question, shown once something is connected. Disappears once
 /// answered; a refusal from macOS stays visible next to the buttons.
 struct LoginPromptRow: View {
-  @ObservedObject var login: StartAtLogin
+  var login: StartAtLogin
 
   var body: some View {
     VStack(alignment: .leading, spacing: 6) {
@@ -657,10 +681,10 @@ extension BirdLabel {
 
 /// One first-run question at a time: alerts, then start at login, then updates.
 struct FirstRunPrompts: View {
-  @ObservedObject var model: AppModel
-  @ObservedObject var notifications: NotificationSettings
-  @ObservedObject var login: StartAtLogin
-  @ObservedObject var updater: Updater
+  var model: AppModel
+  var notifications: NotificationSettings
+  var login: StartAtLogin
+  var updater: Updater
 
   var body: some View {
     if notifications.showsPrompt(hasConnections: model.hasAnyConnection) {
@@ -677,7 +701,7 @@ struct FirstRunPrompts: View {
 
 /// "Check for updates automatically?" Either answer settles it; Settings can change it later.
 struct UpdatePromptRow: View {
-  @ObservedObject var updater: Updater
+  var updater: Updater
 
   var body: some View {
     VStack(alignment: .leading, spacing: 6) {
@@ -699,7 +723,7 @@ struct UpdatePromptRow: View {
 
 /// The panel's only update line: a verified download is waiting. Opens Settings.
 struct UpdateReadyLine: View {
-  @ObservedObject var updater: Updater
+  var updater: Updater
   let model: AppModel
 
   var body: some View {
@@ -717,8 +741,8 @@ struct UpdateReadyLine: View {
 /// "Turn on alerts?" after the first successful connection. Either answer
 /// keeps the connection and the panel warnings exactly as they are.
 struct AlertsPromptRow: View {
-  @ObservedObject var model: AppModel
-  @ObservedObject var notifications: NotificationSettings
+  var model: AppModel
+  var notifications: NotificationSettings
 
   var body: some View {
     VStack(alignment: .leading, spacing: 6) {
@@ -742,10 +766,10 @@ struct AlertsPromptRow: View {
 /// Says truthfully when a due warning did not reach macOS. Hidden while the
 /// first-run question is on screen (that row is the fix).
 struct AlertProblemLine: View {
-  @ObservedObject var model: AppModel
+  var model: AppModel
   /// Balances and monitoring (QUO-133): one evaluator.
-  @ObservedObject var alerts: AlertEvaluator
-  @ObservedObject var notifications: NotificationSettings
+  var alerts: AlertEvaluator
+  var notifications: NotificationSettings
 
   var body: some View {
     if let problem = alerts.problem,

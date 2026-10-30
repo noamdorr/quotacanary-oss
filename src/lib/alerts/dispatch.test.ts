@@ -507,6 +507,7 @@ async function run(
 beforeEach(() => {
   vi.stubEnv("POSTMARK_SERVER_TOKEN", "tok")
   vi.stubEnv("ENCRYPTION_KEY", "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY=")
+  vi.stubEnv("NEXT_PUBLIC_APP_URL", "https://selfhost.example")
   // clearAllMocks does not drop implementations, so a failure override would
   // otherwise leak into every later test and make them pass for a false reason.
   sendEmail.mockResolvedValue({ ok: true })
@@ -587,6 +588,27 @@ describe("dispatchAlerts pool-body filter", () => {
 // ---------------------------------------------------------------------------
 
 describe("dispatchAlerts retry-safe delivery", () => {
+  it("degrades without creating or sending an alert when the app URL is missing", async () => {
+    vi.stubEnv("NEXT_PUBLIC_APP_URL", "")
+    const db = seededDb()
+
+    const result = await run(db, [evaluation(50, 50)])
+
+    expect(result.degraded).toBe(true)
+    expect(db.tables.alert_events).toHaveLength(0)
+    expect(sendEmail).not.toHaveBeenCalled()
+  })
+
+  it("stores the configured instance URL in a new event", async () => {
+    const db = seededDb()
+
+    await run(db, [evaluation(50, 50)])
+
+    expect(db.tables.alert_events[0]?.dashboard_url).toBe(
+      "https://selfhost.example/dashboard"
+    )
+  })
+
   it("creates an in-app alert event when a connection escalates", async () => {
     const db = seededDb()
     await run(db, [evaluation(50, 50)])

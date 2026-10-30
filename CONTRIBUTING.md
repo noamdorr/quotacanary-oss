@@ -1,6 +1,6 @@
 # Contributing to QuotaCanary
 
-Thanks for helping. This repo is a public mirror of the app that powers https://quotacanary.com. Issues and pull requests are welcome; maintainers review PRs here and land them into the canonical app.
+Thanks for helping with QuotaCanary. This repository is the public mirror of the Mac app and self-hosted web source. Issues and pull requests are welcome; maintainers review them here and land accepted changes in the canonical repository.
 
 ## Local setup
 

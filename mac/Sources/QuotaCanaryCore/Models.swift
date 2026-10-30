@@ -49,6 +49,10 @@ public struct ProviderID: RawRepresentable, Hashable, Codable, Identifiable, Sen
   public static let firecrawl = ProviderID("firecrawl")
   public static let apify = ProviderID("apify")
   public static let youcom = ProviderID("youcom")
+  public static let hlrlookup = ProviderID("hlrlookup")
+  public static let icypeas = ProviderID("icypeas")
+  public static let thecompaniesapi = ProviderID("thecompaniesapi")
+  public static let treg = ProviderID("treg")
 
   public var id: String { rawValue }
 
@@ -151,11 +155,15 @@ public struct Connection: Codable, Equatable, Identifiable, Sendable {
   /// The balances shown, in panel, stack and alerts, by `creditType` (QUO-283).
   /// Nil watches every balance, including one a later read adds.
   public var watchedCreditTypes: [String]?
+  /// "Mute until it changes" (QUO-351): the balance each muted pool was
+  /// muted at, by `creditType`. Muted only while the reading still equals it.
+  public var mutedAt: [String: Double]
 
   public init(
     id: String, provider: ProviderID, name: String, credentialRef: String, lastReading: Reading?,
     poolSettings: [String: PoolSettings] = [:], alertMarks: [String: AlertSeverity] = [:],
-    monitoring: MonitoringState = MonitoringState(), watchedCreditTypes: [String]? = nil
+    monitoring: MonitoringState = MonitoringState(), watchedCreditTypes: [String]? = nil,
+    mutedAt: [String: Double] = [:]
   ) {
     self.id = id
     self.provider = provider
@@ -166,6 +174,7 @@ public struct Connection: Codable, Equatable, Identifiable, Sendable {
     self.alertMarks = alertMarks
     self.monitoring = monitoring
     self.watchedCreditTypes = watchedCreditTypes
+    self.mutedAt = mutedAt
   }
 
   // State files written before pool settings existed have no `poolSettings`.
@@ -183,42 +192,49 @@ public struct Connection: Codable, Equatable, Identifiable, Sendable {
     monitoring = try c.decodeIfPresent(MonitoringState.self, forKey: .monitoring) ?? MonitoringState()
     // State files written before QUO-283 have no `watchedCreditTypes`: everything watched.
     watchedCreditTypes = try c.decodeIfPresent([String].self, forKey: .watchedCreditTypes)
+    // State files written before QUO-351 have no `mutedAt`: nothing muted.
+    mutedAt = try c.decodeIfPresent([String: Double].self, forKey: .mutedAt) ?? [:]
+  }
+
+  private enum CodingKeys: String, CodingKey {
+    case id, provider, name, credentialRef, lastReading, poolSettings, alertMarks, monitoring
+    case watchedCreditTypes, mutedAt
+  }
+
+  // Nothing muted writes no `mutedAt`, so older state files re-encode unchanged.
+  public func encode(to encoder: Encoder) throws {
+    var c = encoder.container(keyedBy: CodingKeys.self)
+    try c.encode(id, forKey: .id)
+    try c.encode(provider, forKey: .provider)
+    try c.encode(name, forKey: .name)
+    try c.encode(credentialRef, forKey: .credentialRef)
+    try c.encodeIfPresent(lastReading, forKey: .lastReading)
+    try c.encode(poolSettings, forKey: .poolSettings)
+    try c.encode(alertMarks, forKey: .alertMarks)
+    try c.encode(monitoring, forKey: .monitoring)
+    try c.encodeIfPresent(watchedCreditTypes, forKey: .watchedCreditTypes)
+    if !mutedAt.isEmpty { try c.encode(mutedAt, forKey: .mutedAt) }
   }
 }
 
 public enum Format {
-  private static let usdFormatter: NumberFormatter = {
-    let f = NumberFormatter()
-    f.numberStyle = .currency
-    f.currencyCode = "USD"
-    f.locale = Locale(identifier: "en_US")
-    return f
-  }()
-
-  private static let eurFormatter: NumberFormatter = {
-    let f = NumberFormatter()
-    f.numberStyle = .currency
-    f.currencyCode = "EUR"
-    f.locale = Locale(identifier: "en_US")
-    return f
-  }()
-
-  public static func balance(_ value: Double, unit: CreditUnit) -> String {
+  /// Numbers follow the system locale (QUO-356); only the currency code is the vendor's.
+  public static func balance(_ value: Double, unit: CreditUnit, locale: Locale = .autoupdatingCurrent) -> String {
     switch unit {
-    case .usd: return usdFormatter.string(from: NSNumber(value: value)) ?? "$\(value)"
-    case .eur: return eurFormatter.string(from: NSNumber(value: value)) ?? "€\(value)"
-    case .credits: return number(value)
-    case .minutes: return Copy.minutes(number(value))
-    case .gb: return Copy.gigabytes(number(value))
+    case .usd: return value.formatted(.currency(code: "USD").locale(locale))
+    case .eur: return value.formatted(.currency(code: "EUR").locale(locale))
+    case .credits: return number(value, locale)
+    case .minutes: return Copy.minutes(number(value, locale))
+    case .gb: return Copy.gigabytes(number(value, locale))
     }
   }
 
   /// "480 of 1,000" when the pool has a cap, else just the amount. Minutes
   /// carry the unit once: "488 of 500 min".
-  public static func amount(_ value: Double, pool: Pool) -> String {
-    guard let cap = pool.cap else { return balance(value, unit: pool.unit) }
-    if pool.unit == .minutes { return Copy.minutes(Copy.ofCap(number(value), number(cap))) }
-    return Copy.ofCap(balance(value, unit: pool.unit), balance(cap, unit: pool.unit))
+  public static func amount(_ value: Double, pool: Pool, locale: Locale = .autoupdatingCurrent) -> String {
+    guard let cap = pool.cap else { return balance(value, unit: pool.unit, locale: locale) }
+    if pool.unit == .minutes { return Copy.minutes(Copy.ofCap(number(value, locale), number(cap, locale))) }
+    return Copy.ofCap(balance(value, unit: pool.unit, locale: locale), balance(cap, unit: pool.unit, locale: locale))
   }
 
   /// The unit name next to a threshold field.
@@ -232,7 +248,7 @@ public enum Format {
     }
   }
 
-  private static func number(_ value: Double) -> String {
-    value.formatted(.number.precision(.fractionLength(0...2)))
+  private static func number(_ value: Double, _ locale: Locale) -> String {
+    value.formatted(.number.locale(locale).precision(.fractionLength(0...2)))
   }
 }

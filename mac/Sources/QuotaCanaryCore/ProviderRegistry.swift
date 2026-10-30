@@ -24,7 +24,7 @@ public final class ProviderRegistry: Sendable {
     Snov.self, Verifalia.self, PredictLeads.self, Crawlbase.self, Hyperbolic.self, Orthogonal.self, ZeroBounce.self,
     RocketReach.self, EnrichCRM.self, Majestic.self, Mangools.self, Semrush.self, Ahrefs.self, Diffbot.self,
     NetNut.self, ContactOut.self, Meltly.self, DeepSeek.self, Firecrawl.self, Apify.self,
-    YouCom.self,
+    YouCom.self, HLRLookup.self, Icypeas.self, TheCompaniesAPI.self, Treg.self,
   ]
 
   public static let handWritten: [ProviderID] = handWrittenProviders.map { $0.id }

@@ -5,7 +5,7 @@ import SwiftUI
 /// balance, the checklist of which to watch (QUO-283). Panel and stack both
 /// show this in place of the bare form.
 struct ConnectStep: View {
-  @ObservedObject var model: AppModel
+  var model: AppModel
 
   var body: some View {
     if let id = model.watchChoiceID, let connection = model.connections.first(where: { $0.id == id }) {
@@ -19,7 +19,7 @@ struct ConnectStep: View {
 /// One tick per balance, starting from what connect saved: catalog pools
 /// ticked, extras unticked. At least one stays ticked.
 struct WatchedBalancesChecklist: View {
-  @ObservedObject var model: AppModel
+  var model: AppModel
   let connection: Connection
   @State private var chosen: Set<String>
   @State private var error: String?
@@ -57,7 +57,7 @@ struct WatchedBalancesChecklist: View {
 /// The connection inspector's "Show N hidden balances": the same ticks,
 /// saved as soon as one changes.
 struct WatchedBalancesSection: View {
-  @ObservedObject var model: AppModel
+  var model: AppModel
   let connection: Connection
   @State private var expanded = false
   @State private var error: String?

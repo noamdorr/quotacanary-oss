@@ -11,7 +11,6 @@ const badge = source("src/components/ui/badge.tsx")
 const tabs = source("src/components/ui/tabs.tsx")
 const dialog = source("src/components/ui/dialog.tsx")
 const drawer = source("src/components/dashboard/ConnectionDrawer.tsx")
-const launchVideo = source("src/components/marketing/LaunchVideoDialog.tsx")
 const css = source("src/app/globals.css")
 
 describe("shared control interaction contract", () => {
@@ -47,7 +46,6 @@ describe("shared control interaction contract", () => {
     expect(dialog).not.toContain("transition-all")
 
     expect(drawer).toContain("<DialogClose")
-    expect(launchVideo).toContain("<DialogClose")
   })
 
   it("extends touch targets and removes press motion for reduced-motion users", () => {

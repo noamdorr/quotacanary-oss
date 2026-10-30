@@ -1,4 +1,3 @@
-import Combine
 import Foundation
 @testable import QuotaCanaryCore
 import Testing
@@ -267,8 +266,15 @@ func yieldUntil(_ condition: () -> Bool) async {
     try await connecting.value
 
     var completed: [ConnectionHealth] = []
-    let watching = h.monitor.$health.dropFirst().compactMap { $0["conn-1"] }.filter { $0 != .checking }
-      .sink { completed.append($0) }
+    var watchStarted = false
+    let watching = Task {
+      for await health in Observations({ h.monitor.health["conn-1"] }) {
+        defer { watchStarted = true }
+        guard watchStarted, let health, health != .checking else { continue }
+        completed.append(health)
+      }
+    }
+    await yieldUntil { watchStarted }
     defer { watching.cancel() }
     let oldCheck = Task { await h.scheduler.check(.manual) }
     await yieldUntil { gate.pending == 1 }

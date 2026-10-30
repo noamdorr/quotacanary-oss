@@ -1,9 +1,12 @@
 ---
-import { HOME } from "../lib/copy"
+import { GITHUB_URL, HOME, MAC_DOWNLOAD_URL } from "../lib/copy"
 import AppleIcon from "./AppleIcon.astro"
+import GithubIcon from "./GithubIcon.astro"
 
-// The hero's download block; an in-page jump from any route.
-const DOWNLOAD_HREF = "/#download"
+// The file itself, counted as a download (QUO-55). Falls back to the hero's
+// download block, untagged, while there is no public build.
+const DOWNLOAD_HREF = MAC_DOWNLOAD_URL ?? "/#download"
+const DOWNLOAD_EVENT = MAC_DOWNLOAD_URL ? "plausible-event-name=Mac+Download+Click" : ""
 
 const LINKS = [
   { href: "/#features", label: "Features" },
@@ -32,8 +35,9 @@ const LINKS = [
         )
       )
     }
+    <a class="nav-github" href={GITHUB_URL} target="_blank" rel="noopener"><GithubIcon />GitHub</a>
   </nav>
-  <a class="button button-small primary signin download-nav" href={DOWNLOAD_HREF}>
+  <a class:list={["button button-small primary signin download-nav", DOWNLOAD_EVENT]} href={DOWNLOAD_HREF}>
     <AppleIcon width={13} height={16} />
     {HOME.navCta}
   </a>
@@ -47,9 +51,10 @@ const LINKS = [
     <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"></path></svg>
   </button>
   <nav id="mobile-menu" class="mobile-menu" aria-label="Mobile" hidden>
-    <a class="mac-nav" href={DOWNLOAD_HREF}><AppleIcon width={13} height={18} />Mac app</a>
+    <a class:list={["mac-nav", DOWNLOAD_EVENT]} href={DOWNLOAD_HREF}><AppleIcon width={13} height={18} />Mac app</a>
     {LINKS.map((link) => <a href={link.href}>{link.label}</a>)}
     <a href="/#faq">FAQ</a>
+    <a class="nav-github" href={GITHUB_URL} target="_blank" rel="noopener"><GithubIcon />GitHub</a>
   </nav>
 </header>
 

@@ -1,4 +1,4 @@
-import Combine
+import Observation
 import Foundation
 
 // Start at login (QUO-132): an explicit first-run choice and a setting. macOS
@@ -85,6 +85,7 @@ public protocol PreferencesStore: AnyObject {
   /// Missing or unreadable preferences load as defaults.
   func load() -> Preferences
   func save(_ preferences: Preferences) throws
+  func erase() throws
 }
 
 public final class JSONFilePreferencesStore: PreferencesStore {
@@ -99,6 +100,10 @@ public final class JSONFilePreferencesStore: PreferencesStore {
   public func load() -> Preferences {
     guard let data = try? Data(contentsOf: url) else { return Preferences() }
     return (try? JSONDecoder().decode(Preferences.self, from: data)) ?? Preferences()
+  }
+
+  public func erase() throws {
+    if FileManager.default.fileExists(atPath: url.path) { try FileManager.default.removeItem(at: url) }
   }
 
   public func save(_ preferences: Preferences) throws {
@@ -118,6 +123,7 @@ public final class InMemoryPreferencesStore: PreferencesStore {
     saved = preferences
   }
 
+  public func erase() throws { saved = Preferences() }
   public func load() -> Preferences { saved }
   public func save(_ preferences: Preferences) throws { saved = preferences }
 }
@@ -125,10 +131,11 @@ public final class InMemoryPreferencesStore: PreferencesStore {
 // MARK: - Controller
 
 @MainActor
-public final class StartAtLogin: ObservableObject {
-  @Published public private(set) var status: LoginItemStatus
-  @Published public private(set) var errorMessage: String?
-  @Published public private(set) var promptAnswered: Bool
+@Observable
+public final class StartAtLogin {
+  public private(set) var status: LoginItemStatus
+  public private(set) var errorMessage: String?
+  public private(set) var promptAnswered: Bool
 
   private let service: LoginItemService
   private let preferences: PreferencesStore
@@ -174,6 +181,13 @@ public final class StartAtLogin: ObservableObject {
   /// Ask once, after something is connected, unless it is already on.
   public func showsPrompt(hasConnections: Bool) -> Bool {
     hasConnections && !promptAnswered && !isOn
+  }
+
+  /// Clears app-owned setup choices without changing OS registration.
+  public func resetAfterErase() {
+    promptAnswered = false
+    errorMessage = nil
+    reload()
   }
 
   /// Re-reads the OS status (the user may have changed it in System Settings).

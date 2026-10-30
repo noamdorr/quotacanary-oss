@@ -25,7 +25,7 @@ function sentRedirect() {
 
 describe("sendMagicLink tool intent (QUO-14)", () => {
   beforeEach(() => {
-    vi.stubEnv("NEXT_PUBLIC_SITE_URL", "https://app.quotacanary.com")
+    vi.stubEnv("NEXT_PUBLIC_SITE_URL", "https://selfhost.example")
   })
 
   afterEach(() => {
@@ -36,7 +36,7 @@ describe("sendMagicLink tool intent (QUO-14)", () => {
   it("sends the bare confirm URL when no tool was selected", async () => {
     await sendMagicLink(form({ email: "a@b.com" }))
 
-    expect(sentRedirect()).toBe("https://app.quotacanary.com/auth/confirm")
+    expect(sentRedirect()).toBe("https://selfhost.example/auth/confirm")
   })
 
   it("carries a valid tool id through as an encoded next param", async () => {
@@ -50,7 +50,7 @@ describe("sendMagicLink tool intent (QUO-14)", () => {
   it("drops a malformed tool id rather than failing the sign-in", async () => {
     await sendMagicLink(form({ email: "a@b.com", tool: "../../admin" }))
 
-    expect(sentRedirect()).toBe("https://app.quotacanary.com/auth/confirm")
+    expect(sentRedirect()).toBe("https://selfhost.example/auth/confirm")
   })
 
   it("cannot be used to widen the redirect past the confirm route", async () => {
@@ -58,7 +58,7 @@ describe("sendMagicLink tool intent (QUO-14)", () => {
       form({ email: "a@b.com", tool: "neverbounce&next=https://evil.com" })
     )
 
-    expect(sentRedirect()).toBe("https://app.quotacanary.com/auth/confirm")
+    expect(sentRedirect()).toBe("https://selfhost.example/auth/confirm")
   })
 
   it("still surfaces a friendly auth error with a tool intent attached", async () => {

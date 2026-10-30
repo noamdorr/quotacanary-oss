@@ -11,7 +11,8 @@ import Testing
     .openrouter, .tavily, .apollo, .lemlist, .peopledatalabs, .phantombuster, .deepgram, .webshare, .decodo,
     .brevo, .twilio, .plivo, .vonage, .dataforseo, .tomba, .snov, .verifalia, .predictleads, .crawlbase,
     .hyperbolic, .orthogonal, .zerobounce, .rocketreach, .enrichcrm, .majestic, .mangools, .semrush, .ahrefs,
-    .diffbot, .netnut, .contactout, .meltly, .deepseek, .firecrawl, .apify, .youcom,
+    .diffbot, .netnut, .contactout, .meltly, .deepseek, .firecrawl, .apify, .youcom, .hlrlookup, .icypeas, .thecompaniesapi,
+    .treg,
   ]
 
   @Test func idsAreUniqueAndEveryHandWrittenProviderIsListedOnce() {

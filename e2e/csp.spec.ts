@@ -1,4 +1,4 @@
-import { MARKETING_ORIGIN } from "./fixtures/stack"
+import { IP_ORIGIN } from "./fixtures/stack"
 import { expect, signIn, test } from "./fixtures/test"
 
 // The Content-Security-Policy carries a per-request nonce and no
@@ -46,28 +46,28 @@ async function hydrated(page: Parameters<typeof signIn>[0]) {
 test("@smoke the policy carries a fresh nonce per request and no unsafe-inline", async ({
   page,
 }) => {
-  const first = await page.goto(MARKETING_ORIGIN)
+  const first = await page.goto(`${IP_ORIGIN}/docs`)
   const csp = first?.headers()["content-security-policy"] ?? ""
   expect(csp).toMatch(NONCE)
   expect(csp).not.toContain("'unsafe-inline'")
   expect(csp).toContain("object-src 'none'")
 
-  const second = await page.goto(MARKETING_ORIGIN)
+  const second = await page.goto(`${IP_ORIGIN}/docs`)
   const again = second?.headers()["content-security-policy"] ?? ""
   expect(NONCE.exec(again)?.[1]).not.toBe(NONCE.exec(csp)?.[1])
 })
 
-test("@smoke the marketing site hydrates under the nonce with zero violations", async ({
+test("@smoke the public self-host docs hydrate under the nonce with zero violations", async ({
   page,
 }) => {
   const violations = await collectViolations(page)
-  await page.goto(MARKETING_ORIGIN)
+  await page.goto(`${IP_ORIGIN}/docs`)
   const home = await hydrated(page)
   expect(home.scripts).toBeGreaterThan(0)
   expect(home.unnonced).toBe(0)
   expect(await violations()).toEqual([])
 
-  await page.goto(`${MARKETING_ORIGIN}/directory`)
+  await page.goto(`${IP_ORIGIN}/security`)
   expect((await hydrated(page)).unnonced).toBe(0)
   expect(await violations()).toEqual([])
 })
@@ -89,7 +89,7 @@ test("@smoke the app hydrates under the nonce with zero violations", async ({
 
 test("an inline script without the nonce is blocked", async ({ page }) => {
   const violations = await collectViolations(page)
-  await page.goto(MARKETING_ORIGIN)
+  await page.goto(`${IP_ORIGIN}/docs`)
   await hydrated(page)
   const ran = await page.evaluate(async () => {
     const w = window as unknown as { __injected?: number }

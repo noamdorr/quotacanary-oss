@@ -209,11 +209,6 @@ private final class UpdateHarness {
     await notJSON.updater.checkNow()
     #expect(notJSON.updater.status == .failed(.feedUnreadable))
 
-    let missing = UpdateHarness()
-    missing.transport.feed = .respond(status: 404, body: Data())
-    await missing.updater.checkNow()
-    #expect(missing.updater.status == .failed(.feedUnreadable))
-
     let http = UpdateHarness()
     var entry = http.entry("0.2.0")
     entry.url = "http://example.com/QuotaCanary-0.2.0.zip"
@@ -221,6 +216,20 @@ private final class UpdateHarness {
     await http.updater.checkNow()
     #expect(http.updater.status == .failed(.feedUnreadable))
     #expect(http.transport.requests.count == 1)
+  }
+
+  @Test func aNon200FeedIsAHostingProblemNotABadFeed() async {
+    for code in [404, 503] {
+      let h = UpdateHarness()
+      h.transport.feed = .respond(status: code, body: Data())
+      await h.updater.checkNow()
+      #expect(h.updater.status == .failed(.unreachable))
+      #expect(h.updater.statusLine == Copy.updateUnreachable)
+    }
+  }
+
+  @Test func thePrivacyNoteNamesWhereUpdatesDownloadFrom() {
+    #expect(Copy.updatesPrivacyNote.hasSuffix("Nothing installs until you say so. Updates download from GitHub."))
   }
 
   @Test func downloadFailureIsReported() async {

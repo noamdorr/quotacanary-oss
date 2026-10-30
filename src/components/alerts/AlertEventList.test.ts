@@ -16,7 +16,7 @@ function event(overrides: Partial<AlertEvent>): AlertEvent {
     title: "Apollo is critically low",
     body: "Apollo main crossed critical threshold for Credits.",
     pools: [],
-    dashboard_url: "https://app.quotacanary.com/dashboard",
+    dashboard_url: "https://selfhost.example/dashboard",
     topup_url: null,
     read_at: "2026-10-18T10:00:00.000Z",
     created_at: "2026-10-18T09:00:00.000Z",

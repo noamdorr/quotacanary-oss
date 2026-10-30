@@ -17,11 +17,13 @@ public enum EraseError: Error, Equatable {
 public struct EraseLocalData {
   private let service: MonitoringService
   private let folder: URL?
+  private let preferences: PreferencesStore?
 
   /// `folder` is the Application Support folder to remove once its files are
   /// gone. nil (the default) for in-memory stores, so a synthetic or preview
   /// run can never touch the real folder.
-  public init(service: MonitoringService, folder: URL? = nil) {
+  public init(service: MonitoringService, folder: URL? = nil, preferences: PreferencesStore? = nil) {
+    self.preferences = preferences
     self.service = service
     self.folder = folder
   }
@@ -34,16 +36,21 @@ public struct EraseLocalData {
     EraseSummary(keys: service.connections.count)
   }
 
-  /// Erases everything, returning what it removed. Throws `.failed` and leaves
-  /// the in-memory state alone if a store refuses, so the panel never claims
-  /// a cleanup that did not happen.
+  /// Erases stores before the final folder cleanup. Completed erasures are not
+  /// rolled back on failure. Retire live consumers at `onStoresErased` so a
+  /// later folder-removal failure cannot resurrect the erased preferences.
   @discardableResult
-  public func run() throws -> EraseSummary {
+  public func run(
+    removeFolder: (URL) throws -> Void = { try FileManager.default.removeItem(at: $0) },
+    onStoresErased: () -> Void = {}
+  ) throws -> EraseSummary {
     let removed = summary
     do {
       try service.eraseLocal()
+      try preferences?.erase()
+      onStoresErased()
       if let folder, FileManager.default.fileExists(atPath: folder.path) {
-        try FileManager.default.removeItem(at: folder)
+        try removeFolder(folder)
       }
     } catch {
       throw EraseError.failed

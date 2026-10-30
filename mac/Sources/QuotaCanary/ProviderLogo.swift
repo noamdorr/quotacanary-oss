@@ -14,11 +14,13 @@ struct ProviderLogo: View {
   /// Black-only marks: drawn in the text color so they show in dark mode.
   static let templated: Set<ProviderID> = [
     .apollo, .decodo, .deepgram, ProviderID("elevenlabs"), ProviderID("linkup"), .meltly, .plivo,
-    ProviderID("runway"), ProviderID("scrapingdog"), .vonage,
+    ProviderID("runway"), ProviderID("scrapingdog"), .vonage, ProviderID("x"),
   ]
 
   /// Dark marks that vanish on a dark background (QUO-288): drawn on a light plate.
-  static let plated: Set<ProviderID> = [ProviderID("oceanio"), ProviderID("myemailverifier"), ProviderID("tavily")]
+  static let plated: Set<ProviderID> = [
+    ProviderID("oceanio"), ProviderID("myemailverifier"), ProviderID("tavily"), ProviderID("fishaudio"),
+  ]
 
   static let images: [ProviderID: NSImage] = {
     // The packaged app has these in Contents/Resources. SwiftPM puts a resource

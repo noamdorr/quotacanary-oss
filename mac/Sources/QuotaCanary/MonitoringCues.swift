@@ -45,6 +45,10 @@ struct RefreshProgressLabel: View {
       .accessibilityElement(children: .ignore)
       .accessibilityLabel(label)
       .accessibilityAddTraits(.updatesFrequently)
+      // The result shows for a few seconds and the label never takes focus, so say it.
+      .onChange(of: label, initial: true) { _, text in
+        AccessibilityNotification.Announcement(text).post()
+      }
     }
   }
 }

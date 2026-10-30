@@ -16,7 +16,7 @@ import Testing
 
   @Test func bundledCatalogParsesEveryTool() throws {
     let catalog = try Catalog.load(try #require(Catalog.bundledData()))
-    #expect(catalog.tools.count == 95)
+    #expect(catalog.tools.count == 108)
     #expect(Set(catalog.tools.map(\.id)).count == catalog.tools.count)
     let hunter = try #require(catalog.tools.first { $0.id == "hunter" })
     #expect(hunter.name == "Hunter")

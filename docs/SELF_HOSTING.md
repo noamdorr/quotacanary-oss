@@ -32,12 +32,12 @@ cp .env.local.example .env.local
 | `POLL_SECRET` | yes | Shared secret guarding the `/api/poll` refresh endpoint |
 | `NEXT_PUBLIC_SITE_URL` | yes | Origin used for auth redirects (local: `http://localhost:3000`) |
 | `NEXT_PUBLIC_APP_URL` | yes | App origin (single-domain: same as your site URL) |
-| `APP_ONLY` | recommended | Set to `true` for a single-domain instance (no marketing/app split) |
+| `APP_ONLY` | no | Retained for older configurations; this version always serves the app on your instance origin |
 | `POSTMARK_SERVER_TOKEN` | no | Postmark token for email alerts. Omit it and email alerts queue instead of sending; the dashboard and in-app alerts still work, and queued alerts go out once you set the token. |
 | `FEEDBACK_NOTIFY_EMAIL` | no | Where in-app feedback is emailed. Unset (the default) means no notification is sent - submissions are still stored in your own `feedback_submissions` table, and nothing leaves your instance. |
 | `POLL_HEARTBEAT_URL` | no | Ping URL of an external cron monitor (Healthchecks.io and friends). Every poll run pings it, a failed run pings `<url>/fail`, and the ping body carries run counts only. Unset means no ping. |
 | `POLL_ALERT_EMAIL` | no | Where a failed poll run is emailed. Needs `POSTMARK_SERVER_TOKEN`. Unset means no mail; `poll_runs` records every run either way. |
-| `NEXT_PUBLIC_MARKETING_URL` | no | Only relevant if you run the marketing surface separately |
+| `NEXT_PUBLIC_MARKETING_URL` | no | Origin for external privacy and terms links; defaults to `https://quotacanary.com`. API and security docs stay on your instance. |
 | `PLAUSIBLE_SCRIPT_SRC` | no | Analytics script URL. Unset by default, and unset means no third-party analytics is loaded. |
 
 Generate the encryption key now and paste it in:
@@ -54,7 +54,7 @@ supabase start            # boots Postgres + Auth + Studio in Docker
 supabase db reset         # applies all migrations + seeds the tool catalog
 ```
 
-`supabase start` prints your local `API URL`, `anon key`, and `service_role key`. Put those into `.env.local` (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`). Set `APP_ONLY=true`, `NEXT_PUBLIC_SITE_URL=http://localhost:3000`, `NEXT_PUBLIC_APP_URL=http://localhost:3000`. Then:
+`supabase start` prints your local `API URL`, `anon key`, and `service_role key`. Put those into `.env.local` (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`). Set `NEXT_PUBLIC_SITE_URL=http://localhost:3000` and `NEXT_PUBLIC_APP_URL=http://localhost:3000`. Then:
 
 ```bash
 npm run dev
@@ -83,7 +83,7 @@ Open http://localhost:3000, sign up (email confirmation is off locally), and add
 
 ## Single-domain mode
 
-Set `APP_ONLY=true`. Every request then serves the dashboard app, so you can run on one domain (for example `canary.yourcompany.com`) with no marketing/app host split. Leave it unset only if you intend to serve the marketing site and the app on separate hostnames.
+Every hostname serves the dashboard app on the same origin, for example `canary.yourcompany.com`. The Next app no longer contains the marketing site; that lives separately under `site/`. Existing `APP_ONLY=true` settings are harmless but no longer required. Public `/docs` and `/security` pages remain on your instance.
 
 ## Keeping balances fresh (the poll cron)
 
@@ -240,4 +240,4 @@ Every release notes any new env var or migration in [CHANGELOG.md](../CHANGELOG.
 - **"ENCRYPTION_KEY must decode to 32 bytes"** - your key is not a base64-encoded 32-byte value. Regenerate with `openssl rand -base64 32`.
 - **Auth emails / confirmation links break** - your Supabase Auth Site URL or redirect allowlist does not include your app origin.
 - **Balances never update** - your poll cron is not calling `/api/poll`, or the `POLL_SECRET` header does not match.
-- **Landing on a marketing page instead of the dashboard** - set `APP_ONLY=true`.
+- **Alert links cannot be generated** - set `NEXT_PUBLIC_APP_URL` to the origin of your instance, without a path, query or fragment. Alert delivery waits until a valid origin is configured.

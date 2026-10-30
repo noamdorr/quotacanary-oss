@@ -1,5 +1,7 @@
 "use client"
+
 import { LogoMark } from "@/components/brand/LogoMark"
+import { MARKETING_URL } from "@/lib/site-links"
 
 import { sendMagicLink } from "@/app/(auth)/login/actions"
 import { MagicLinkSent } from "@/components/auth/MagicLinkSent"
@@ -102,11 +104,17 @@ export function MagicLinkForm({ toolId }: { toolId?: string | null }) {
             <SubmitButton />
             <p className="text-center text-xs text-muted-foreground">
               By continuing you agree to the{" "}
-              <a href="/terms" className="underline hover:text-foreground">
+              <a
+                href={`${MARKETING_URL}/terms`}
+                className="underline hover:text-foreground"
+              >
                 terms
               </a>{" "}
               and{" "}
-              <a href="/privacy" className="underline hover:text-foreground">
+              <a
+                href={`${MARKETING_URL}/privacy`}
+                className="underline hover:text-foreground"
+              >
                 privacy policy
               </a>
               .

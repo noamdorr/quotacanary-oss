@@ -2,13 +2,17 @@
 
 The bird that sings before the credits die.
 
+![The QuotaCanary menu bar panel listing API balances with their run-out estimates](site/public/img/mac-panel-showcase.webp)
+
 QuotaCanary is a free, open-source Mac menu bar app that watches the credit balances across your API tool stack. Your vendor keys stay in your Mac’s login Keychain and never go to QuotaCanary servers. Balance requests go directly to each vendor using its key.
 
 If you opt in to update checks, the app sends its app version, macOS version and chip to the signed update feed.
 
 ## Use it: QuotaCanary for Mac
 
-Build from source using [the Mac build instructions](mac/docs/BUILDING.md). A signed public download is not available yet; signing, beta validation and publication are still pending.
+**[Download QuotaCanary for Mac](https://quotacanary.com/download/mac)**: a signed, notarized DMG. Or build it yourself with [the Mac build instructions](mac/docs/BUILDING.md).
+
+Requires macOS 26 (Tahoe) or newer. Universal binary; Intel hardware validation is still pending.
 
 - One row per watched balance, with healthy, low and dry status
 - Local balance history, burn rate and run-out estimates

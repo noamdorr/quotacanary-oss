@@ -34,7 +34,7 @@ private func usage(_ balance: Double, cap: Double) -> PoolBalance {
     let (result, transport) = await read([.respond(status: 200, body: me("49")), .respond(status: 200, body: limits("12.5"))])
     let balances = try result.get()
     #expect(balances == [usage(36.5, cap: 49)])
-    #expect(Format.amount(balances[0].balance, pool: balances[0].pool) == "$36.50 of $49.00")
+    #expect(Format.amount(balances[0].balance, pool: balances[0].pool, locale: Locale(identifier: "en_US")) == "$36.50 of $49.00")
     #expect(transport.requests.map(\.url.absoluteString)
       == ["https://api.apify.com/v2/users/me", "https://api.apify.com/v2/users/me/limits"])
     #expect(transport.requests.allSatisfy { $0.headers == ["Authorization": "Bearer apify-key"] && $0.method == "GET" })
@@ -43,7 +43,7 @@ private func usage(_ balance: Double, cap: Double) -> PoolBalance {
   @Test func aTinyUsageDoesNotReadAsAConfusingZero() async throws {
     let balances = try await read([.respond(status: 200, body: me("5")), .respond(status: 200, body: limits("0.0003"))]).0.get()
     #expect(balances == [usage(5 - 0.0003, cap: 5)])
-    #expect(Format.amount(balances[0].balance, pool: balances[0].pool) == "$5.00 of $5.00")
+    #expect(Format.amount(balances[0].balance, pool: balances[0].pool, locale: Locale(identifier: "en_US")) == "$5.00 of $5.00")
   }
 
   @Test func usagePastTheIncludedCreditShowsZeroLeftNeverNegative() async throws {

@@ -15,6 +15,10 @@ public enum ProviderPicker {
     guard let highlighted, let index = rows.firstIndex(of: highlighted) else { return rows.first }
     return rows[min(max(index + step, 0), rows.count - 1)]
   }
+
+  /// How many rows the list is tall (QUO-347): it fits the matches, so a
+  /// narrowed search collapses it, and scrolls past six.
+  public static func visibleRows(_ count: Int) -> Int { min(count, 6) }
 }
 
 /// What the connect form holds before Connect: the picked provider, the

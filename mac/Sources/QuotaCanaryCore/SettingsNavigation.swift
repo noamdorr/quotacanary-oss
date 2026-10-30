@@ -1,4 +1,4 @@
-import Combine
+import Observation
 import Foundation
 
 /// The Settings window's panes (QUO-275).
@@ -19,8 +19,9 @@ public enum SettingsPane: String, CaseIterable, Sendable {
 /// session, so reopening (menu action or Command-comma) lands on the last
 /// pane. Navigation only: field contents and drafts are not kept here.
 @MainActor
-public final class SettingsNavigation: ObservableObject {
-  @Published public var pane: SettingsPane
+@Observable
+public final class SettingsNavigation {
+  public var pane: SettingsPane
 
   public init(pane: SettingsPane = .general) {
     self.pane = pane

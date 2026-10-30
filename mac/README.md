@@ -1,7 +1,7 @@
 # QuotaCanary for Mac
 
 A menu bar app that shows your API credit balances (OpenRouter, Hunter,
-Tavily, Apollo, Prospeo and every tool in the shared catalog, about 40 in
+Tavily, Apollo, Prospeo and every tool in the shared catalog, 131 tools in
 all), one row per credit pool, with per-pool Low / Critical thresholds.
 Connect several accounts of the same provider and name each one; Manage...
 renames a connection, swaps its key (checked with the provider first), or
@@ -18,8 +18,8 @@ still pending; the Intel build has only been exercised under Rosetta 2.
 
 ## Install
 
-There is no download yet. For now you build it yourself, which takes about two
-minutes:
+Download the signed, notarized DMG from [quotacanary.com/download/mac](https://quotacanary.com/download/mac),
+or build it yourself, which takes about two minutes:
 
 ```sh
 cd mac
@@ -43,9 +43,11 @@ normally. Copied to another Mac as a download, it gets the unsigned-app
 dialog: try to open it once, then use Open Anyway in System Settings > Privacy &
 Security.
 
-A Developer ID signed, notarized download that opens without that dialog is a
-separate step that has not happened yet. Until it does, nothing published
-should be described as a signed release.
+A Developer ID signed, notarized download that opens without that dialog is
+produced with `QUOTACANARY_SIGN_IDENTITY=... ./scripts/bundle.sh` followed by
+`./scripts/notarize.sh` (see [docs/BUILDING.md](docs/BUILDING.md)). Until a
+release has been built and checked that way, nothing published should be
+described as a signed release.
 
 ## Build, test, bundle, run
 

@@ -5,7 +5,7 @@ import SwiftUI
 
 @MainActor
 struct QuotaCanaryApp: App {
-  @StateObject private var model: AppModel
+  @State private var model: AppModel
 
   init() {
     let settingsPreview = CommandLine.arguments.contains("--settings-preview")
@@ -14,7 +14,7 @@ struct QuotaCanaryApp: App {
     let demo = CommandLine.arguments.contains("--demo")
     let count = CommandLine.arguments.compactMap(Int.init).first ?? 50
     let model = demo ? SnapshotStacks.demoModel() : preview ? SnapshotStacks.model(count: count) : AppModel.fromEnvironment()
-    _model = StateObject(wrappedValue: model)
+    _model = State(initialValue: model)
     if demo {
       NSApplication.shared.setActivationPolicy(.accessory)
       Task { @MainActor in
@@ -58,6 +58,8 @@ if arguments.contains("--check-provider-logos") {
   print(missing.isEmpty ? "Provider logos: all \(ProviderLogo.bundled.count) decoded" : "Missing provider logos: \(missing.map(\.rawValue))")
   exit(missing.isEmpty ? 0 : 1)
 } else if arguments.count >= 3, arguments[1] == "--read", arguments[2] == "openrouter" {
+  // Detached: the read needs no main actor; dispatchMain() keeps the process
+  // alive until it exits.
   Task.detached { exit(await Headless.readOpenRouter()) }
   dispatchMain()
 } else if arguments.contains("--login-item-status") {

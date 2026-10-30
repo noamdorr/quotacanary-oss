@@ -1,9 +1,10 @@
 // The production server for the static Astro build in dist/.
 //
 // Astro prerenders every page; this file is what Railway runs. It owns the
-// three things a static host would otherwise have to be configured for:
+// things a static host would otherwise have to be configured for:
 // response headers (the Content-Security-Policy and friends that the Next
-// app set from its proxy), the www -> apex redirect, and the 404 page.
+// app set from its proxy), the www -> apex redirect, the 404 page, and the
+// Mac download redirects.
 //
 // Environment:
 //   PORT                  Railway sets it; defaults to 4321 locally.
@@ -24,6 +25,34 @@ const dist = join(here, "dist")
 const port = Number(process.env.PORT ?? 4321)
 const canonicalHost =
   process.env.CANONICAL_HOST === undefined ? "quotacanary.com" : process.env.CANONICAL_HOST
+
+// The Mac release archives are GitHub Release assets on the public mirror
+// (QUO-350), too big to live in git. The app and the website only ever name
+// quotacanary.com paths; this server turns them into the asset URL, so a
+// hosting move needs no app release.
+export const MAC_RELEASE_REPO = "noamdorr/quotacanary-oss"
+const MAC_VERSION = /^\d+\.\d+\.\d+$/
+
+export function latestMacVersion(feedText) {
+  // The feed sign-update.sh wrote is the one place the site learns the
+  // version; mac/VERSION stays the only hand-edited copy.
+  try {
+    const version = JSON.parse(feedText)?.version
+    return typeof version === "string" && MAC_VERSION.test(version) ? version : null
+  } catch {
+    return null
+  }
+}
+
+export function macDownloadLocation(pathname, latest) {
+  // The button gets the disk image (drag to Applications, QUO-364); the
+  // update feed keeps naming the zip, which is what the updater verifies.
+  if (pathname === "/download/mac") return latest ? `/mac/QuotaCanary-${latest}.dmg` : null
+  const match = /^\/mac\/QuotaCanary-(\d+\.\d+\.\d+)\.(zip|dmg)$/.exec(pathname)
+  return match
+    ? `https://github.com/${MAC_RELEASE_REPO}/releases/download/mac-v${match[1]}/QuotaCanary-${match[1]}.${match[2]}`
+    : null
+}
 
 export function plausibleOrigin(scriptSrc = process.env.PLAUSIBLE_SCRIPT_SRC) {
   // A value that does not parse contributes nothing rather than throwing: a
@@ -72,6 +101,15 @@ const notFoundPage = (() => {
     return readFileSync(join(dist, "404.html"))
   } catch {
     return Buffer.from("Not found")
+  }
+})()
+
+// Read once: dist/ never changes while a deploy runs.
+const latestMac = (() => {
+  try {
+    return latestMacVersion(readFileSync(join(dist, "mac", "updates.json"), "utf8"))
+  } catch {
+    return null
   }
 })()
 
@@ -135,6 +173,15 @@ export function requestHandler(req, res) {
   // the update archives under /mac/ are files the Mac app fetches.
   if (url.pathname === "/mac") {
     res.writeHead(301, { Location: `/#download` })
+    res.end()
+    return
+  }
+
+  // Versioned archives go to their release asset; /download/mac to the
+  // latest. no-store so a new release is visible on the next click.
+  const macLocation = macDownloadLocation(url.pathname, latestMac)
+  if (macLocation) {
+    res.writeHead(302, { Location: macLocation, "Cache-Control": "no-store" })
     res.end()
     return
   }

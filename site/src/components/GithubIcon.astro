@@ -1,0 +1,11 @@
+---
+// GitHub brand icon (Font Awesome Free 6.7.2, CC BY 4.0; see
+// public/img/github.LICENSE.txt). Rendered as an <img> like AppleIcon.
+interface Props {
+  width?: number
+  height?: number
+}
+const { width = 16, height = 16 } = Astro.props
+---
+
+<img class="github-icon" src="/img/github.svg" alt="" width={width} height={height} />

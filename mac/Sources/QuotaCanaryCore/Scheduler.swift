@@ -144,7 +144,7 @@ public enum ConnectionHealth: Equatable, Sendable {
 @MainActor
 public final class PollScheduler {
   /// Nominal cadence while running, awake and online.
-  public static let nominalInterval: TimeInterval = 15 * 60
+  public nonisolated static let nominalInterval: TimeInterval = 15 * 60
   /// Upper bound on one check, on top of the transport's own timeout.
   public static let checkTimeout: TimeInterval = 30
   /// Wake and reconnect skip a connection attempted less than this long ago.

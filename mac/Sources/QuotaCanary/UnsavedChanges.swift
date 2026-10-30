@@ -5,12 +5,13 @@ import QuotaCanaryCore
 /// editor view, so selecting another balance (which rebuilds the inspector)
 /// keeps every draft until Save or Discard.
 @MainActor
-final class DraftStore: ObservableObject {
-  @Published var drafts: BalanceDrafts
+@Observable
+final class DraftStore {
+  var drafts: BalanceDrafts
   /// A Save from the close prompt that could not complete.
-  @Published var closeError: String?
+  var closeError: String?
   /// The balance a Save from the close prompt could not validate.
-  @Published var attention: PoolKey?
+  var attention: PoolKey?
 
   init(_ drafts: [PoolKey: PoolSettingsDraft] = [:]) {
     self.drafts = BalanceDrafts(drafts)

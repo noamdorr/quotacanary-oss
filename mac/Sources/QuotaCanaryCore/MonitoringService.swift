@@ -157,6 +157,7 @@ public final class MonitoringService {
     }
     var updated = connections
     updated[index].lastReading = Reading(balances: balances, checkedAt: startedAt)
+    updated[index].dropEndedMutes()
     do {
       try store.save(updated)
     } catch {
@@ -263,6 +264,7 @@ public final class MonitoringService {
     }
     var updated = connections
     updated[index].lastReading = Reading(balances: balances, checkedAt: now())
+    updated[index].dropEndedMutes()
     // A working new key ends any failure incident and re-arms its alerts.
     updated[index].monitoring = MonitoringState()
     do {
@@ -326,6 +328,24 @@ public final class MonitoringService {
       guard let index = updated.firstIndex(where: { $0.id == key.connectionID }) else { continue }
       updated[index].alertMarks[key.creditType] = mark == .none ? nil : mark
     }
+    guard updated != connections else { return }
+    do {
+      try store.save(updated)
+    } catch {
+      throw MonitorError.saveFailed
+    }
+    connections = updated
+  }
+
+  // MARK: Mute until it changes (QUO-351)
+
+  /// Mutes a balance at its current reading, or unmutes it. A balance with
+  /// no reading has nothing to mute at, and a removed connection is skipped.
+  public func setMuted(_ key: PoolKey, _ muted: Bool) throws {
+    var updated = connections
+    guard let index = updated.firstIndex(where: { $0.id == key.connectionID }) else { return }
+    let balance = updated[index].lastReading?.balances.first { $0.pool.creditType == key.creditType }?.balance
+    updated[index].mutedAt[key.creditType] = muted ? balance : nil
     guard updated != connections else { return }
     do {
       try store.save(updated)

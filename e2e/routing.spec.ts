@@ -1,26 +1,19 @@
-import { MARKETING_ORIGIN } from "./fixtures/stack"
+import { IP_ORIGIN } from "./fixtures/stack"
 import { expect, signIn, test } from "./fixtures/test"
 
-// The host split is proxy-level and invisible to unit tests: `localhost` resolves
-// to the app surface and `127.0.0.1` to the marketing surface, both against the
-// same server. These are the cases a regression in resolveHost would break.
-
-test("@smoke the marketing surface serves the public site", async ({
+// Hostname and IP deployments both keep authentication on the same origin.
+test("@smoke an IP-hosted app redirects its root through dashboard to login", async ({
   page,
 }) => {
-  const response = await page.goto(MARKETING_ORIGIN)
-  expect(response?.status()).toBe(200)
-  await expect(page).toHaveTitle(/QuotaCanary/)
-  await expect(page.locator("h1").first()).toBeVisible()
+  await page.goto(IP_ORIGIN)
+  await expect(page).toHaveURL(`${IP_ORIGIN}/login?next=%2Fdashboard`)
 })
 
-test("@smoke an app-only path on the marketing host does not serve the app", async ({
+test("@smoke an IP-hosted protected route stays on its own login origin", async ({
   page,
 }) => {
-  await page.goto(`${MARKETING_ORIGIN}/dashboard`)
-  // An IP-literal host has no "app." sibling to redirect to, so the proxy sends
-  // it to the marketing root rather than leaking an app route onto the public site.
-  await expect(page).toHaveURL(`${MARKETING_ORIGIN}/`)
+  await page.goto(`${IP_ORIGIN}/settings`)
+  await expect(page).toHaveURL(`${IP_ORIGIN}/login?next=%2Fsettings`)
 })
 
 test("@smoke the app host serves the app and redirects its root to the dashboard", async ({

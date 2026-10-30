@@ -1,5 +1,6 @@
 import Combine
 import Foundation
+import Observation
 
 // The connection monitoring record (QUO-310): one per local connection,
 // everything the app knows about how its checks are going. The scheduler
@@ -25,12 +26,13 @@ public struct ConnectionMonitoringRecord: Equatable, Sendable {
 
 /// Owns the monitoring records and the only way they change.
 @MainActor
-public final class ConnectionMonitor: ObservableObject {
-  @Published public private(set) var health: [String: ConnectionHealth] = [:]
+@Observable
+public final class ConnectionMonitor {
+  public private(set) var health: [String: ConnectionHealth] = [:]
   /// The error behind each connection's message, for diagnostics.
-  @Published public private(set) var errors: [String: MonitorError] = [:]
+  public private(set) var errors: [String: MonitorError] = [:]
   /// What the panel says under each connection whose last check (or remove) failed.
-  @Published public private(set) var messages: [String: String] = [:]
+  public private(set) var messages: [String: String] = [:]
 
   private let service: MonitoringService
   private let alerts: AlertEvaluator?

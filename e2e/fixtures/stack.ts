@@ -28,11 +28,9 @@ export const SUPABASE_URL =
   process.env.NEXT_PUBLIC_SUPABASE_URL ?? "http://127.0.0.1:54321"
 export const MAILPIT_URL = process.env.MAILPIT_URL ?? "http://127.0.0.1:54324"
 
-// The app surface. `localhost` resolves to "app" in resolveHost and 127.0.0.1 to
-// "marketing", so the two hostnames are not interchangeable here.
+// Both named and IP origins serve the same self-host app.
 export const APP_ORIGIN = process.env.E2E_APP_ORIGIN ?? "http://localhost:3000"
-export const MARKETING_ORIGIN =
-  process.env.E2E_MARKETING_ORIGIN ?? "http://127.0.0.1:3000"
+export const IP_ORIGIN = process.env.E2E_IP_ORIGIN ?? "http://127.0.0.1:3000"
 
 const LOCAL_HOSTS = new Set(["localhost", "127.0.0.1", "::1", "0.0.0.0"])
 

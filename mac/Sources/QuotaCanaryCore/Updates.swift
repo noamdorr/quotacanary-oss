@@ -1,5 +1,6 @@
 import CryptoKit
 import Foundation
+import Observation
 import Security
 
 // Update checks and user-chosen installs (QUO-139). Hand-rolled, no framework:
@@ -24,7 +25,8 @@ import Security
 // monitoring service, the Keychain or connections.json.
 
 public enum UpdateFeed {
-  /// The production feed. Not live until QUO-142 hosts it.
+  /// The production feed, served by site/ (QUO-350). The archive URL it names
+  /// redirects to a GitHub release asset; see docs/BUILDING.md.
   public static let url = URL(string: "https://quotacanary.com/mac/updates.json")!
   /// Ed25519 public key (raw 32 bytes, base64) from scripts/update-keys.sh. The
   /// private half lives only at ~/.config/quotacanary-mac/update-signing.key.
@@ -208,7 +210,7 @@ public struct ReadyUpdate: Equatable, Sendable {
 // MARK: - Boundaries
 
 /// The network, for the feed and the archive only. Real: `URLSessionUpdateTransport`.
-public protocol UpdateTransport: AnyObject {
+public protocol UpdateTransport: AnyObject, Sendable {
   func fetch(_ url: URL, headers: [String: String]) async throws -> HTTPResponse
   /// Writes the body of a 200 response to `destination`; throws otherwise.
   func download(_ url: URL, headers: [String: String], to destination: URL) async throws
@@ -255,15 +257,16 @@ public protocol UpdateInstaller: AnyObject {
 // MARK: - Updater
 
 @MainActor
-public final class Updater: ObservableObject {
-  @Published public private(set) var status: UpdateStatus = .idle
-  @Published public private(set) var ready: ReadyUpdate?
-  @Published public private(set) var automaticChecks: Bool
-  @Published public private(set) var promptAnswered: Bool
+@Observable
+public final class Updater {
+  public private(set) var status: UpdateStatus = .idle
+  public private(set) var ready: ReadyUpdate?
+  public private(set) var automaticChecks: Bool
+  public private(set) var promptAnswered: Bool
   /// Last check that got a verified answer from the feed.
-  @Published public private(set) var lastCheckAt: Date?
+  public private(set) var lastCheckAt: Date?
   /// The user chose Later for the ready update.
-  @Published public private(set) var laterChosen = false
+  public private(set) var laterChosen = false
 
   public let currentVersion: String
   private let transport: UpdateTransport
@@ -314,6 +317,20 @@ public final class Updater: ObservableObject {
       try? FileManager.default.removeItem(at: file)
     }
     rescheduleAutomatic()
+  }
+
+  /// Retires queued and in-flight work without writing deleted preferences.
+  public func resetAfterErase() {
+    timer?.cancel()
+    timer = nil
+    inFlight?.cancel()
+    inFlight = nil
+    automaticChecks = false
+    promptAnswered = false
+    lastCheckAt = nil
+    lastAttemptAt = nil
+    discardReady()
+    status = .idle
   }
 
   /// The Settings toggle. Also settles the first-run question.
@@ -442,8 +459,9 @@ public final class Updater: ObservableObject {
     if let inFlight { return inFlight }
     lastAttemptAt = clock.now
     let task = Task { [weak self] in
-      guard let self else { return }
+      guard let self, !Task.isCancelled else { return }
       await self.performCheck()
+      guard !Task.isCancelled else { return }
       self.inFlight = nil
       self.rescheduleAutomatic()
     }
@@ -480,10 +498,17 @@ public final class Updater: ObservableObject {
     do {
       response = try await transport.fetch(request, headers: headers)
     } catch {
+      guard !Task.isCancelled else { return }
       status = .failed(.unreachable)
       return
     }
-    guard response.status == 200, response.body.count <= UpdateFeed.maximumFeedBytes,
+    guard !Task.isCancelled else { return }
+    // A 404 or 5xx is a hosting problem, not a bad feed (QUO-365).
+    guard response.status == 200 else {
+      status = .failed(.unreachable)
+      return
+    }
+    guard response.body.count <= UpdateFeed.maximumFeedBytes,
           let entry = try? JSONDecoder().decode(UpdateEntry.self, from: response.body),
           let version = SemanticVersion(entry.version),
           let minimum = SemanticVersion(entry.minimumSystemVersion),
@@ -525,7 +550,12 @@ public final class Updater: ObservableObject {
       try await transport.download(archiveURL, headers: headers, to: destination)
     } catch {
       try? FileManager.default.removeItem(at: destination)
+      guard !Task.isCancelled else { return }
       status = .failed(.downloadFailed)
+      return
+    }
+    guard !Task.isCancelled else {
+      try? FileManager.default.removeItem(at: destination)
       return
     }
     guard let archive = try? Data(contentsOf: destination) else {
@@ -748,7 +778,8 @@ public final class SystemUpdateInstaller: UpdateInstaller {
 // MARK: - Fakes (tests, synthetic previews, snapshots)
 
 /// Scripted feed bytes and archive bytes; records every request.
-public final class FakeUpdateTransport: UpdateTransport {
+/// `@unchecked`: a test double, scripted and read by one test at a time.
+public final class FakeUpdateTransport: UpdateTransport, @unchecked Sendable {
   public enum Answer {
     case respond(status: Int, body: Data)
     case fail

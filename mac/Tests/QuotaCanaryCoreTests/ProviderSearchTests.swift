@@ -2,7 +2,7 @@ import Foundation
 @testable import QuotaCanaryCore
 import Testing
 
-/// The connect form's picker filter: about 40 tools is too many to scan, so a
+/// The connect form's picker filter: 131 tools is too many to scan, so a
 /// search field narrows the menu by display name or id, case-insensitively.
 @Suite struct ProviderSearchTests {
   let ids = [ProviderID.openrouter, .hunter, ProviderID("scaleserp"), ProviderID("serpapi"), ProviderID("scrapingbee")]

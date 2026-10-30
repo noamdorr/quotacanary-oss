@@ -2374,6 +2374,300 @@
           "balance": "user_data.balance"
         }
       ]
+    },
+    {
+      "id": "influencersclub",
+      "name": "Influencers Club",
+      "topupUrl": "https://influencers.club/pricing/",
+      "request": {
+        "method": "GET",
+        "url": "https://api-dashboard.influencers.club/public/v1/accounts/credits/"
+      },
+      "auth": {
+        "in": "header",
+        "name": "Authorization",
+        "format": "Bearer {key}"
+      },
+      "pools": [
+        {
+          "creditType": "credits",
+          "label": "Credits",
+          "unit": "credits",
+          "balance": "credits_available"
+        }
+      ]
+    },
+    {
+      "id": "spidercloud",
+      "name": "Spider",
+      "topupUrl": "https://spider.cloud/credits/new",
+      "request": {
+        "method": "GET",
+        "url": "https://api.spider.cloud/data/credits"
+      },
+      "auth": {
+        "in": "header",
+        "name": "Authorization",
+        "format": "Bearer {key}"
+      },
+      "pools": [
+        {
+          "creditType": "credits",
+          "label": "Credits",
+          "unit": "credits",
+          "balance": "data.credits"
+        }
+      ]
+    },
+    {
+      "id": "anyapi",
+      "name": "AnyAPI",
+      "topupUrl": "https://getanyapi.com",
+      "request": {
+        "method": "GET",
+        "url": "https://api.getanyapi.com/v1/balance"
+      },
+      "auth": {
+        "in": "header",
+        "name": "X-API-Key"
+      },
+      "pools": [
+        {
+          "creditType": "wallet",
+          "label": "Wallet",
+          "unit": "usd",
+          "balance": "usd"
+        }
+      ]
+    },
+    {
+      "id": "orbisearch",
+      "name": "OrbiSearch",
+      "topupUrl": "https://orbisearch.com/pricing",
+      "request": {
+        "method": "GET",
+        "url": "https://api.orbisearch.com/v1/credits"
+      },
+      "auth": {
+        "in": "header",
+        "name": "X-API-Key"
+      },
+      "pools": [
+        {
+          "creditType": "credits",
+          "label": "Credits",
+          "unit": "credits",
+          "balance": "credits"
+        }
+      ]
+    },
+    {
+      "id": "reapi",
+      "name": "ReAPI",
+      "topupUrl": "https://reapi.ai/pricing",
+      "request": {
+        "method": "GET",
+        "url": "https://reapi.ai/api/v1/balance"
+      },
+      "auth": {
+        "in": "header",
+        "name": "Authorization",
+        "format": "Bearer {key}"
+      },
+      "pools": [
+        {
+          "creditType": "credits",
+          "label": "Credits",
+          "unit": "credits",
+          "balance": "balance"
+        }
+      ]
+    },
+    {
+      "id": "mobiusengine-jobs",
+      "name": "Arihaan Jobs",
+      "topupUrl": "https://jobs.arihaan.ai",
+      "request": {
+        "method": "GET",
+        "url": "https://jobs-api.arihaan.ai/v1/usage"
+      },
+      "auth": {
+        "in": "header",
+        "name": "Authorization",
+        "format": "Bearer {key}"
+      },
+      "pools": [
+        {
+          "creditType": "daily_tokens",
+          "label": "Daily tokens",
+          "unit": "credits",
+          "limit": "daily_token_limit",
+          "used": "tokens_today"
+        }
+      ]
+    },
+    {
+      "id": "eodhd",
+      "name": "EODHD",
+      "topupUrl": "https://eodhd.com/pricing",
+      "request": {
+        "method": "GET",
+        "url": "https://eodhd.com/api/user?fmt=json"
+      },
+      "auth": {
+        "in": "query",
+        "name": "api_token"
+      },
+      "pools": [
+        {
+          "creditType": "daily",
+          "label": "Daily API calls",
+          "unit": "credits",
+          "limit": "dailyRateLimit",
+          "used": "apiRequests"
+        },
+        {
+          "creditType": "extra",
+          "label": "Extra API calls",
+          "unit": "credits",
+          "balance": "extraLimit"
+        }
+      ]
+    },
+    {
+      "id": "x",
+      "name": "X",
+      "topupUrl": "https://console.x.com",
+      "request": {
+        "method": "GET",
+        "url": "https://api.x.com/2/usage/tweets?usage.fields=project_cap,project_usage,cap_reset_day"
+      },
+      "auth": {
+        "in": "header",
+        "name": "Authorization",
+        "format": "Bearer {key}"
+      },
+      "pools": [
+        {
+          "creditType": "post_reads",
+          "label": "Post reads",
+          "unit": "credits",
+          "limit": "data.project_cap",
+          "used": "data.project_usage"
+        }
+      ]
+    },
+    {
+      "id": "datagma",
+      "name": "Datagma",
+      "topupUrl": "https://datagma.com/pricing",
+      "request": {
+        "method": "GET",
+        "url": "https://gateway.datagma.net/api/ingress/v1/mine"
+      },
+      "auth": {
+        "in": "query",
+        "name": "apiId"
+      },
+      "pools": [
+        {
+          "creditType": "credits",
+          "label": "Credits",
+          "unit": "credits",
+          "balance": "currentCredit"
+        }
+      ]
+    },
+    {
+      "id": "theirstack",
+      "name": "TheirStack",
+      "topupUrl": "https://theirstack.com/en/pricing",
+      "request": {
+        "method": "GET",
+        "url": "https://api.theirstack.com/v0/billing/credit-balance"
+      },
+      "auth": {
+        "in": "header",
+        "name": "Authorization",
+        "format": "Bearer {key}"
+      },
+      "pools": [
+        {
+          "creditType": "api_credits",
+          "label": "API credits",
+          "unit": "credits",
+          "balance": "api_credits"
+        }
+      ]
+    },
+    {
+      "id": "piapi",
+      "name": "PiAPI",
+      "topupUrl": "https://piapi.ai/pricing",
+      "request": {
+        "method": "GET",
+        "url": "https://api.piapi.ai/account/info"
+      },
+      "auth": {
+        "in": "header",
+        "name": "x-api-key"
+      },
+      "pools": [
+        {
+          "creditType": "wallet",
+          "label": "Balance",
+          "unit": "usd",
+          "balance": "data.equivalent_in_usd"
+        }
+      ]
+    },
+    {
+      "id": "fishaudio",
+      "name": "Fish Audio",
+      "topupUrl": "https://fish.audio",
+      "request": {
+        "method": "GET",
+        "url": "https://api.fish.audio/wallet/self/api-credit"
+      },
+      "auth": {
+        "in": "header",
+        "name": "Authorization",
+        "format": "Bearer {key}"
+      },
+      "pools": [
+        {
+          "creditType": "wallet",
+          "label": "API credit",
+          "unit": "usd",
+          "balance": "credit"
+        }
+      ]
+    },
+    {
+      "id": "sumble",
+      "name": "Sumble",
+      "topupUrl": "https://sumble.com/pricing",
+      "request": {
+        "method": "POST",
+        "url": "https://api.sumble.com/v9/technologies/find",
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": "{\"query\":\"quotacanary-balance-check-zzqx\"}"
+      },
+      "auth": {
+        "in": "header",
+        "name": "Authorization",
+        "format": "Bearer {key}"
+      },
+      "pools": [
+        {
+          "creditType": "credits",
+          "label": "Credits",
+          "unit": "credits",
+          "balance": "credits_remaining"
+        }
+      ]
     }
   ]
 }

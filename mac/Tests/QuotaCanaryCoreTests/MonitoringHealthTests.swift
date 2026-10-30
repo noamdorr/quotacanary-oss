@@ -261,7 +261,8 @@ private final class HealthHarness {
       { try Mangools.parseRequests($0); return [] }, Mangools.parseLimits, Semrush.parse,
       Ahrefs.parse, { try Diffbot.parse($0) }, NetNut.parse,
       ContactOut.parse, Meltly.parse, DeepSeek.parse, Firecrawl.parse,
-      { _ = try Apify.parseMe($0); return [] }, { try Apify.parseLimits($0, included: 1) }, YouCom.parse]
+      { _ = try Apify.parseMe($0); return [] }, { try Apify.parseLimits($0, included: 1) }, YouCom.parse,
+      HLRLookup.parse, Icypeas.parse, TheCompaniesAPI.parse, Treg.parse]
     for parse in parsers {
       #expect(throws: ProviderReadError.rateLimited) { try parse(response) }
     }

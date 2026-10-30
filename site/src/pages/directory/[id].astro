@@ -16,6 +16,11 @@ const description =
   tool.description ??
   `${toolSubheading(tool.name)}. QuotaCanary watches your ${tool.name} credits and warns you before they run out.`
 
+// Empty or whitespace-only text (tools added without instructions) falls back to a generic line,
+// kept here rather than in the catalog so its shape stays shared with the Mac app (QUO-378);
+// the Keychain line stays on every page.
+const keyInstructions = tool.key_instructions?.trim() || `Your ${tool.name} API key.`
+
 const topupUrl = withUtm(tool.topup_url, { medium: "tool-page" })
 const websiteUrl = toolWebsiteUrl(tool)
 const websiteLink = withUtm(websiteUrl, { medium: "tool-page", campaign: "website" })
@@ -43,7 +48,7 @@ const jsonLd = JSON.stringify({
     </header>
 
     <p class="tool-sub">{toolSubheading(tool.name)}</p>
-    {tool.description && <p class="page-lead" style="margin-top:10px">{tool.description}</p>}
+    {tool.description && <p class="page-lead tool-lead">{tool.description}</p>}
 
     {
       tool.pools && tool.pools.length > 1 && (
@@ -59,10 +64,9 @@ const jsonLd = JSON.stringify({
     }
 
     <section class="tool-section">
-      <p class="eyebrow">Balance warnings</p>
-      <p>
-        Track your {tool.name} credits from your Mac’s menu bar. Get a warning when they’re running low.
-      </p>
+      <p class="eyebrow">Key you’ll need</p>
+      <p>{keyInstructions}</p>
+      <p class="tool-key-where">Stored in your Mac’s Keychain. Sent only to {tool.name}.</p>
     </section>
 
     <div class="tool-actions">
@@ -79,6 +83,7 @@ const jsonLd = JSON.stringify({
         tool.topup_url && (
           <a class="button" href={topupUrl} target="_blank" rel="noopener noreferrer">
             Top up
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6M20 4 10 14M18 13v6H5V6h6" /></svg>
           </a>
         )
       }

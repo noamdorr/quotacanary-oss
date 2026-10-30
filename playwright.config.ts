@@ -4,9 +4,8 @@ import { APP_ORIGIN } from "./e2e/fixtures/stack"
 // Browser smoke tests for the critical user journey. They need the local
 // Supabase stack (`supabase start`) and a built app; see e2e/README.md.
 //
-// APP_ONLY is deliberately NOT set here. The suite asserts the marketing-vs-app
-// hostname split, which that flag switches off, so the app under test has to run
-// in its real two-surface configuration.
+// Next serves the self-host app on every hostname; APP_ONLY is a compatibility
+// no-op. Routing checks cover same-origin behavior on named and IP hosts.
 export default defineConfig({
   testDir: "./e2e",
   testMatch: /.*\.spec\.ts/,

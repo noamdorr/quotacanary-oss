@@ -2,17 +2,15 @@ import { existsSync, readFileSync } from "node:fs"
 import { resolve } from "node:path"
 import { describe, expect, it } from "vitest"
 
-// QUO-20: the security model is a public marketing page, because people
+// QUO-20: the security model is a public self-host page, because people
 // evaluate it BEFORE they have an account to log into. Vitest runs in node with
 // no DOM here, so the page's placement and the links into it are pinned as a
 // source contract (see credential-field-hardening-source.test.ts).
 const read = (path: string) =>
   readFileSync(resolve(process.cwd(), path), "utf8")
 
-const securityPage = read("src/app/(marketing)/security/page.tsx")
-const robots = read("src/app/robots.ts")
-const sitemap = read("src/app/sitemap.ts")
-const footer = read("src/components/marketing/MarketingFooter.tsx")
+const securityPage = read("src/app/(public)/security/page.tsx")
+const footer = read("src/components/public/PublicFooter.tsx")
 
 const CREDENTIAL_SURFACES = [
   "src/components/connect/ConnectModal.tsx",
@@ -22,11 +20,9 @@ const CREDENTIAL_SURFACES = [
 ]
 
 describe("public security page", () => {
-  it("lives in the (marketing) route group, not behind the dashboard's auth gate", () => {
+  it("lives in the (public) route group, not behind the dashboard's auth gate", () => {
     expect(
-      existsSync(
-        resolve(process.cwd(), "src/app/(marketing)/security/page.tsx")
-      )
+      existsSync(resolve(process.cwd(), "src/app/(public)/security/page.tsx"))
     ).toBe(true)
     expect(
       existsSync(
@@ -35,12 +31,7 @@ describe("public security page", () => {
     ).toBe(false)
   })
 
-  it("is crawlable and in the sitemap", () => {
-    expect(robots).not.toContain('"/security"')
-    expect(sitemap).toContain("${SITE}/security")
-  })
-
-  it("is reachable from the marketing footer", () => {
+  it("is reachable from the public footer", () => {
     expect(footer).toContain('{ label: "Security", href: "/security" }')
   })
 
@@ -70,8 +61,6 @@ describe("public security page", () => {
   it("does not claim the smallest possible scope every time", () => {
     // Many vendors only issue one all-or-nothing key, so the old FAQ line
     // ("Read-only on the smallest possible scope, every time") overclaimed.
-    const faq = read("src/components/marketing/Faq.tsx")
-    expect(faq).not.toContain("smallest possible scope")
     expect(securityPage).not.toContain("smallest possible scope")
   })
 })

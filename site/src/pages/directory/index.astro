@@ -1,6 +1,6 @@
 ---
 import Layout from "../../layouts/Layout.astro"
-import { TOOL_REQUEST_MAILTO } from "../../lib/copy"
+import { DIRECTORY, TOOL_REQUEST_MAILTO, TOOL_SUBMIT_URL } from "../../lib/copy"
 import { CATEGORY_ORDER, TOOLS, categoryLabel } from "../../lib/tools"
 
 // Copy carried over from the Next ToolsDirectory component (live on master).
@@ -18,8 +18,11 @@ const categories = CATEGORY_ORDER.filter((category) => present.has(category))
       <p class="eyebrow">Tool directory</p>
       <h1 id="directory-title">Every tool QuotaCanary watches.</h1>
       <p class="page-lead">
-        Click any one to see how to check its balance and what it bills you on. This is the whole
-        list; if yours isn't on it, <a href={TOOL_REQUEST_MAILTO}>ask for it</a>.
+        Pick a tool to see what it bills on and which key it needs.
+        Not here? <a href={TOOL_REQUEST_MAILTO}>Ask for it</a>.
+      </p>
+      <p class="tools-foot directory-submit">
+        {DIRECTORY.submitLead} <a href={TOOL_SUBMIT_URL} target="_blank" rel="noopener">{DIRECTORY.submitLink}</a>.
       </p>
     </div>
 
@@ -54,15 +57,15 @@ const categories = CATEGORY_ORDER.filter((category) => present.has(category))
             data-name={tool.name.toLowerCase()}
             data-category={tool.category ?? ""}
           >
-            <img src={tool.logo_url} alt="" width="32" height="32" loading="lazy" />
+            <img src={tool.logo_url} alt="" width="32" height="32" loading="lazy" decoding="async" />
             <span>{tool.name}</span>
           </a>
         ))
       }
     </div>
     <p class="directory-empty" data-directory-empty hidden>
-      Nothing by that name. Try fewer letters, or <a href={TOOL_REQUEST_MAILTO}>ask for it</a> and
-      we'll take a look.
+      We don’t watch that one yet. <a href={TOOL_REQUEST_MAILTO}>Ask for it</a> and we’ll see if it
+      has a balance endpoint.
     </p>
   </section>
 </Layout>

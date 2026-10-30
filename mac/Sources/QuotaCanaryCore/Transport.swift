@@ -46,7 +46,7 @@ public struct HTTPRequest: Equatable, Sendable {
 }
 
 /// The only way provider code reaches the network. Throws on transport failure.
-public protocol ProviderTransport: AnyObject {
+public protocol ProviderTransport: AnyObject, Sendable {
   func send(_ request: HTTPRequest) async throws -> HTTPResponse
 }
 
@@ -69,7 +69,8 @@ public extension ProviderTransport {
   }
 }
 
-public final class URLSessionTransport: ProviderTransport {
+/// `@unchecked`: the only mutable state, the session cache, is behind `lock`.
+public final class URLSessionTransport: ProviderTransport, @unchecked Sendable {
   private let session: URLSession
   private let defaultTimeout: TimeInterval
   /// One extra session per distinct non-default timeout. The resource timeout
@@ -114,7 +115,9 @@ public final class URLSessionTransport: ProviderTransport {
     for (name, value) in headers {
       request.setValue(value, forHTTPHeaderField: name)
     }
-    let (data, response) = try await session.data(for: request)
+    let redirects = ProviderRedirectPolicy(origin: request.url!)
+    let (data, response) = try await session.data(for: request, delegate: redirects)
+    guard !redirects.rejected else { throw TransportFailure() }
     guard let http = response as? HTTPURLResponse else { throw TransportFailure() }
     var responseHeaders: [String: String] = [:]
     for (name, value) in http.allHeaderFields {
@@ -124,9 +127,51 @@ public final class URLSessionTransport: ProviderTransport {
   }
 }
 
+/// A delegate belongs to one request, including all of its redirect hops. Never
+/// forward headers, URL credentials or bodies outside that request's origin.
+final class ProviderRedirectPolicy: NSObject, URLSessionTaskDelegate, @unchecked Sendable {
+  private let origin: URL
+  private let lock = NSLock()
+  private var didReject = false
+
+  init(origin: URL) { self.origin = origin }
+
+  var rejected: Bool {
+    lock.lock()
+    defer { lock.unlock() }
+    return didReject
+  }
+
+  static func allows(from origin: URL, to destination: URL) -> Bool {
+    guard let scheme = origin.scheme?.lowercased(),
+          scheme == "https" || scheme == "http",
+          destination.scheme?.lowercased() == scheme,
+          let host = origin.host?.lowercased(),
+          destination.host?.lowercased() == host else { return false }
+    let defaultPort = scheme == "https" ? 443 : 80
+    return (origin.port ?? defaultPort) == (destination.port ?? defaultPort)
+  }
+
+  func urlSession(
+    _ session: URLSession, task: URLSessionTask,
+    willPerformHTTPRedirection response: HTTPURLResponse, newRequest request: URLRequest,
+    completionHandler: @escaping (URLRequest?) -> Void
+  ) {
+    guard let url = request.url, Self.allows(from: origin, to: url) else {
+      lock.lock()
+      didReject = true
+      lock.unlock()
+      completionHandler(nil)
+      return
+    }
+    completionHandler(request)
+  }
+}
+
 /// Replays scripted steps in order, then repeats the last one.
 /// Used by tests and by the synthetic UI mode.
-public final class ScriptedTransport: ProviderTransport {
+/// `@unchecked`: a test double, scripted and read by one test at a time.
+public final class ScriptedTransport: ProviderTransport, @unchecked Sendable {
   public enum Step: Sendable {
     case respond(status: Int, body: String, headers: [String: String] = [:])
     case fail

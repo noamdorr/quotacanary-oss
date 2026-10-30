@@ -1,4 +1,4 @@
-import Combine
+import Observation
 import Foundation
 
 // Low, critical and empty notifications (QUO-131). The decision is pure
@@ -51,10 +51,11 @@ public enum AlertDecider {
   ///   severity (a jump straight to empty is one empty alert, not three);
   /// - same or lower warning: nothing, the mark stays (no repeats, no
   ///   demotion while still warning);
-  /// - healthy (above low): nothing, and the mark clears, re-arming the pool;
+  /// - healthy (above low) or muted: nothing, and the mark clears, re-arming
+  ///   the pool, so the reading that ends a mute alerts as a new incident;
   /// - unmonitored, unavailable (not in plan) or unknown: nothing, mark kept.
   public static func decide(mark: AlertSeverity, row: PoolRow) -> AlertDecision {
-    if row.status == .healthy { return AlertDecision(notify: nil, mark: .none) }
+    if row.status == .healthy || row.muted { return AlertDecision(notify: nil, mark: .none) }
     guard row.settings.monitored, let severity = AlertSeverity(status: row.status) else {
       return AlertDecision(notify: nil, mark: mark)
     }
@@ -272,14 +273,16 @@ public enum NotificationControl: Equatable, Sendable {
 /// The "Turn on alerts?" row and the Settings section. Asking is explicit;
 /// a denial only changes what Settings says, never the connections.
 @MainActor
-public final class NotificationSettings: ObservableObject {
-  @Published public private(set) var permission: NotificationPermission = .notAsked
-  @Published public private(set) var promptAnswered: Bool
-  @Published public private(set) var promptError: String?
-  @Published public private(set) var testResult: NotificationTestResult?
+@Observable
+public final class NotificationSettings {
+  public private(set) var permission: NotificationPermission = .notAsked
+  public private(set) var promptAnswered: Bool
+  public private(set) var promptError: String?
+  public private(set) var testResult: NotificationTestResult?
 
   private let center: NotificationCenterLike
   private let preferences: PreferencesStore
+  private var setupGeneration = 0
 
   public init(center: NotificationCenterLike, preferences: PreferencesStore) {
     self.center = center
@@ -289,7 +292,19 @@ public final class NotificationSettings: ObservableObject {
 
   /// Re-reads macOS (the user may have changed it in System Settings).
   public func reload() async {
-    permission = await center.status()
+    let generation = setupGeneration
+    let current = await center.status()
+    guard generation == setupGeneration else { return }
+    permission = current
+  }
+
+  /// Forget app choices, then read actual OS permission before offering setup.
+  public func resetAfterErase() {
+    setupGeneration += 1
+    promptAnswered = false
+    promptError = nil
+    testResult = nil
+    permission = .unavailable
   }
 
   /// Ask once, after something is connected, unless macOS already knows.
@@ -309,8 +324,11 @@ public final class NotificationSettings: ObservableObject {
   /// Asks macOS and returns what it now says.
   @discardableResult
   public func request() async -> NotificationPermission {
+    let generation = setupGeneration
     _ = await center.requestPermission()
-    permission = await center.status()
+    let current = await center.status()
+    guard generation == setupGeneration else { return permission }
+    permission = current
     return permission
   }
 
@@ -319,9 +337,11 @@ public final class NotificationSettings: ObservableObject {
   /// when notifications are now allowed.
   @discardableResult
   public func answerPrompt(enable: Bool) async -> Bool {
+    let generation = setupGeneration
     promptError = nil
     if enable {
       let result = await request()
+      guard generation == setupGeneration else { return false }
       if result == .notAsked || result == .unavailable {
         promptError = result == .unavailable ? Copy.alertsUnavailable : Copy.alertsPromptFailed
         return false

@@ -141,7 +141,7 @@ function fakeSupabase(
 }
 
 function pollRequest() {
-  return new NextRequest("http://app.quotacanary.com/api/poll", {
+  return new NextRequest("http://selfhost.example/api/poll", {
     method: "POST",
     headers: { authorization: `Bearer ${SECRET}` },
   })
@@ -467,7 +467,7 @@ describe("POST /api/poll", () => {
 
   it("rejects a request without the poll secret", async () => {
     const res = await POST(
-      new NextRequest("http://app.quotacanary.com/api/poll", { method: "POST" })
+      new NextRequest("http://selfhost.example/api/poll", { method: "POST" })
     )
 
     expect(res.status).toBe(401)

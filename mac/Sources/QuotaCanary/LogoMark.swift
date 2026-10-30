@@ -10,7 +10,9 @@ enum LogoMark {
 
   /// The mark in source units (y down): head circle at (46, 48) radius 40,
   /// transparent opening radius 20.4, beak tip at (94, 73).
-  private static let source: NSBezierPath = {
+  /// `nonisolated(unsafe)`: never mutated after this initializer; `path(in:)`
+  /// copies it, and NSImage may call that from any thread.
+  private nonisolated(unsafe) static let source: NSBezierPath = {
     let path = NSBezierPath()
     path.windingRule = .evenOdd
     let center = NSPoint(x: 46, y: 48)

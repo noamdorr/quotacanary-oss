@@ -67,6 +67,12 @@ else
 fi
 if [ "$SIG" = "adhoc" ]; then
   echo "Package kind:  DEVELOPMENT (ad hoc). Not Developer ID signed, not notarized."
+elif codesign -dvv "$APP" 2>&1 | grep -q "^Authority=Developer ID Application"; then
+  if xcrun stapler validate "$APP" >/dev/null 2>&1; then
+    echo "Package kind:  Developer ID, notarized and stapled."
+  else
+    echo "Package kind:  Developer ID signed, not notarized or stapled yet (scripts/notarize.sh)."
+  fi
 fi
 # Gatekeeper's verdict is informational: an ad hoc build is expected to be rejected.
 echo "Gatekeeper:    $(spctl --assess --type execute "$APP" 2>&1 | head -1 || true)"

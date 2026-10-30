@@ -40,7 +40,7 @@ enum ManageConnectionWindow {
 
 /// Rename, replace the key, or remove one connection.
 struct ManageConnectionView: View {
-  @ObservedObject var model: AppModel
+  var model: AppModel
   let connectionID: String
   @State private var nameDraft: String
   @State private var nameResult: Result<Void, Message>?

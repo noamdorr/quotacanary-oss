@@ -14,7 +14,6 @@ describe("CSP nonce wiring", () => {
   const proxy = read("src/proxy.ts")
   const layout = read("src/app/layout.tsx")
   const plausible = read("src/components/analytics/PlausibleAnalytics.tsx")
-  const toolPage = read("src/app/(marketing)/directory/[id]/page.tsx")
 
   it("the proxy mints the nonce and sets the policy on both request and response", () => {
     expect(proxy).toContain("createNonce()")
@@ -46,21 +45,5 @@ describe("CSP nonce wiring", () => {
 
   it("both Plausible script tags carry the nonce", () => {
     expect(plausible.match(/nonce=\{nonce\}/g)).toHaveLength(2)
-  })
-
-  it("the directory JSON-LD carries the nonce", () => {
-    expect(toolPage).toContain(
-      '<script type="application/ld+json" nonce={nonce}>'
-    )
-  })
-
-  it("the directory pages no longer claim a prerender the nonce rules out", () => {
-    expect(toolPage).not.toContain("generateStaticParams")
-    expect(toolPage).not.toContain("export const revalidate")
-    expect(read("src/app/(marketing)/directory/page.tsx")).not.toContain(
-      "export const revalidate"
-    )
-    // The hourly freshness moved to the data layer instead.
-    expect(read("src/lib/db/tools.ts")).toContain("unstable_cache")
   })
 })

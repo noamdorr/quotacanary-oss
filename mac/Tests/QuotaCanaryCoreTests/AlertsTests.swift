@@ -39,13 +39,15 @@ private final class AlertHarness {
   let store = InMemoryConnectionStore()
   let center: FakeNotificationCenter
   let credentials = InMemoryCredentialStore()
+  let transport = ScriptedTransport([ok])
   private(set) var service: MonitoringService
   private(set) var alerts: AlertEvaluator
 
   init(_ connections: [Connection], permission: NotificationPermission = .allowed) throws {
     center = FakeNotificationCenter(permission: permission)
     try store.save(connections)
-    service = MonitoringService(credentials: credentials, store: store, transport: ScriptedTransport([ok]))
+    for connection in connections { try credentials.save(alertKey, ref: connection.credentialRef) }
+    service = MonitoringService(credentials: credentials, store: store, transport: transport)
     try service.restore()
     alerts = AlertEvaluator(service: service, center: center)
   }
@@ -64,7 +66,7 @@ private final class AlertHarness {
   }
 
   func relaunch() throws {
-    service = MonitoringService(credentials: credentials, store: store, transport: ScriptedTransport([ok]))
+    service = MonitoringService(credentials: credentials, store: store, transport: transport)
     try service.restore()
     alerts = AlertEvaluator(service: service, center: center)
   }
@@ -74,6 +76,19 @@ private final class AlertHarness {
   }
 
   var bodies: [String] { center.delivered.map(\.body) }
+
+  func refreshOpenRouter(_ balance: Double, id: String = "or-1") async throws {
+    transport.script([.respond(status: 200, body: #"{"data":{"total_credits":\#(balance),"total_usage":0}}"#)])
+    try await service.refresh(id: id)
+  }
+}
+
+private func openRouterConnection(id: String = "or-1", balance: Double = 0) -> Connection {
+  Connection(
+    id: id, provider: .openrouter, name: "OpenRouter", credentialRef: id,
+    lastReading: Reading(balances: [PoolBalance(pool: OpenRouter.creditsPool, balance: balance)], checkedAt: t0),
+    poolSettings: ["credits": PoolSettings(monitored: true, low: 10, critical: 3)]
+  )
 }
 
 @Suite struct AlertDeciderTests {
@@ -149,7 +164,7 @@ private final class AlertHarness {
       lastReading: Reading(balances: [PoolBalance(pool: OpenRouter.creditsPool, balance: 4.2)], checkedAt: t0)
     )
     let critical = AlertContent.make(connection: openRouter, row: openRouter.poolRows[0], severity: .critical)
-    #expect(critical.body == "Credits critical: $4.20 left")
+    #expect(critical.body == "Credits critical: \(Format.balance(4.2, unit: .usd)) left")
 
     for text in [low.title, low.body, empty.body, critical.body] {
       #expect(!text.contains("\u{2014}"))
@@ -313,6 +328,110 @@ private final class AlertHarness {
     #expect(h.mark() == .critical)
     await h.alerts.evaluate(["hu-1"])
     #expect(h.center.deliverCalls == 1)
+  }
+
+  @Test func lateEmptyCompletionCannotMuteNextCycle() async throws {
+    let h = try AlertHarness([openRouterConnection()])
+    h.center.holdDeliveries = true
+    let old = Task { await h.alerts.evaluate() }
+    await yieldUntil { h.center.heldCount == 1 }
+    try await h.refreshOpenRouter(100)
+    await h.alerts.evaluate()
+    h.center.holdDeliveries = false
+    h.center.releaseHeld()
+    await old.value
+    #expect(h.mark("credits", id: "or-1") == .none)
+    try await h.refreshOpenRouter(0)
+    await h.alerts.evaluate()
+    #expect(h.center.delivered.count == 2)
+    #expect(h.mark("credits", id: "or-1") == .empty)
+    try h.relaunch()
+    await h.alerts.evaluate()
+    #expect(h.center.delivered.count == 2)
+  }
+
+  @Test func newCycleCanNotifyBeforeOldCompletion() async throws {
+    let h = try AlertHarness([openRouterConnection()])
+    h.center.holdDeliveries = true
+    let old = Task { await h.alerts.evaluate() }
+    await yieldUntil { h.center.heldCount == 1 }
+    try await h.refreshOpenRouter(100)
+    await h.alerts.evaluate()
+    try await h.refreshOpenRouter(0)
+    let fresh = Task { await h.alerts.evaluate() }
+    await yieldUntil { h.center.heldCount == 2 }
+    h.center.holdDeliveries = false
+    h.center.releaseHeld()
+    await old.value
+    await fresh.value
+    #expect(h.center.delivered.count == 2)
+    #expect(h.mark("credits", id: "or-1") == .empty)
+  }
+
+  @Test func lateLowerSeverityDoesNotDemoteEscalation() async throws {
+    let h = try AlertHarness([openRouterConnection(balance: 8)])
+    h.center.holdDeliveries = true
+    let low = Task { await h.alerts.evaluate() }
+    await yieldUntil { h.center.heldCount == 1 }
+    try await h.refreshOpenRouter(0)
+    let empty = Task { await h.alerts.evaluate() }
+    await yieldUntil { h.center.heldCount == 2 }
+    h.center.releaseHeld()
+    await low.value
+    await empty.value
+    #expect(h.center.delivered.count == 2)
+    #expect(h.mark("credits", id: "or-1") == .empty)
+  }
+
+  @Test func lateCompletionCannotMarkRemovedOrUnmonitoredPool() async throws {
+    let removed = try AlertHarness([openRouterConnection()])
+    removed.center.holdDeliveries = true
+    let oldRemoved = Task { await removed.alerts.evaluate() }
+    await yieldUntil { removed.center.heldCount == 1 }
+    try removed.service.remove(id: "or-1")
+    removed.center.releaseHeld()
+    await oldRemoved.value
+    #expect(removed.service.connections.isEmpty)
+
+    let muted = try AlertHarness([openRouterConnection()])
+    muted.center.holdDeliveries = true
+    let oldMuted = Task { await muted.alerts.evaluate() }
+    await yieldUntil { muted.center.heldCount == 1 }
+    try muted.service.updatePoolSettings([PoolKey(connectionID: "or-1", creditType: "credits"):
+      PoolSettings(monitored: false, low: 10, critical: 3)])
+    muted.center.releaseHeld()
+    await oldMuted.value
+    #expect(muted.mark("credits", id: "or-1") == .none)
+  }
+
+  @Test func reenabledPoolDoesNotAcceptOldCompletion() async throws {
+    let h = try AlertHarness([openRouterConnection()])
+    let key = PoolKey(connectionID: "or-1", creditType: "credits")
+    h.center.holdDeliveries = true
+    let old = Task { await h.alerts.evaluate() }
+    await yieldUntil { h.center.heldCount == 1 }
+    try h.service.updatePoolSettings([key: PoolSettings(monitored: false, low: 10, critical: 3)])
+    try h.service.updatePoolSettings([key: PoolSettings(monitored: true, low: 10, critical: 3)])
+    h.center.holdDeliveries = false
+    h.center.releaseHeld()
+    await old.value
+    #expect(h.mark("credits", id: "or-1") == .none)
+    await h.alerts.evaluate()
+    #expect(h.center.delivered.count == 2)
+  }
+
+  @Test func staleFailureCannotRestoreRecoveredProblem() async throws {
+    let h = try AlertHarness([openRouterConnection()])
+    h.center.holdDeliveries = true
+    h.center.failDeliveries = true
+    let old = Task { await h.alerts.evaluate() }
+    await yieldUntil { h.center.heldCount == 1 }
+    try await h.refreshOpenRouter(100)
+    await h.alerts.evaluate()
+    h.center.releaseHeld()
+    await old.value
+    #expect(h.alerts.problem == nil)
+    #expect(h.mark("credits", id: "or-1") == .none)
   }
 
   @Test func scheduledEvaluationsSettle() async throws {

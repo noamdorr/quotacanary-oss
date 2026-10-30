@@ -1,5 +1,4 @@
 import AppKit
-import Combine
 import QuotaCanaryCore
 import SwiftUI
 
@@ -10,13 +9,13 @@ enum SettingsWindow {
   private static var window: SettingsNSWindow?
   /// The last pane, kept across close and reopen for this session (QUO-275).
   static let navigation = SettingsNavigation()
-  private static var titleUpdates: AnyCancellable?
+  private static var titleUpdates: Task<Void, Never>?
   /// Found by this, not by title: the title follows the pane.
   static let identifier = NSUserInterfaceItemIdentifier("QuotaCanarySettings")
 
   static func show(model: AppModel) {
     if let window, window.isVisible {
-      NSApp.activate(ignoringOtherApps: true)
+      NSApp.activate()
       window.makeKeyAndOrderFront(nil)
       return
     }
@@ -26,7 +25,10 @@ enum SettingsWindow {
     )
     window.identifier = identifier
     window.title = navigation.windowTitle
-    titleUpdates = navigation.$pane.sink { [weak window] pane in window?.title = pane.title }
+    titleUpdates?.cancel()
+    titleUpdates = Task { [weak window] in
+      for await title in Observations({ navigation.windowTitle }) { window?.title = title }
+    }
     window.isReleasedWhenClosed = false
     // The window owns its size. A ScrollView's intrinsic height can be zero;
     // installing a default hosting controller otherwise collapses the content.
@@ -45,7 +47,7 @@ enum SettingsWindow {
     window.setContentSize(contentSize)
     window.center()
     self.window = window
-    NSApp.activate(ignoringOtherApps: true)
+    NSApp.activate()
     window.makeKeyAndOrderFront(nil)
   }
 }
@@ -75,10 +77,10 @@ private final class SettingsNSWindow: NSWindow {
 
 /// Global preferences and balance warnings have independent scroll regions.
 struct SettingsView: View {
-  @ObservedObject var model: AppModel
-  @ObservedObject private var navigation: SettingsNavigation
+  var model: AppModel
+  @Bindable private var navigation: SettingsNavigation
   private let query: String
-  @StateObject private var store: DraftStore
+  private let store: DraftStore
   private let onClose: () -> Void
 
   init(
@@ -90,7 +92,7 @@ struct SettingsView: View {
     let navigation = navigation ?? SettingsNavigation()
     if showBalances || !drafts.isEmpty { navigation.pane = .balanceWarnings }
     self.navigation = navigation
-    _store = StateObject(wrappedValue: store ?? DraftStore(drafts))
+    self.store = store ?? DraftStore(drafts)
     self.query = query
     self.onClose = onClose
   }
@@ -142,8 +144,8 @@ struct SettingsView: View {
 /// Save writes only edited pools, preserving changes made in other surfaces.
 /// Drafts live in the window's `DraftStore`, so they outlive this view (QUO-263).
 struct PoolThresholdSettings: View {
-  @ObservedObject var model: AppModel
-  @ObservedObject var store: DraftStore
+  var model: AppModel
+  var store: DraftStore
   let connectionID: String?
   let selectedBalance: PoolKey?
   @State private var saveError: String?
@@ -152,6 +154,7 @@ struct PoolThresholdSettings: View {
   /// Set by the "needs attention" summary: scroll to and focus this balance's field.
   @State private var revealed: PoolKey?
   @State private var revealToken = 0
+  @Environment(\.accessibilityReduceMotion) private var reduceMotion
   private let scrollable: Bool
 
   init(
@@ -183,26 +186,29 @@ struct PoolThresholdSettings: View {
               .padding(.vertical, 4)
           }
           Divider()
-          saveRow(proxy)
+          saveRow
         }
         .padding(20)
-        .onChange(of: store.attention) { _, key in if let key { reveal(key, proxy) } }
+        .onChange(of: store.attention) { _, key in if let key { reveal(key) } }
+        // After the list re-renders with the cleared search, so the row exists.
+        .onChange(of: revealToken) {
+          withAnimation(reduceMotion ? nil : .default) { proxy.scrollTo(revealed, anchor: .center) }
+        }
       }
     } else {
       VStack(alignment: .leading, spacing: 14) {
         if selectedBalance == nil { intro }
         editors
-        saveRow(nil)
+        saveRow
       }
     }
   }
 
   /// Clears a search that hides the balance, scrolls to it and focuses Warn below.
-  private func reveal(_ key: PoolKey, _ proxy: ScrollViewProxy?) {
+  private func reveal(_ key: PoolKey) {
     query = ""
     revealed = key
     revealToken += 1
-    DispatchQueue.main.async { withAnimation { proxy?.scrollTo(key, anchor: .center) } }
   }
 
   private var intro: some View {
@@ -242,13 +248,13 @@ struct PoolThresholdSettings: View {
     }
   }
 
-  private func saveRow(_ proxy: ScrollViewProxy?) -> some View {
+  private var saveRow: some View {
     HStack {
       if let error = saveError ?? store.closeError {
         ErrorLine(message: error)
       } else if let first = store.drafts.firstInvalid(savedSettings) {
         // Search can hide the invalid editor; this stays beside the disabled Save.
-        Button { reveal(first, proxy) } label: {
+        Button { reveal(first) } label: {
           Label(Copy.balancesNeedAttention(invalidCount), systemImage: "exclamationmark.triangle.fill")
             .font(.caption.weight(.medium))
             .foregroundStyle(.red)
@@ -409,7 +415,7 @@ private struct Hint: View {
 
 /// Applies immediately (not via Save): it is an OS registration, not a draft.
 struct StartAtLoginSection: View {
-  @ObservedObject var login: StartAtLogin
+  var login: StartAtLogin
 
   var body: some View {
     VStack(alignment: .leading, spacing: 8) {
@@ -432,8 +438,8 @@ struct StartAtLoginSection: View {
 /// Permission status, a way to ask if macOS never asked, and a test
 /// notification whose result says what macOS did with it, never that it was seen.
 struct AlertsSettingsSection: View {
-  @ObservedObject var model: AppModel
-  @ObservedObject var notifications: NotificationSettings
+  var model: AppModel
+  var notifications: NotificationSettings
   @State private var working = false
 
   var body: some View {
@@ -483,7 +489,7 @@ struct AlertsSettingsSection: View {
 /// Opt-in toggle (applies at once), a manual check that always works, the
 /// outcome in one line, and Install / Later once a verified update is waiting.
 struct UpdatesSettingsSection: View {
-  @ObservedObject var updater: Updater
+  var updater: Updater
 
   var body: some View {
     VStack(alignment: .leading, spacing: 8) {
@@ -531,7 +537,7 @@ struct UpdatesSettingsSection: View {
 
 /// Erase everything from this Mac (QUO-297). Inline confirm, as removing a connection.
 struct EraseSettingsSection: View {
-  @ObservedObject var model: AppModel
+  var model: AppModel
   var confirming = false
   let onErased: () -> Void
   @State private var isConfirming: Bool

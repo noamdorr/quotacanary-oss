@@ -10,7 +10,7 @@ import { buildSignatureHeader } from "./signing"
 // run it, and point it at a real header from buildSignatureHeader. If the two
 // ever disagree, this test fails rather than every receiver in the wild.
 const page = readFileSync(
-  resolve(process.cwd(), "src/app/(marketing)/docs/page.tsx"),
+  resolve(process.cwd(), "src/app/(public)/docs/page.tsx"),
   "utf8"
 )
 

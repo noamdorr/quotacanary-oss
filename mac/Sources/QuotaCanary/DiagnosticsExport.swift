@@ -24,9 +24,10 @@ enum AppVersionInfo {
 /// provider refresh, and never touches the Keychain, disk state, telemetry, or a crash/email/
 /// support path. The user decides afterward whether and how to share the file.
 @MainActor
-final class DiagnosticsExportModel: ObservableObject {
-  @Published private(set) var resultMessage: String?
-  @Published private(set) var resultIsError = false
+@Observable
+final class DiagnosticsExportModel {
+  private(set) var resultMessage: String?
+  private(set) var resultIsError = false
 
   private let appVersion: String
 
@@ -77,8 +78,8 @@ final class DiagnosticsExportModel: ObservableObject {
 /// One button plus its inline result line. Used from both the connect form and the connected
 /// view; each instance owns its own result state.
 struct DiagnosticsExportRow: View {
-  @ObservedObject var model: AppModel
-  @StateObject private var exporter = DiagnosticsExportModel()
+  var model: AppModel
+  @State private var exporter = DiagnosticsExportModel()
 
   var body: some View {
     VStack(alignment: .leading, spacing: 4) {

@@ -1,8 +1,8 @@
 import raw from "../data/tools.json"
 
-// The public tool catalog, snapshotted from the hosted `tools` table by
-// scripts/pull-tools.mjs. Mirrors src/lib/marketing/tool-directory.ts in the
-// Next app so the directory keeps its order, labels and SEO lines.
+// The public tool catalog, snapshotted from the migrations' `tools` table by
+// scripts/pull-tools.mjs, one record per tool the Mac app supports. Mirrors
+// src/lib/marketing/tool-directory.ts in the Next app so the directory keeps its order, labels and SEO lines.
 export type ToolPool = { credit_type: string; label: string; unit?: string }
 
 export type Tool = {

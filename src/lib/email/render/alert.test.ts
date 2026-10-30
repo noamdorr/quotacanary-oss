@@ -3,7 +3,7 @@ import { renderAlertEmail } from "./alert"
 
 const base = {
   toolName: "Hunter",
-  dashboardUrl: "https://app.quotacanary.com/dashboard",
+  dashboardUrl: "https://selfhost.example/dashboard",
   pools: [
     { label: "Searches", balance: 1200, threshold: 2000, unit: "searches" },
   ],
@@ -25,7 +25,7 @@ describe("renderAlertEmail", () => {
     expect(html).toContain("Hunter")
     expect(html).toContain("1,200")
     expect(html).toContain("2,000")
-    expect(html).toContain("https://app.quotacanary.com/dashboard")
+    expect(html).toContain("https://selfhost.example/dashboard")
   })
   it("provides a plain-text alternative", () => {
     const { text } = renderAlertEmail({ ...base, severity: "low" })

@@ -13,14 +13,19 @@ import Testing
     #expect(navigation.windowTitle == Copy.settingsBalances)
   }
 
-  @Test func publishesEveryPaneChangeForTheTitle() {
+  @Test func reportsEveryPaneChangeForTheTitle() async {
     let navigation = SettingsNavigation()
     var titles: [String] = []
-    let sink = navigation.$pane.dropFirst().sink { titles.append($0.title) }
+    let watching = Task {
+      for await title in Observations({ navigation.windowTitle }) { titles.append(title) }
+    }
+    defer { watching.cancel() }
+    await yieldUntil { titles.count == 1 }
     navigation.pane = .balanceWarnings
+    await yieldUntil { titles.count == 2 }
     navigation.pane = .general
-    #expect(titles == [Copy.settingsBalances, Copy.settingsGeneral])
-    sink.cancel()
+    await yieldUntil { titles.count == 3 }
+    #expect(titles == [Copy.settingsGeneral, Copy.settingsBalances, Copy.settingsGeneral])
   }
 
   @Test func paneTitlesAreDistinctAndPlain() {

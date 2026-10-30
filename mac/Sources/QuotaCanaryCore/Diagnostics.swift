@@ -10,7 +10,7 @@ import Foundation
 /// - one entry per connection: the provider id, a short 1-based index (never the Keychain
 ///   reference or the connection's UUID), whether a credential reference exists (a bool, never
 ///   the reference itself, and never a live Keychain read), the last reading's timestamp, its
-///   per-pool creditType/unit/balance/cap, the number of consecutive failed provider checks
+///   per-pool safe creditType/unit/balance/cap, the number of consecutive failed provider checks
 ///   (QUO-133: an integer, attempted checks only), and the last error's enum CASE NAME only
 ///   (never any provider-supplied or otherwise free-form error text), and (QUO-279) the last
 ///   check's `CheckRecord`: method, host + path, HTTP status, duration, and a redacted,
@@ -121,8 +121,11 @@ public enum Diagnostics {
           provider: snapshot.provider,
           hasCredential: snapshot.hasCredential,
           lastReadingAt: snapshot.lastReading?.checkedAt,
-          pools: (snapshot.lastReading?.balances ?? []).map {
-            PoolInfo(creditType: $0.pool.creditType, unit: $0.pool.unit, balance: $0.balance, cap: $0.pool.cap)
+          pools: (snapshot.lastReading?.balances ?? []).enumerated().map { poolIndex, balance in
+            // Deepgram's persisted pool key includes a provider project ID.
+            // The report uses a local ordinal without changing that key.
+            let creditType = snapshot.provider == .deepgram ? "project:\(poolIndex + 1)" : balance.pool.creditType
+            return PoolInfo(creditType: creditType, unit: balance.pool.unit, balance: balance.balance, cap: balance.pool.cap)
           },
           consecutiveFailures: snapshot.consecutiveFailures,
           lastErrorCase: snapshot.lastError?.diagnosticsCaseName,

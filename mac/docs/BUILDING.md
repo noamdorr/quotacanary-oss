@@ -12,6 +12,8 @@ Tools are enough; Xcode is not required.
 | `install.sh [--uninstall]` | Copies the bundle to `~/Applications` and registers it with Launch Services. |
 | `update-keys.sh` | Once per project: makes the Ed25519 update signing key pair. |
 | `sign-update.sh <zip> <version> [url]` | Prints the signed feed entry for a release archive. |
+| `dmg.sh` | Builds, signs, notarizes and staples `dist/QuotaCanary-<version>.dmg` (the app plus an Applications shortcut) from the stapled app. The website's download is this file; the update zip stays the updater's payload. |
+| `release.sh [--publish]` | Cuts a release from `VERSION` and the notarized build: zip, disk image, signed feed for the site, and (with `--publish`) both GitHub release assets. |
 
 ## Identity and version
 
@@ -65,12 +67,23 @@ What does not hold:
 
 ## Development build vs signed release
 
-`bundle.sh` signs ad hoc (`codesign -s -`): no Apple certificate, no team, no
-notarization. `inspect.sh` labels it `DEVELOPMENT (ad hoc)` and Gatekeeper
-rejects it, which is expected. A public download needs a Developer ID
+By default `bundle.sh` signs ad hoc (`codesign -s -`): no Apple certificate, no
+team, no notarization. `inspect.sh` labels it `DEVELOPMENT (ad hoc)` and
+Gatekeeper rejects it, which is expected. A public download needs a Developer ID
 Application certificate, a hardened-runtime signature with a secure timestamp,
-notarization and stapling. None of that is set up, and these scripts never touch
-signing credentials.
+notarization and stapling. On the release Mac:
+
+```sh
+QUOTACANARY_SIGN_IDENTITY="Developer ID Application: Your Name (TEAMID)" ./scripts/bundle.sh
+./scripts/notarize.sh      # submit, wait, staple, write dist/QuotaCanary-<version>.zip
+./scripts/inspect.sh       # "Developer ID, notarized and stapled."
+```
+
+`notarize.sh` uses a notarytool keychain profile (`quotacanary-notary`, or
+`QUOTACANARY_NOTARY_PROFILE`), made once per Mac with
+`xcrun notarytool store-credentials quotacanary-notary --apple-id <id> --team-id <team>`.
+The app-specific password goes into the Keychain at that prompt; the scripts
+never read it, and nothing about the identity or the profile is in the repo.
 
 ## Releasing an update
 
@@ -91,17 +104,50 @@ place; back it up somewhere offline. To rotate: ship one last release signed
 with the old key that carries the new public key, then switch.
 
 The current key was generated on the dev Mac on 2026-09-25 and has only
-signed local test archives.
+signed local test archives and the 0.1.0 release feed (2026-10-29, QUO-350).
 
 ### Cutting one
+
+On the release Mac, from a clean checkout of `master`:
 
 ```sh
 cd mac
 echo 0.2.0 > VERSION                  # the only place the version lives
-./scripts/verify.sh                   # builds and checks dist/QuotaCanary.app
-ditto -c -k --keepParent dist/QuotaCanary.app QuotaCanary-0.2.0.zip
-./scripts/sign-update.sh QuotaCanary-0.2.0.zip 0.2.0 > updates.json
+./scripts/verify.sh                   # builds and checks the app
+QUOTACANARY_SIGN_IDENTITY="Developer ID Application: ..." ./scripts/bundle.sh
+./scripts/release.sh                  # notarize, zip, dmg, sign the feed; publishes nothing
+./scripts/release.sh --publish        # uploads zip + dmg as release mac-v0.2.0
 ```
+
+`release.sh` reuses `dist/QuotaCanary-<version>.zip` and `.dmg` when they exist
+(delete one to rebuild it), refuses a zip or image without a notarization ticket, writes the
+signed entry to `site/public/mac/updates.json`, and with `--publish` creates
+the release `mac-v<version>` on `noamdorr/quotacanary-oss` (not marked Latest,
+so the mirror's source release keeps that), then downloads the assets back and
+checks the zip's SHA-256 against the feed and the image's against `dist/`. Then ship `site/public/mac/updates.json`
+in a pull request to `master`; Railway deploys the site from it.
+
+Publish first, merge the feed second. A feed that reaches quotacanary.com
+before its asset exists tells every older install there is an update it then
+fails to download.
+
+### Where things are hosted
+
+| URL | Served by |
+| --- | --- |
+| `https://quotacanary.com/mac/updates.json` | The site (`site/public/mac/updates.json`), `application/json`, `no-cache`. |
+| `https://quotacanary.com/mac/QuotaCanary-<version>.zip` | `site/server.mjs`: 302 to the release asset `mac-v<version>` on the public mirror. The feed names this one. |
+| `https://quotacanary.com/mac/QuotaCanary-<version>.dmg` | Same, for the disk image. |
+| `https://quotacanary.com/download/mac` | `site/server.mjs`: 302 to the `.dmg` of the version the feed names. The website button and launch links use this. |
+
+The zips and images stay out of git (both repos would carry every 14 MB build forever).
+Nothing about the app, the feed or the button names a GitHub URL, so moving the
+archives elsewhere is a change to `macDownloadLocation` in `site/server.mjs`
+and no app release.
+
+A release cut before QUO-364 (0.1.0) has no image: add one with
+`./scripts/dmg.sh && gh release upload mac-v0.1.0 dist/QuotaCanary-0.1.0.dmg --repo noamdorr/quotacanary-oss`
+before the `/download/mac` redirect reaches production, or the button 404s.
 
 `sign-update.sh` unzips the archive first and refuses to sign unless it holds
 `QuotaCanary.app` at the top level with bundle id `com.quotacanary.mac`, the
@@ -146,13 +192,13 @@ with `User-Agent: QuotaCanary/<version>`; the archive request is the entry's
 `Accept-Encoding`; `Accept-Language` is pinned to `en`. No cookies, no cache,
 nothing about providers, connections, keys or balances.
 
-### What QUO-142 must host
+### Hosting requirements
 
-- `https://quotacanary.com/mac/updates.json`: the output of `sign-update.sh`,
-  served as `application/json` over HTTPS (http is refused except to
-  loopback). Keep it under 64 KB. The server may ignore the query
-  parameters; static hosting is fine.
-- The zip at the entry's `url` (HTTPS), unchanged byte for byte.
+- The feed is served as `application/json` over HTTPS (http is refused except
+  to loopback), under 64 KB. The server ignores the query parameters.
+- The archive reaches the app unchanged byte for byte. Redirects are fine:
+  URLSession follows them, and the archive is checked by SHA-256 and Ed25519,
+  not by host.
 - Nothing is signed on the server: signing happens on the release Mac.
 
 ### Testing against a local feed

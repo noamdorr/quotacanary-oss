@@ -1493,6 +1493,160 @@ values
     'api',
     5,
     true
+  ),
+  (
+    'influencersclub',
+    'Influencers Club',
+    '/logos/influencersclub.png',
+    'https://docs.influencers.club/openapi/account-credits-and-usage/account_credits_usage_retrieve',
+    'In the Influencers Club dashboard, open API and copy your key. Checking the balance costs no credits.',
+    'data',
+    'api',
+    100,
+    true
+  ),
+  (
+    'spidercloud',
+    'Spider',
+    '/logos/spidercloud.png',
+    'https://spider.cloud/docs/api',
+    'In the Spider dashboard, open API Keys and copy a key. Credits read as Spider credits: 10,000 make $1.',
+    'data',
+    'api',
+    10000,
+    true
+  ),
+  (
+    'anyapi',
+    'AnyAPI',
+    '/logos/anyapi.png',
+    'https://api.getanyapi.com/openapi.json',
+    'In your AnyAPI account, copy your API key. A run-only key cannot read the wallet, so use one that can. Checking the balance is free.',
+    'ai',
+    'api',
+    5,
+    true
+  ),
+  (
+    'orbisearch',
+    'OrbiSearch',
+    '/logos/orbisearch.png',
+    'https://orbisearch.com/docs/api-reference/credits',
+    'In the OrbiSearch dashboard, copy your API key. This reads pay-as-you-go credits; unlimited plans are not covered yet.',
+    'data',
+    'api',
+    100,
+    true
+  ),
+  (
+    'reapi',
+    'ReAPI',
+    '/logos/reapi.png',
+    'https://reapi.ai/docs/api/balance',
+    'In the ReAPI dashboard, create an API key and copy it. One credit is $0.001. Checking the balance costs no credits.',
+    'ai',
+    'api',
+    1000,
+    true
+  ),
+  (
+    'mobiusengine-jobs',
+    'Arihaan Jobs',
+    '/logos/mobiusengine-jobs.png',
+    'https://jobs.arihaan.ai/docs/api/usage',
+    'In the Arihaan Jobs dashboard, copy your API key. This reads a monthly plan''s daily token limit, which resets at 00:00 UTC; pay-per-job balances are not covered yet. Checking it is free.',
+    'data',
+    'api',
+    10000,
+    true
+  ),
+  (
+    'eodhd',
+    'EODHD',
+    '/logos/eodhd.png',
+    'https://eodhd.com/financial-apis/user-api',
+    'In your EODHD account dashboard, copy your API token. Daily calls reset at 00:00 GMT. Checking usage does not cost an API call.',
+    'data',
+    'api',
+    1000,
+    true
+  ),
+  (
+    'x',
+    'X',
+    '/logos/x.png',
+    'https://docs.x.com/x-api/usage/get-usage',
+    'In the X Developer Console, open your app and copy its bearer token. This reads the monthly Post read cap; the prepaid USD balance lives only in the Console.',
+    'data',
+    'api',
+    10000,
+    true
+  ),
+  (
+    'datagma',
+    'Datagma',
+    '/logos/datagma.png',
+    'https://datagmaapi.readme.io/reference/ingressservice_getcredit',
+    'In your Datagma account, open the API page and copy your API key.',
+    'data',
+    'api',
+    100,
+    true
+  ),
+  (
+    'theirstack',
+    'TheirStack',
+    '/logos/theirstack.png',
+    'https://theirstack.com/en/docs/api-reference/billing/get_billing_credit_balance_v0',
+    'In TheirStack, open Settings, then API Key, and copy it. This reads your API credits; UI credits are not shown.',
+    'data',
+    'api',
+    100,
+    true
+  ),
+  (
+    'piapi',
+    'PiAPI',
+    '/logos/piapi.png',
+    'https://piapi.ai/docs/account-info-api',
+    'In the PiAPI workspace, open API Keys and copy your key. This reads what your remaining credits are worth in USD.',
+    'ai',
+    'api',
+    5,
+    true
+  ),
+  (
+    'fishaudio',
+    'Fish Audio',
+    '/logos/fishaudio.png',
+    'https://docs.fish.audio/developer-guide/models-pricing/pricing-and-rate-limits',
+    'In Fish Audio, open API Keys and copy a key. This reads your prepaid API credit, not a plan''s monthly package.',
+    'ai',
+    'api',
+    5,
+    true
+  ),
+  (
+    'sumble',
+    'Sumble',
+    '/logos/sumble.png',
+    'https://docs.sumble.com/api/lookups/technologies',
+    'In Sumble, open API settings and copy your key. The balance check searches for a technology that does not exist, which Sumble does not charge for.',
+    'data',
+    'api',
+    100,
+    true
+  ),
+  (
+    'treg',
+    'treg',
+    '/logos/treg.png',
+    'https://treg.to/integrate.md',
+    'In treg, copy an API token, then run treg org ls for your org ID: the number, not the slug. Checking the balance is free.',
+    'data',
+    'api',
+    5,
+    true
   )
 on conflict (id) do update set
   name                    = excluded.name,
@@ -1890,6 +2044,20 @@ update public.tools set description = 'Phone number validation API with live HLR
 update public.tools set description = 'Email finder and verifier API for B2B contacts, billed from credits.' where id = 'icypeas';
 update public.tools set description = 'Company data API for enrichment, search and lookalikes, billed from team credits.' where id = 'thecompaniesapi';
 update public.tools set description = 'Web search, contents and research APIs for AI agents, billed from a prepaid USD balance.' where id = 'youcom';
+update public.tools set description = 'Creator and influencer discovery and enrichment API, billed from credits.' where id = 'influencersclub';
+update public.tools set description = 'Web crawling and scraping API for AI pipelines, billed from prepaid credits.' where id = 'spidercloud';
+update public.tools set description = 'One API key and one USD wallet for many third-party APIs.' where id = 'anyapi';
+update public.tools set description = 'B2B email finder and verifier with company enrichment, billed from credits.' where id = 'orbisearch';
+update public.tools set description = 'Image, video, audio and chat model API, billed from prepaid credits.' where id = 'reapi';
+update public.tools set description = 'Job postings API pulled from employer career sites, metered in daily tokens.' where id = 'mobiusengine-jobs';
+update public.tools set description = 'Stock, fundamentals and market data API with a daily call limit.' where id = 'eodhd';
+update public.tools set description = 'The X API, with a monthly cap on Post reads per project.' where id = 'x';
+update public.tools set description = 'Contact and company enrichment API (emails, phones, firmographics), billed from prepaid credits.' where id = 'datagma';
+update public.tools set description = 'Job postings and technographics API, billed from credits.' where id = 'theirstack';
+update public.tools set description = 'One API for AI media models (Midjourney, Kling, Flux and more), billed from prepaid credits.' where id = 'piapi';
+update public.tools set description = 'Text-to-speech and voice cloning API, billed from prepaid API credit.' where id = 'fishaudio';
+update public.tools set description = 'Company and technographics intelligence API, billed from credits.' where id = 'sumble';
+update public.tools set description = 'One token for thousands of SEO, enrichment, social and scraping API tools, billed from a prepaid USD balance.' where id = 'treg';
 
 -- ---------------------------------------------------------------------------
 -- Tool homepages (directory "Website" button + JSON-LD url). Only seeded where
@@ -1985,6 +2153,20 @@ update public.tools set website_url = 'https://www.hlrlookup.com' where id = 'hl
 update public.tools set website_url = 'https://www.icypeas.com' where id = 'icypeas';
 update public.tools set website_url = 'https://www.thecompaniesapi.com' where id = 'thecompaniesapi';
 update public.tools set website_url = 'https://you.com' where id = 'youcom';
+update public.tools set website_url = 'https://influencers.club' where id = 'influencersclub';
+update public.tools set website_url = 'https://spider.cloud' where id = 'spidercloud';
+update public.tools set website_url = 'https://getanyapi.com' where id = 'anyapi';
+update public.tools set website_url = 'https://orbisearch.com' where id = 'orbisearch';
+update public.tools set website_url = 'https://reapi.ai' where id = 'reapi';
+update public.tools set website_url = 'https://jobs.arihaan.ai' where id = 'mobiusengine-jobs';
+update public.tools set website_url = 'https://eodhd.com' where id = 'eodhd';
+update public.tools set website_url = 'https://x.com' where id = 'x';
+update public.tools set website_url = 'https://datagma.com' where id = 'datagma';
+update public.tools set website_url = 'https://theirstack.com' where id = 'theirstack';
+update public.tools set website_url = 'https://piapi.ai' where id = 'piapi';
+update public.tools set website_url = 'https://fish.audio' where id = 'fishaudio';
+update public.tools set website_url = 'https://sumble.com' where id = 'sumble';
+update public.tools set website_url = 'https://treg.to' where id = 'treg';
 
 -- ---------------------------------------------------------------------------
 -- Top-up URLs for fresh installs. Migrations 034/035 backfilled these on the
@@ -2103,6 +2285,20 @@ update public.tools set topup_url = 'https://www.hlrlookup.com/pricing' where id
 update public.tools set topup_url = 'https://www.icypeas.com/pricing' where id = 'icypeas';
 update public.tools set topup_url = 'https://www.thecompaniesapi.com/pricing' where id = 'thecompaniesapi';
 update public.tools set topup_url = 'https://you.com/platform' where id = 'youcom';
+update public.tools set topup_url = 'https://influencers.club/pricing/' where id = 'influencersclub';
+update public.tools set topup_url = 'https://spider.cloud/credits/new' where id = 'spidercloud';
+update public.tools set topup_url = 'https://getanyapi.com' where id = 'anyapi';
+update public.tools set topup_url = 'https://orbisearch.com/pricing' where id = 'orbisearch';
+update public.tools set topup_url = 'https://reapi.ai/pricing' where id = 'reapi';
+update public.tools set topup_url = 'https://jobs.arihaan.ai/pricing' where id = 'mobiusengine-jobs';
+update public.tools set topup_url = 'https://eodhd.com/pricing' where id = 'eodhd';
+update public.tools set topup_url = 'https://console.x.com' where id = 'x';
+update public.tools set topup_url = 'https://datagma.com/pricing' where id = 'datagma';
+update public.tools set topup_url = 'https://theirstack.com/en/pricing' where id = 'theirstack';
+update public.tools set topup_url = 'https://piapi.ai/pricing' where id = 'piapi';
+update public.tools set topup_url = 'https://fish.audio' where id = 'fishaudio';
+update public.tools set topup_url = 'https://sumble.com/pricing' where id = 'sumble';
+update public.tools set topup_url = 'https://treg.to/app' where id = 'treg';
 
 -- ---------------------------------------------------------------------------
 -- Pools for the multi-pool tools declared in migration 037 (same
@@ -2614,6 +2810,98 @@ update public.tools
     {"credit_type":"balance","label":"Balance","unit":"usd"}
   ]'::jsonb
   where id = 'youcom';
+
+-- QUO-340: treg vs Mac gap, eight docs-firm catalog reads.
+update public.tools
+  set pools = '[
+    {"credit_type":"credits","label":"Credits","unit":"credits"}
+  ]'::jsonb
+  where id = 'influencersclub';
+
+update public.tools
+  set pools = '[
+    {"credit_type":"credits","label":"Credits","unit":"credits"}
+  ]'::jsonb
+  where id = 'spidercloud';
+
+update public.tools
+  set pools = '[
+    {"credit_type":"wallet","label":"Wallet","unit":"usd"}
+  ]'::jsonb
+  where id = 'anyapi';
+
+update public.tools
+  set pools = '[
+    {"credit_type":"credits","label":"Credits","unit":"credits"}
+  ]'::jsonb
+  where id = 'orbisearch';
+
+update public.tools
+  set pools = '[
+    {"credit_type":"credits","label":"Credits","unit":"credits"}
+  ]'::jsonb
+  where id = 'reapi';
+
+update public.tools
+  set pools = '[
+    {"credit_type":"daily_tokens","label":"Daily tokens","unit":"credits"}
+  ]'::jsonb
+  where id = 'mobiusengine-jobs';
+
+update public.tools
+  set pools = '[
+    {"credit_type":"daily","label":"Daily API calls","unit":"credits"},
+    {"credit_type":"extra","label":"Extra API calls","unit":"credits"}
+  ]'::jsonb
+  where id = 'eodhd';
+
+update public.tools
+  set pools = '[
+    {"credit_type":"post_reads","label":"Post reads","unit":"credits"}
+  ]'::jsonb
+  where id = 'x';
+
+update public.tools
+  set pools = '[
+    {"credit_type":"credits","label":"Credits","unit":"credits"}
+  ]'::jsonb
+  where id = 'datagma';
+
+update public.tools
+  set pools = '[
+    {"credit_type":"api_credits","label":"API credits","unit":"credits"}
+  ]'::jsonb
+  where id = 'theirstack';
+
+update public.tools
+  set pools = '[
+    {"credit_type":"wallet","label":"Balance","unit":"usd"}
+  ]'::jsonb
+  where id = 'piapi';
+
+update public.tools
+  set pools = '[
+    {"credit_type":"wallet","label":"API credit","unit":"usd"}
+  ]'::jsonb
+  where id = 'fishaudio';
+
+update public.tools
+  set pools = '[
+    {"credit_type":"credits","label":"Credits","unit":"credits"}
+  ]'::jsonb
+  where id = 'sumble';
+
+-- QUO-349: treg itself, a USD balance read per integer org id.
+update public.tools
+  set
+    pools = '[
+      {"credit_type":"balance","label":"Balance","unit":"usd"}
+    ]'::jsonb,
+    credential_fields = '[
+      {"name":"api_token","label":"API token","type":"password"},
+      {"name":"org_id","label":"Org ID","type":"text"}
+    ]'::jsonb
+  where id = 'treg';
 
 -- ---------------------------------------------------------------------------
 -- Migration 009 parity (same migrations-run-before-seed problem): the three

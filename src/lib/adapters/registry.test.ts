@@ -36,6 +36,7 @@ describe("adapter registry", () => {
     expect(getAdapter("icypeas")?.toolId).toBe("icypeas")
     expect(getAdapter("thecompaniesapi")?.toolId).toBe("thecompaniesapi")
     expect(getAdapter("youcom")?.toolId).toBe("youcom")
+    expect(getAdapter("treg")?.toolId).toBe("treg")
     expect(getAdapter("ahrefs")?.toolId).toBe("ahrefs")
     expect(getAdapter("bettercontact")?.toolId).toBe("bettercontact")
     expect(getAdapter("shodan")?.toolId).toBe("shodan")

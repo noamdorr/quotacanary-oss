@@ -1,0 +1,5 @@
+GitHub brand icon from Font Awesome Free 6.7.2 by Fonticons, Inc.
+Source: https://raw.githubusercontent.com/FortAwesome/Font-Awesome/6.x/svgs/brands/github.svg
+Icons licensed CC BY 4.0: https://creativecommons.org/licenses/by/4.0/
+Font Awesome license: https://fontawesome.com/license/free
+Original SVG, unmodified. GitHub is a trademark of GitHub, Inc.

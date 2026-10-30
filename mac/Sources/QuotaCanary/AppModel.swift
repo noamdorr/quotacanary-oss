@@ -4,22 +4,23 @@ import Foundation
 import QuotaCanaryCore
 
 @MainActor
-final class AppModel: ObservableObject {
-  @Published private(set) var connections: [Connection] = [] {
+@Observable
+final class AppModel {
+  private(set) var connections: [Connection] = [] {
     didSet {
       alertOnNewReadings(since: oldValue) // QUO-131
     }
   }
-  @Published private(set) var isBusy = false
+  private(set) var isBusy = false
   /// Connect and load failures (not tied to one connection). Refresh and
   /// remove failures live on each connection's monitoring record (QUO-310).
-  @Published private(set) var errorMessage: String?
+  private(set) var errorMessage: String?
   /// The typed error behind `errorMessage`. Diagnostics export reads it to
   /// report the enum case name only, never the message.
-  @Published private(set) var lastError: MonitorError?
+  private(set) var lastError: MonitorError?
   /// The connect form's pick and credential (QUO-241: only a deliberate pick
   /// of another provider clears the credential).
-  @Published private var draft = ConnectDraft()
+  private var draft = ConnectDraft()
   var keyInput: String {
     get { draft.key }
     set { draft.key = newValue }
@@ -34,8 +35,22 @@ final class AppModel: ObservableObject {
     set { if draft.choose(newValue) { errorMessage = nil } }
   }
   /// The connect form's tool search: narrows the list, never picks.
-  @Published var providerSearch = ""
-  @Published var isAddingConnection = false
+  var providerSearch = ""
+  /// Which surface is running the connect form, if any (QUO-346). The panel
+  /// and the stack window each show it on their own; one flag opened both.
+  private(set) var addingOn: ConnectSurface?
+  /// Taking the form to the other surface starts it fresh, so a half-typed
+  /// key never moves between windows (QUO-362). With no connections the
+  /// panel shows the form unasked.
+  func beginAdding(on surface: ConnectSurface) {
+    if let showing = addingOn ?? (connections.isEmpty ? .panel : nil), showing != surface { cancelAdding() }
+    addingOn = surface
+  }
+  var isAddingInPanel: Bool { addingOn == .panel }
+  var isAddingInWindow: Bool {
+    get { addingOn == .window }
+    set { addingOn = newValue ? .window : (addingOn == .window ? nil : addingOn) }
+  }
   /// The connect form's Name field: prefilled with `suggestedName`, which it
   /// follows across tool changes until edited (QUO-277); blank uses it too.
   var nameInput: String {
@@ -43,7 +58,7 @@ final class AppModel: ObservableObject {
     set { draft.setName(newValue, suggested: suggestedName) }
   }
   /// A connection just added whose balances are up for choosing (QUO-283).
-  @Published private(set) var watchChoiceID: String?
+  private(set) var watchChoiceID: String?
   /// Each connection's monitoring record: freshness, last failure, streak,
   /// last check (QUO-310).
   let monitor: ConnectionMonitor
@@ -51,6 +66,7 @@ final class AppModel: ObservableObject {
   let startAtLogin: StartAtLogin
 
   private let service: MonitoringService
+  private let preferences: PreferencesStore
   /// The Application Support folder to remove on erase; nil unless the real
   /// stores are in use (QUO-297).
   var eraseFolder: URL?
@@ -61,12 +77,12 @@ final class AppModel: ObservableObject {
   let updater: Updater
   /// Manual Refresh progress for the panel header and the stack toolbar (QUO-268).
   let manualRefresh: ManualRefresh
-  /// Re-renders on connection records and Refresh progress.
-  private var observations: Set<AnyCancellable> = []
+  @ObservationIgnored private var observations: Set<AnyCancellable> = []
 
   init(service: MonitoringService, system: SystemHooks? = nil) {
     self.service = service
     let system = system ?? SystemHooks.makeDefault()
+    preferences = system.preferences
     alerts = AlertEvaluator(
       service: service, center: system.notifier
     )
@@ -87,10 +103,6 @@ final class AppModel: ObservableObject {
       errorMessage = lastError?.message ?? Copy.loadFailed
     }
     service.connectionsChanged.sink { [weak self] in self?.connections = $0 }.store(in: &observations)
-    // Records and Refresh progress live outside this model.
-    Publishers.MergeMany(monitor.objectWillChange, manualRefresh.objectWillChange)
-      .sink { [weak self] in self?.objectWillChange.send() }
-      .store(in: &observations)
     scheduler.start() // launch check (if anything is connected) and the 15-minute timer
     updater.start() // automatic update checks only if the user opted in
     Task { await self.notifications.reload() }
@@ -136,7 +148,7 @@ final class AppModel: ObservableObject {
   var catalogDiagnostic: String? { ProviderRegistry.current.catalogFailure == nil ? nil : Copy.catalogUnavailable }
 
   var showsConnectForm: Bool {
-    connections.isEmpty || isAddingConnection || watchChoiceID != nil
+    connections.isEmpty || isAddingInPanel
   }
 
   /// Something to go back to from the connect form, local.
@@ -151,8 +163,10 @@ final class AppModel: ObservableObject {
       // More than one balance: the form stays up as the checklist (QUO-283).
       if WatchedBalances.offersChoice(fresh) {
         self.watchChoiceID = fresh.id
+        // A first-run connect has no surface yet: the panel is the one showing it.
+        self.addingOn = self.addingOn ?? .panel
       } else {
-        self.isAddingConnection = false
+        self.addingOn = nil
       }
     }
   }
@@ -174,16 +188,22 @@ final class AppModel: ObservableObject {
     guard let id = watchChoiceID else { return nil }
     if let error = setWatched(id: id, creditTypes: creditTypes) { return error }
     watchChoiceID = nil
-    isAddingConnection = false
+    addingOn = nil
     return nil
   }
 
   func cancelAdding() {
     watchChoiceID = nil // the defaults saved at connect stand
-    isAddingConnection = false
+    addingOn = nil
     draft.reset()
     providerSearch = ""
     errorMessage = nil
+  }
+
+  /// The stack window's sheet closed. When the panel took the form over, its
+  /// fresh form stands; any other close cancels (QUO-352).
+  func windowSheetDismissed() {
+    if addingOn != .panel { cancelAdding() }
   }
 
   /// Manual refresh of every connection, through the scheduler so it
@@ -212,10 +232,17 @@ final class AppModel: ObservableObject {
 
   /// Erases every key, history and settings from this Mac,
   /// then shows first run. Returns an error message, or nil once it is done.
-  func eraseLocalData() -> String? {
+  func eraseLocalData(
+    removeFolder: (URL) throws -> Void = { try FileManager.default.removeItem(at: $0) }
+  ) -> String? {
     guard !isBusy else { return Copy.busyTryAgain }
     do {
-      try EraseLocalData(service: service, folder: eraseFolder).run()
+      try EraseLocalData(service: service, folder: eraseFolder, preferences: preferences).run(removeFolder: removeFolder) {
+        updater.resetAfterErase()
+        startAtLogin.resetAfterErase()
+        notifications.resetAfterErase()
+        Task { await notifications.reload() }
+      }
     } catch {
       return Copy.eraseFailed
     }
@@ -223,10 +250,25 @@ final class AppModel: ObservableObject {
     errorMessage = nil
     lastError = nil
     draft = ConnectDraft()
-    isAddingConnection = false
+    providerSearch = ""
+    addingOn = nil
     watchChoiceID = nil
     alerts.schedule()
     return nil
+  }
+
+  /// Mutes a balance until its reading changes, or unmutes it (QUO-351).
+  /// Evaluating right away clears its alert mark while muted and lets an
+  /// unmuted balance alert on its current reading. Returns an error message, or nil.
+  @discardableResult
+  func setMuted(_ key: PoolKey, _ muted: Bool) -> String? {
+    do {
+      try service.setMuted(key, muted)
+      alerts.schedule([key.connectionID])
+      return nil
+    } catch {
+      return (error as? MonitorError)?.message ?? Copy.saveFailed
+    }
   }
 
   /// Validates and saves settings. Returns an error message, or nil on success.
@@ -362,3 +404,6 @@ extension AppModel {
     if notifications.permission == .allowed { await alerts.evaluate(nil) }
   }
 }
+
+/// A place the connect form can run (QUO-346).
+enum ConnectSurface: Equatable { case panel, window }

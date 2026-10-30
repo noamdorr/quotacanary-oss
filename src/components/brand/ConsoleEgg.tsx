@@ -22,7 +22,7 @@ export function ConsoleEgg() {
     console.log(
       `${BIRD}
 You check under the hood. The bird respects that.
-Everything on the dashboard is also a plain API: https://quotacanary.com/docs
+Everything on the dashboard is also a plain API: ${window.location.origin}/docs
 Open source, feathers and all: https://github.com/noamdorr/quotacanary-oss`
     )
   }, [])

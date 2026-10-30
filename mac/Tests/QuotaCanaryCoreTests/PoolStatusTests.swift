@@ -43,8 +43,8 @@ private func status(_ balance: Double, pool: Pool = credits, _ settings: PoolSet
     #expect(status(15, pool: usd, settings) == .low)
     #expect(status(5, pool: usd, settings) == .critical)
     #expect(status(15.01, pool: usd, settings) == .healthy)
-    #expect(Format.amount(12.5, pool: usd) == "$12.50")
-    #expect(Format.amount(480, pool: credits) == "480 of 1,000")
+    #expect(Format.amount(12.5, pool: usd, locale: Locale(identifier: "en_US")) == "$12.50")
+    #expect(Format.amount(480, pool: credits, locale: Locale(identifier: "en_US")) == "480 of 1,000")
   }
 
   @Test func onlyMonitoredWarningsAlert() {
@@ -131,7 +131,7 @@ private func status(_ balance: Double, pool: Pool = credits, _ settings: PoolSet
   }
 
   @Test func invalidDraftsUseOneMessage() {
-    for bad in ["0", "-1", "", " ", "ten", "nan", "inf", "1,500", "$5"] {
+    for bad in ["0", "-1", "", " ", "ten", "nan", "inf", "$5"] {
       let draft = PoolSettingsDraft(monitored: true, low: bad)
       #expect(draft.error == .notANumber)
       #expect(draft.error?.message == "Enter a number above zero.")

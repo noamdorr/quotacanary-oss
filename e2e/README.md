@@ -1,7 +1,7 @@
 # Browser smoke tests
 
 Playwright coverage for the journey that unit tests cannot reach: the proxy's
-hostname split, Supabase Auth redirects, server actions, and the dashboard's
+same-origin self-host routing, Supabase Auth redirects, server actions, and the dashboard's
 one-row-per-pool rendering.
 
 ## Running them
@@ -36,10 +36,11 @@ paid API key. Instead:
   reads it out of Mailpit (`:54324`) and follows the link. No session is
   injected.
 
-Two things the suite deliberately does not do: reach any external host (the
-webhook specs point at the reserved `.invalid` TLD, which cannot resolve), and
-set `APP_ONLY`, because that flag collapses the marketing/app split the routing
-spec exists to check.
+The suite never targets a remote Supabase stack; the fixture refuses one before
+creating or deleting data. Webhook specs use the reserved `.invalid` TLD.
+`APP_ONLY` is a compatibility no-op. Routing checks cover named and IP app origins;
+CSP checks exercise local `/docs`, `/security`, login and dashboard pages. The
+independent Astro site has its own build and server tests under `site/`.
 
 ## Selector notes
 

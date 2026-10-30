@@ -126,6 +126,13 @@ export async function sendTestAlertDestination(
     encrypted_url: string
     encrypted_signing_secret: string | null
   }
+  const dashboardUrl = appDashboardUrl()
+  if (!dashboardUrl) {
+    return {
+      ok: false,
+      error: "Configure NEXT_PUBLIC_APP_URL to send test alerts.",
+    }
+  }
 
   // Consume the budget BEFORE sending. Charging on the way out would let a
   // stream of failing sends run uncounted, which is exactly the case a retry
@@ -176,12 +183,10 @@ export async function sendTestAlertDestination(
     }
   }
 
-  const appUrl =
-    process.env.NEXT_PUBLIC_APP_URL ?? "https://app.quotacanary.com"
   const result = await postAlertDestination(
     row.kind,
     url,
-    testDestinationEvent(`${appUrl}/dashboard`),
+    testDestinationEvent(dashboardUrl),
     // No delivery id: `idempotency-key` identifies a retried real delivery, and
     // a test is never retried.
     undefined,
@@ -221,6 +226,26 @@ export async function sendTestAlertDestination(
     }
   }
   return { ok: true }
+}
+
+function appDashboardUrl(): string | null {
+  const configured = process.env.NEXT_PUBLIC_APP_URL?.trim()
+  if (!configured) return null
+  try {
+    const url = new URL(configured)
+    if (
+      !["http:", "https:"].includes(url.protocol) ||
+      url.username ||
+      url.password ||
+      url.pathname !== "/" ||
+      url.search ||
+      url.hash
+    )
+      return null
+    return `${url.origin}/dashboard`
+  } catch {
+    return null
+  }
 }
 
 function formatRetryAfter(seconds: number): string {

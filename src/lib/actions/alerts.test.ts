@@ -114,10 +114,12 @@ function formData(entries: Record<string, string>) {
 
 beforeEach(() => {
   vi.resetModules()
+  vi.stubEnv("NEXT_PUBLIC_APP_URL", "https://selfhost.example")
 })
 
 afterEach(() => {
   vi.clearAllMocks()
+  vi.unstubAllEnvs()
 })
 
 describe("toggleAlertDestination", () => {
@@ -242,6 +244,31 @@ function testSendDb(options: Parameters<typeof fakeDb>[0] = {}) {
 }
 
 describe("sendTestAlertDestination", () => {
+  it("refuses to send when the self-hosted app URL is missing", async () => {
+    vi.stubEnv("NEXT_PUBLIC_APP_URL", "")
+    const db = testSendDb()
+    const post = vi.fn(async () => ({ ok: true as const }))
+    const { sendTestAlertDestination } = await importActions(db, { post })
+
+    const result = await sendTestAlertDestination(formData({ id: "dest-1" }))
+
+    expect(result).toMatchObject({ ok: false })
+    expect(post).not.toHaveBeenCalled()
+    expect(db.rpcCalls).toEqual([])
+  })
+
+  it("uses the configured instance origin in a test event", async () => {
+    const db = testSendDb()
+    const post = vi.fn<typeof postAlertDestination>(async () => ({ ok: true }))
+    const { sendTestAlertDestination } = await importActions(db, { post })
+
+    await sendTestAlertDestination(formData({ id: "dest-1" }))
+
+    expect(post.mock.calls[0][2]).toMatchObject({
+      dashboardUrl: "https://selfhost.example/dashboard",
+    })
+  })
+
   it("sends to the decrypted URL and stamps attempt + success", async () => {
     const db = testSendDb()
     const post = vi.fn(async () => ({ ok: true as const }))

@@ -51,13 +51,13 @@ describe("connectIntentPath", () => {
 })
 
 describe("magicLinkRedirectUrl", () => {
-  const site = "https://app.quotacanary.com"
+  const site = "https://selfhost.example"
 
   it("carries a valid tool id through as an encoded next param", () => {
     const url = magicLinkRedirectUrl(site, "neverbounce")
 
     expect(url).toBe(
-      "https://app.quotacanary.com/auth/confirm?next=%2Fconnect%3Ftool%3Dneverbounce"
+      "https://selfhost.example/auth/confirm?next=%2Fconnect%3Ftool%3Dneverbounce"
     )
     // The nested query must survive as one opaque value, or /auth/confirm
     // reads `tool` as its own param and drops it from the redirect.
@@ -68,19 +68,19 @@ describe("magicLinkRedirectUrl", () => {
 
   it("falls back to the bare confirm URL when there is no intent", () => {
     expect(magicLinkRedirectUrl(site, null)).toBe(
-      "https://app.quotacanary.com/auth/confirm"
+      "https://selfhost.example/auth/confirm"
     )
   })
 
   it("falls back to the bare confirm URL when the tool id is not a slug", () => {
     expect(magicLinkRedirectUrl(site, "neverbounce&next=/evil")).toBe(
-      "https://app.quotacanary.com/auth/confirm"
+      "https://selfhost.example/auth/confirm"
     )
   })
 
   it("tolerates a site url with a trailing slash", () => {
     expect(magicLinkRedirectUrl(`${site}/`, null)).toBe(
-      "https://app.quotacanary.com/auth/confirm"
+      "https://selfhost.example/auth/confirm"
     )
   })
 })

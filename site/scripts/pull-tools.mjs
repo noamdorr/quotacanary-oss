@@ -1,44 +1,62 @@
-// Refreshes src/data/tools.json from the hosted catalog (the `tools` table).
+// Rebuilds src/data/tools.json, the snapshot the directory pages are
+// prerendered from, so the site needs no database at build time.
 //
-// The directory pages are prerendered from that snapshot, so the marketing
-// service needs no database at build time and the public mirror builds
-// without one. When a tool is added or activated in the catalog, run
-// `npm run tools:pull` here and commit the result.
+// Source: the `tools` table as the repo's migrations and seed define it, read
+// with psql from a local database (the Supabase stack's Postgres by default,
+// or any Postgres in DB_URL with the migrations applied). The hosted catalog
+// this used to read is gone. Only ids the Mac app supports are written, and
+// the run fails if one of them has no active row.
 //
-// Reads SUPABASE_URL (or NEXT_PUBLIC_SUPABASE_URL) and SUPABASE_SERVICE_ROLE_KEY
-// from the environment, falling back to ../.env.local. Read-only.
-import { readFileSync, writeFileSync } from "node:fs"
-import { dirname, join } from "node:path"
-import { fileURLToPath } from "node:url"
+// key_instructions is kept as it is in the current snapshot. A new tool takes
+// the Mac app's key hint (Copy.swift keyRequirements) or stays empty: the
+// migrations' "go to X -> Y" paths go stale.
+//
+// The site serves logos as .webp. The catalog's logo_url names the web app's
+// PNG, so it is rewritten to .webp here, and a logo missing from public/logos/
+// is converted from the web app's ../public/logos/ PNG with cwebp (lossless).
+import { execFileSync } from "node:child_process"
+import { existsSync, readFileSync, writeFileSync } from "node:fs"
+import { macKeyRequirements, macToolIds } from "./mac-tools.mjs"
 
-const here = dirname(fileURLToPath(import.meta.url))
-const env = { ...process.env }
-if (!env.SUPABASE_SERVICE_ROLE_KEY) {
-  try {
-    for (const line of readFileSync(join(here, "../../.env.local"), "utf8").split("\n")) {
-      const m = line.match(/^([A-Z0-9_]+)=(.*)$/)
-      if (m && !(m[1] in env)) env[m[1]] = m[2].replace(/^"|"$/g, "")
-    }
-  } catch {}
-}
-const url = env.SUPABASE_URL ?? env.NEXT_PUBLIC_SUPABASE_URL
-const key = env.SUPABASE_SERVICE_ROLE_KEY
-if (!url || !key) {
-  console.error("Need SUPABASE_URL (or NEXT_PUBLIC_SUPABASE_URL) and SUPABASE_SERVICE_ROLE_KEY")
-  process.exit(1)
-}
+const dbUrl = process.env.DB_URL ?? "postgresql://postgres:postgres@127.0.0.1:54322/postgres"
+const out = new URL("../src/data/tools.json", import.meta.url).pathname
+const siteLogos = new URL("../public", import.meta.url).pathname
+const webLogos = new URL("../../public", import.meta.url).pathname
 
 const columns =
-  "id,name,logo_url,category,description,website_url,api_docs_url,key_instructions,topup_url,pools"
-const res = await fetch(
-  `${url}/rest/v1/tools?select=${columns}&is_active=eq.true&order=id`,
-  { headers: { apikey: key, Authorization: `Bearer ${key}` } }
-)
-if (!res.ok) {
-  console.error(`tools query failed: ${res.status} ${await res.text()}`)
+  "id, name, logo_url, category, description, website_url, api_docs_url, key_instructions, topup_url, pools"
+const sql = `select coalesce(json_agg(t order by t.id), '[]') from (select ${columns} from public.tools where is_active) t`
+let rows
+try {
+  rows = JSON.parse(execFileSync("psql", [dbUrl, "-At", "-v", "ON_ERROR_STOP=1", "-c", sql], { encoding: "utf8" }))
+} catch (error) {
+  console.error(`tools query failed against ${dbUrl.replace(/\/\/[^@]*@/, "//")}: ${error.message}`)
   process.exit(1)
 }
-const tools = await res.json()
-const out = join(here, "../src/data/tools.json")
+
+const macIds = macToolIds()
+const byId = new Map(rows.map((row) => [row.id, row]))
+const missing = macIds.filter((id) => !byId.has(id))
+if (missing.length > 0) {
+  console.error(`no active catalog row for Mac tools: ${missing.join(", ")}`)
+  process.exit(1)
+}
+const skipped = rows.filter((row) => !macIds.includes(row.id)).map((row) => row.id)
+
+const current = existsSync(out) ? JSON.parse(readFileSync(out, "utf8")) : []
+const currentKeyText = new Map(current.map((tool) => [tool.id, tool.key_instructions]))
+const keyHints = macKeyRequirements()
+
+const tools = macIds.map((id) => {
+  const row = byId.get(id)
+  const key_instructions = currentKeyText.has(id) ? currentKeyText.get(id) : (keyHints[id] ?? "")
+  const logo_url = row.logo_url?.replace(/\.png$/, ".webp") ?? null
+  if (logo_url && !existsSync(siteLogos + logo_url) && existsSync(webLogos + row.logo_url)) {
+    execFileSync("cwebp", ["-quiet", "-lossless", "-z", "9", webLogos + row.logo_url, "-o", siteLogos + logo_url])
+  }
+  return { ...row, logo_url, key_instructions }
+})
+
 writeFileSync(out, `${JSON.stringify(tools, null, 2)}\n`)
 console.log(`wrote ${tools.length} tools to ${out}`)
+if (skipped.length > 0) console.log(`skipped (not in the Mac app): ${skipped.join(", ")}`)

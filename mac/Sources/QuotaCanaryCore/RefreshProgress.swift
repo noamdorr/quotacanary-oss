@@ -1,4 +1,4 @@
-import Combine
+import Observation
 import Foundation
 
 /// How a manual Refresh ended (QUO-268).
@@ -43,8 +43,9 @@ public enum RefreshProgress: Equatable, Sendable {
 /// stays reserved for connect and key replacement, so Refresh never
 /// disables those. A click while one is running joins it.
 @MainActor
-public final class ManualRefresh: ObservableObject {
-  @Published public private(set) var progress: RefreshProgress = .idle
+@Observable
+public final class ManualRefresh {
+  public private(set) var progress: RefreshProgress = .idle
 
   private let resultDuration: Duration
   private let work: @MainActor () async -> RefreshOutcome

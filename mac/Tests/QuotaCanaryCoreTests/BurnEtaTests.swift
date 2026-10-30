@@ -6,11 +6,11 @@ import Testing
 /// relative on Mac per QUO-184 (no weekday names anywhere).
 @Suite struct BurnEtaTests {
   @Test func returnsADeadOnArrivalVerdictForZeroBalanceRunway() {
-    #expect(BurnEta.format(daysLeft: 0) == BurnEta(short: "already gone", long: "Already empty."))
+    #expect(BurnEta.format(daysLeft: 0) == BurnEta(short: "empty now", long: "Already empty."))
   }
 
   @Test func usesHoursWhenUnderADay() {
-    #expect(BurnEta.format(daysLeft: 0.25) == BurnEta(short: "~6h", long: "Empties in ~6 hours."))
+    #expect(BurnEta.format(daysLeft: 0.25) == BurnEta(short: "in ~6h", long: "Empties in ~6 hours."))
   }
 
   @Test func usesRelativeDaysNotAWeekdayWhenUnderAWeekOut() {
@@ -20,15 +20,15 @@ import Testing
   }
 
   @Test func usesTomorrowForRoughlyOneDayOut() {
-    #expect(BurnEta.format(daysLeft: 1) == BurnEta(short: "burns out tomorrow", long: "Empties tomorrow."))
+    #expect(BurnEta.format(daysLeft: 1) == BurnEta(short: "tomorrow", long: "Empties tomorrow."))
   }
 
   @Test func usesWeeksWhenUnder28Days() {
-    #expect(BurnEta.format(daysLeft: 16) == BurnEta(short: "~2 weeks", long: "Empties in ~16 days."))
+    #expect(BurnEta.format(daysLeft: 16) == BurnEta(short: "in ~2 weeks", long: "Empties in ~16 days."))
   }
 
   @Test func usesMonthsWhenUnderAYear() {
-    #expect(BurnEta.format(daysLeft: 90) == BurnEta(short: "~3 months", long: "Empties in ~3 months."))
+    #expect(BurnEta.format(daysLeft: 90) == BurnEta(short: "in ~3 months", long: "Empties in ~3 months."))
   }
 
   @Test func treatsNilAsNoMeasurableBurn() {
@@ -36,11 +36,11 @@ import Testing
   }
 
   @Test func usesSingularHourAtExactlyOneHour() {
-    #expect(BurnEta.format(daysLeft: 1 / 24) == BurnEta(short: "~1h", long: "Empties in ~1 hour."))
+    #expect(BurnEta.format(daysLeft: 1 / 24) == BurnEta(short: "in ~1h", long: "Empties in ~1 hour."))
   }
 
   @Test func plentyOfRunwayPastAYear() {
-    #expect(BurnEta.format(daysLeft: 400) == BurnEta(short: "~next year", long: "Plenty of runway."))
+    #expect(BurnEta.format(daysLeft: 400) == BurnEta(short: "next year or later", long: "Plenty of runway."))
   }
 
   /// No ETA string, at any runway, names a day of the week (QUO-184).

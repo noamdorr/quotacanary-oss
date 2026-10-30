@@ -1,5 +1,4 @@
 import { logout } from "@/app/(auth)/login/actions"
-import { MARKETING_URL } from "@/components/marketing/constants"
 import { AlertDestinations } from "@/components/settings/AlertDestinations"
 import { ApiTokens } from "@/components/settings/ApiTokens"
 import { NotificationPrefs } from "@/components/settings/NotificationPrefs"
@@ -102,7 +101,7 @@ export default async function SettingsPage() {
               Personal access tokens for the QuotaCanary API and MCP server.
               Read by default; read and write is what the Mac app needs.{" "}
               <a
-                href={`${MARKETING_URL}/docs`}
+                href="/docs"
                 className="font-medium underline underline-offset-4 hover:text-foreground"
               >
                 Read the API &amp; MCP docs →

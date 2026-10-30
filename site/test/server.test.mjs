@@ -6,9 +6,14 @@ import { createServer } from "node:http"
 import { after, before, describe, it } from "node:test"
 
 process.env.CANONICAL_HOST = "quotacanary.com"
-const { buildContentSecurityPolicy, plausibleOrigin, requestHandler } = await import(
-  "../server.mjs"
-)
+const {
+  MAC_RELEASE_REPO,
+  buildContentSecurityPolicy,
+  latestMacVersion,
+  macDownloadLocation,
+  plausibleOrigin,
+  requestHandler,
+} = await import("../server.mjs")
 
 describe("content security policy", () => {
   it("has no inline scripts and no nonce", () => {
@@ -113,5 +118,89 @@ describe("request handling", () => {
     const sitemap = await (await get("/sitemap.xml", { host: "quotacanary.com" })).text()
     assert.match(sitemap, /<loc>https:\/\/quotacanary\.com\/directory\/hunter<\/loc>/)
     assert.doesNotMatch(sitemap, /<loc>https:\/\/quotacanary\.com\/docs<\/loc>/)
+  })
+})
+
+describe("mac downloads", () => {
+  const asset = (v, ext = "zip") =>
+    `https://github.com/${MAC_RELEASE_REPO}/releases/download/mac-v${v}/QuotaCanary-${v}.${ext}`
+
+  it("sends a versioned archive to its release asset on the public mirror", () => {
+    assert.equal(macDownloadLocation("/mac/QuotaCanary-0.1.0.zip", null), asset("0.1.0"))
+    assert.equal(macDownloadLocation("/mac/QuotaCanary-12.3.45.zip", "0.1.0"), asset("12.3.45"))
+  })
+
+  it("sends a versioned disk image to its release asset too", () => {
+    assert.equal(macDownloadLocation("/mac/QuotaCanary-0.1.0.dmg", null), asset("0.1.0", "dmg"))
+  })
+
+  it("sends /download/mac to the disk image of the version the feed names", () => {
+    assert.equal(macDownloadLocation("/download/mac", "0.2.0"), "/mac/QuotaCanary-0.2.0.dmg")
+    // No feed yet: nothing to point at, so the path stays a 404.
+    assert.equal(macDownloadLocation("/download/mac", null), null)
+  })
+
+  it("leaves every other path alone", () => {
+    for (const path of [
+      "/mac/updates.json",
+      "/mac/panel.webp",
+      "/mac/QuotaCanary-latest.zip",
+      "/mac/QuotaCanary-0.1.zip",
+      "/mac/QuotaCanary-0.1.0.zip.sha256",
+      "/mac/QuotaCanary-0.1.0.dmg.sha256",
+      "/mac/QuotaCanary-0.1.0.pkg",
+      "/mac/../QuotaCanary-0.1.0.zip",
+      "/download",
+    ]) {
+      assert.equal(macDownloadLocation(path, "0.1.0"), null, path)
+    }
+  })
+
+  it("reads the latest version from the feed text and nothing else", () => {
+    assert.equal(latestMacVersion('{"version":"0.1.0","url":"x"}'), "0.1.0")
+    assert.equal(latestMacVersion('{"version":"0.1.0/../x"}'), null)
+    assert.equal(latestMacVersion("not json"), null)
+    assert.equal(latestMacVersion(null), null)
+  })
+
+  describe("over http", () => {
+    let server
+    let base
+    before(async () => {
+      server = createServer(requestHandler)
+      await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve))
+      base = `http://127.0.0.1:${server.address().port}`
+    })
+    after(() => server.close())
+
+    it("302s a versioned archive and never caches the hop", async () => {
+      const res = await fetch(`${base}/mac/QuotaCanary-0.1.0.zip`, {
+        headers: { "x-forwarded-host": "quotacanary.com" },
+        redirect: "manual",
+      })
+      assert.equal(res.status, 302)
+      assert.equal(res.headers.get("location"), asset("0.1.0"))
+      assert.equal(res.headers.get("cache-control"), "no-store")
+    })
+
+    it("serves the update feed as small uncached JSON when the build has one", async (t) => {
+      const res = await fetch(`${base}/mac/updates.json`, {
+        headers: { "x-forwarded-host": "quotacanary.com" },
+      })
+      if (res.status === 404) return t.skip("no site/public/mac/updates.json in this build")
+      assert.equal(res.status, 200)
+      assert.match(res.headers.get("content-type"), /^application\/json/)
+      assert.equal(res.headers.get("cache-control"), "no-cache")
+      const body = await res.text()
+      assert.ok(body.length < 64 * 1024)
+      const feed = JSON.parse(body)
+      assert.equal(feed.url, `https://quotacanary.com/mac/QuotaCanary-${feed.version}.zip`)
+      const latest = await fetch(`${base}/download/mac`, {
+        headers: { "x-forwarded-host": "quotacanary.com" },
+        redirect: "manual",
+      })
+      assert.equal(latest.status, 302)
+      assert.equal(latest.headers.get("location"), `/mac/QuotaCanary-${feed.version}.dmg`)
+    })
   })
 })

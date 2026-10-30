@@ -135,7 +135,7 @@ enum NotifyTest {
   /// Returns nil when `operation` has not finished within `seconds`. The
   /// operation keeps running (a permission request cannot be cancelled).
   @MainActor
-  private static func withTimeout<T>(_ seconds: Double, _ operation: @escaping @MainActor () async -> T) async -> T? {
+  private static func withTimeout<T: Sendable>(_ seconds: Double, _ operation: @escaping @MainActor () async -> T) async -> T? {
     await withCheckedContinuation { (continuation: CheckedContinuation<T?, Never>) in
       var done = false
       func finish(_ value: T?) {
@@ -145,7 +145,7 @@ enum NotifyTest {
       }
       Task { @MainActor in finish(await operation()) }
       Task { @MainActor in
-        try? await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
+        try? await Task.sleep(for: .seconds(seconds))
         finish(nil)
       }
     }

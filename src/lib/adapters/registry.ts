@@ -33,6 +33,7 @@ import { snovAdapter } from "./snov"
 import { tavilyAdapter } from "./tavily"
 import { thecompaniesapiAdapter } from "./thecompaniesapi"
 import { tombaAdapter } from "./tomba"
+import { tregAdapter } from "./treg"
 import { twilioAdapter } from "./twilio"
 import type { ToolAdapter } from "./types"
 import { verifaliaAdapter } from "./verifalia"
@@ -83,6 +84,7 @@ const HAND_WRITTEN: Record<string, ToolAdapter> = {
   [icypeasAdapter.toolId]: icypeasAdapter,
   [thecompaniesapiAdapter.toolId]: thecompaniesapiAdapter,
   [youcomAdapter.toolId]: youcomAdapter,
+  [tregAdapter.toolId]: tregAdapter,
 }
 
 export const HAND_WRITTEN_TOOL_IDS = Object.keys(HAND_WRITTEN)

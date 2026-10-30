@@ -18,6 +18,15 @@ import Testing
     #expect(draft.key == "typed-key")
   }
 
+  /// QUO-347: the list fits its rows, so a narrowed search collapses it,
+  /// and scrolls past six.
+  @Test func listShowsUpToSixRowsThenScrolls() {
+    #expect(ProviderPicker.visibleRows(0) == 0)
+    #expect(ProviderPicker.visibleRows(1) == 1)
+    #expect(ProviderPicker.visibleRows(6) == 6)
+    #expect(ProviderPicker.visibleRows(120) == 6)
+  }
+
   @Test func zeroMatchesHighlightNothingAndKeepThePick() {
     let filtered = ProviderSearch.filter("no such tool", among: rows)
     #expect(filtered.isEmpty)

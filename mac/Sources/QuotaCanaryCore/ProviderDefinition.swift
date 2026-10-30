@@ -73,7 +73,7 @@ public struct ProviderDefinition: Sendable {
 /// is the contract. `topupURL` and the defaults mirror the hosted tools table
 /// (supabase/seed.sql: critical is `default_alert_threshold`, low the 3x
 /// backfill rule unless the seed row sets it).
-public protocol HandWrittenProvider {
+public protocol HandWrittenProvider: SendableMetatype {
   static var id: ProviderID { get }
   static var name: String { get }
   static var topupURL: String { get }

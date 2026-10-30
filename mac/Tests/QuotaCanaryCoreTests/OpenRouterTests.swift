@@ -56,8 +56,8 @@ private func read(_ step: ScriptedTransport.Step) async -> Result<[PoolBalance],
   }
 
   @Test func formatsUSD() {
-    #expect(Format.balance(12.5, unit: .usd) == "$12.50")
-    #expect(Format.balance(-1, unit: .usd) == "-$1.00")
+    #expect(Format.balance(12.5, unit: .usd, locale: Locale(identifier: "en_US")) == "$12.50")
+    #expect(Format.balance(-1, unit: .usd, locale: Locale(identifier: "en_US")) == "-$1.00")
   }
 }
 

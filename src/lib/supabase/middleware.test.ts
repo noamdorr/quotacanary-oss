@@ -1,146 +1,176 @@
 import { NextRequest } from "next/server"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
-// No network, no real env: getUser() always sees a signed-out visitor, which
-// is enough to exercise every routing decision updateSession makes.
+const auth = vi.hoisted(() => ({
+  signedIn: false,
+  refreshCookie: false,
+  getUser: vi.fn(),
+}))
+
 vi.mock("@supabase/ssr", () => ({
-  createServerClient: () => ({
-    auth: { getUser: async () => ({ data: { user: null } }) },
+  createServerClient: (
+    _url: string,
+    _key: string,
+    options: {
+      cookies: {
+        setAll: (
+          cookies: Array<{ name: string; value: string; options: object }>
+        ) => void
+      }
+    }
+  ) => ({
+    auth: {
+      getUser: async () => {
+        auth.getUser()
+        if (auth.refreshCookie) {
+          options.cookies.setAll([
+            {
+              name: "session",
+              value: "refreshed",
+              options: { httpOnly: true },
+            },
+          ])
+        }
+        return { data: { user: auth.signedIn ? { id: "fixture-user" } : null } }
+      },
+    },
   }),
 }))
 
 import { updateSession } from "@/lib/supabase/middleware"
 
-// The request URL is the INTERNAL origin (Railway proxies to one); the public
-// identity travels in the host / x-forwarded-* headers, exactly like prod.
 function makeRequest(path: string, headers: Record<string, string> = {}) {
   return new NextRequest(`http://internal.local:8080${path}`, { headers })
 }
 
 beforeEach(() => {
-  // Keep the non-APP_ONLY cases deterministic even if APP_ONLY happens to be
-  // set in the developer's shell (mirrors host-routing.test.ts).
-  vi.stubEnv("APP_ONLY", "")
-  // The app branch reads these; the mocked client ignores the values.
-  vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://stub.supabase.co")
+  // No live Supabase: the mocked client owns every auth response.
+  vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "http://localhost:54321")
   vi.stubEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY", "stub-anon-key")
+  auth.signedIn = false
+  auth.refreshCookie = false
+  auth.getUser.mockReset()
 })
 
-afterEach(() => {
-  vi.unstubAllEnvs()
-})
+afterEach(() => vi.unstubAllEnvs())
 
-describe("updateSession on the marketing surface", () => {
-  it("bounces an app path to the app subdomain", async () => {
-    const res = await updateSession(
-      makeRequest("/dashboard", {
-        host: "quotacanary.com",
-        "x-forwarded-proto": "https",
-      })
-    )
-    expect(res.status).toBe(307)
-    expect(res.headers.get("location")).toBe(
-      "https://app.quotacanary.com/dashboard"
-    )
-  })
+describe("same-origin self-host routing", () => {
+  it.each(["", "true"])(
+    "serves every host as the app with APP_ONLY=%s",
+    async (flag) => {
+      vi.stubEnv("APP_ONLY", flag)
+      for (const host of [
+        "canary.example.com",
+        "www.example.com",
+        "localhost:3000",
+        "127.0.0.1:3000",
+        "[::1]:3000",
+      ]) {
+        const response = await updateSession(
+          makeRequest("/dashboard", { host })
+        )
+        expect(response.headers.get("location")).toBe(
+          `http://${host}/login?next=%2Fdashboard`
+        )
+        expect(response.headers.get("x-robots-tag")).toBe(
+          "noindex, nofollow, noarchive"
+        )
+      }
+    }
+  )
 
-  it("strips www when bouncing and preserves the query string", async () => {
-    const res = await updateSession(
-      makeRequest("/login?tab=signup", {
-        host: "www.quotacanary.com",
-        "x-forwarded-proto": "https",
-      })
-    )
-    expect(res.headers.get("location")).toBe(
-      "https://app.quotacanary.com/login?tab=signup"
-    )
-  })
-
-  it("prefers x-forwarded-host over host for the public identity", async () => {
-    const res = await updateSession(
+  it("prefers the forwarded public origin over the internal request origin", async () => {
+    const response = await updateSession(
       makeRequest("/settings", {
         host: "localhost:8080",
-        "x-forwarded-host": "quotacanary.com",
+        "x-forwarded-host": "canary.example.com",
         "x-forwarded-proto": "https",
       })
     )
-    expect(res.headers.get("location")).toBe(
-      "https://app.quotacanary.com/settings"
+    expect(response.headers.get("location")).toBe(
+      "https://canary.example.com/login?next=%2Fsettings"
     )
   })
 
-  it("sends an IPv4-literal host to the marketing root instead of crashing", async () => {
-    const res = await updateSession(
-      makeRequest("/dashboard", { host: "127.0.0.1:3000" })
+  it("redirects the app root to its own dashboard without an auth round trip", async () => {
+    const response = await updateSession(
+      makeRequest("/", { host: "canary.example.com" })
     )
-    expect(res.status).toBe(307)
-    expect(res.headers.get("location")).toBe("http://127.0.0.1:3000/")
+    expect(response.headers.get("location")).toBe(
+      "http://canary.example.com/dashboard"
+    )
+    expect(auth.getUser).not.toHaveBeenCalled()
   })
 
-  it("sends a bracketed IPv6-literal host to the marketing root", async () => {
-    const res = await updateSession(
-      makeRequest("/login", { host: "[::1]:3000" })
-    )
-    expect(res.headers.get("location")).toBe("http://[::1]:3000/")
-  })
+  it.each(["/docs", "/security", "/login?tool=hunter"])(
+    "keeps %s available before sign-in",
+    async (path) => {
+      const response = await updateSession(
+        makeRequest(path, { host: "canary.example.com" })
+      )
+      expect(response.status).toBe(200)
+      expect(response.headers.get("location")).toBeNull()
+      expect(response.headers.get("x-robots-tag")).toBe(
+        "noindex, nofollow, noarchive"
+      )
+    }
+  )
 
-  it("passes a genuine marketing path straight through", async () => {
-    const res = await updateSession(
-      makeRequest("/", { host: "quotacanary.com" })
-    )
-    expect(res.status).toBe(200)
-    expect(res.headers.get("location")).toBeNull()
-  })
-})
-
-describe("updateSession on the app surface", () => {
-  it("redirects an unauthenticated protected path to login on the same host", async () => {
-    const res = await updateSession(
-      makeRequest("/dashboard", {
-        host: "app.quotacanary.com",
-        "x-forwarded-proto": "https",
+  it.each(["/docs", "/security"])(
+    "serves %s without an available auth service",
+    async (path) => {
+      vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "")
+      vi.stubEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY", "")
+      auth.getUser.mockImplementation(() => {
+        throw new Error("auth unavailable")
       })
-    )
-    expect(res.headers.get("location")).toBe(
-      "https://app.quotacanary.com/login?next=%2Fdashboard"
-    )
-    expect(res.headers.get("x-robots-tag")).toBe("noindex, nofollow, noarchive")
+      const response = await updateSession(
+        makeRequest(path, {
+          host: "canary.example.com",
+          "x-nonce": "fixture-nonce",
+        })
+      )
+      expect(response.status).toBe(200)
+      expect(response.headers.get("x-robots-tag")).toBe(
+        "noindex, nofollow, noarchive"
+      )
+      expect(response.headers.get("x-middleware-request-x-nonce")).toBe(
+        "fixture-nonce"
+      )
+      expect(auth.getUser).not.toHaveBeenCalled()
+    }
+  )
+
+  it("still requires auth on protected paths when the auth service is unavailable", async () => {
+    auth.getUser.mockImplementation(() => {
+      throw new Error("auth unavailable")
+    })
+    await expect(
+      updateSession(makeRequest("/settings", { host: "canary.example.com" }))
+    ).rejects.toThrow("auth unavailable")
+    expect(auth.getUser).toHaveBeenCalledOnce()
   })
 
-  it("sends the app root to the dashboard", async () => {
-    const res = await updateSession(
-      makeRequest("/", {
-        host: "app.quotacanary.com",
-        "x-forwarded-proto": "https",
-      })
+  it("keeps a refreshed session cookie when redirecting signed-in login", async () => {
+    auth.signedIn = true
+    auth.refreshCookie = true
+    const response = await updateSession(
+      makeRequest("/login", { host: "canary.example.com" })
     )
-    expect(res.headers.get("location")).toBe(
-      "https://app.quotacanary.com/dashboard"
+    expect(response.headers.get("location")).toBe(
+      "http://canary.example.com/dashboard"
     )
-  })
-})
-
-describe("updateSession with APP_ONLY=true (self-host)", () => {
-  it("keeps the login redirect on the self-host domain (no cross-host bounce)", async () => {
-    vi.stubEnv("APP_ONLY", "true")
-    const res = await updateSession(
-      makeRequest("/dashboard", {
-        host: "myserver.example.com",
-        "x-forwarded-proto": "https",
-      })
-    )
-    expect(res.headers.get("location")).toBe(
-      "https://myserver.example.com/login?next=%2Fdashboard"
-    )
+    expect(response.cookies.get("session")?.value).toBe("refreshed")
   })
 
-  it("treats an IP-literal host as the app, not a marketing bounce to /", async () => {
-    vi.stubEnv("APP_ONLY", "true")
-    const res = await updateSession(
-      makeRequest("/dashboard", { host: "192.168.1.50:3000" })
+  it("keeps a refreshed or cleared session cookie on the protected-route redirect", async () => {
+    auth.refreshCookie = true
+    const response = await updateSession(
+      makeRequest("/tools/hunter", { host: "canary.example.com" })
     )
-    expect(res.headers.get("location")).toBe(
-      "http://192.168.1.50:3000/login?next=%2Fdashboard"
+    expect(response.headers.get("location")).toBe(
+      "http://canary.example.com/login?next=%2Ftools%2Fhunter"
     )
+    expect(response.cookies.get("session")?.value).toBe("refreshed")
   })
 })

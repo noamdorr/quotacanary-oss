@@ -40,6 +40,45 @@ private func jsonString(_ report: Diagnostics.Report) -> String {
     #expect(report.updates == Diagnostics.UpdatesInfo(automaticUpdateChecks: false, lastUpdateCheckAt: nil))
   }
 
+  @MainActor @Test func deepgramProjectIdentityStaysInternalOnSuccessAndFailure() async throws {
+    let projectID = "review-project-PRIVATE-123/part two"
+    let encodedID = try #require(projectID.addingPercentEncoding(withAllowedCharacters: Deepgram.idAllowed))
+    let projects = #"{"projects":[{"project_id":"\#(projectID)","name":"Private workspace"}]}"#
+    let balance = #"{"balances":[{"units":"usd","amount":25}]}"#
+    let key = "synthetic-deepgram-key"
+    let service = MonitoringService(
+      credentials: InMemoryCredentialStore(), store: InMemoryConnectionStore(),
+      transport: ScriptedTransport([
+        .respond(status: 200, body: projects),
+        .respond(status: 200, body: balance),
+        .respond(status: 200, body: projects),
+        .respond(status: 403, body: #"{"error":"project \#(projectID) denied","encoded":"\#(encodedID)","code":"BILLING_SCOPE"}"#),
+      ])
+    )
+    let connection = try await service.connect(provider: .deepgram, key: key)
+    #expect(connection.lastReading?.balances.first?.pool.creditType == "project:\(projectID)")
+
+    func assertSafe(_ record: CheckRecord?) throws {
+      let record = try #require(record)
+      let report = Diagnostics.report(connections: [.init(connection: connection, lastError: nil, lastCheck: record)], appVersion: "review")
+      let exported = jsonString(report)
+      #expect(!exported.contains(projectID))
+      #expect(!exported.contains(encodedID))
+      #expect(!record.path.contains(projectID))
+      #expect(!record.body.contains(projectID))
+      #expect(!record.clipboardText.contains(projectID))
+      #expect(!record.clipboardText.contains(encodedID))
+      #expect(record.path == "/v1/projects/[project]/balances")
+      #expect(report.connections[0].pools[0].creditType == "project:1")
+      #expect(report.connections[0].pools[0].unit == .usd)
+      #expect(report.connections[0].pools[0].balance == 25)
+    }
+    try assertSafe(service.lastChecks[connection.id])
+    _ = try? await service.refresh(id: connection.id)
+    #expect(service.lastChecks[connection.id]?.status == 403)
+    try assertSafe(service.lastChecks[connection.id])
+  }
+
   @Test func updateSettingsAreTheOnlyPreferencesReported() {
     // QUO-139: the two update values the caller passes in, nothing else from preferences.json.
     let checked = Date(timeIntervalSince1970: 1_700_000_050)

@@ -3,14 +3,14 @@ import Layout from "../layouts/Layout.astro"
 import { SELF_HOST_URL, UPDATE_DISCLOSURE } from "../lib/copy"
 // QUO-325: Noam approved the complete Privacy page on 2026-10-24.
 // Operator name supplied by Noam: QuotaCanary; no company status is asserted.
-// Publication date and merge remain pending.
+// Published 2026-10-29 on Noam's go.
 // This draft does not assert completed service shutdown.
 ---
 
 <Layout title="Privacy policy - QuotaCanary" description="Local Mac data, vendor requests, optional update checks and website analytics." path="/privacy">
   <article class="page page-narrow wrap">
     <h1>Privacy policy</h1>
-    <p class="eyebrow page-meta">Draft for review. Publication date pending.</p>
+    <p class="eyebrow page-meta">Last updated 29 October 2026.</p>
     <p class="page-meta">Operator: QuotaCanary.</p>
     <div class="prose">
       <p>The Mac app keeps connection settings and balance history on your Mac. Vendor keys stay in the login Keychain and never go to QuotaCanary servers; balance requests go directly to vendors.</p>
@@ -18,11 +18,11 @@ import { SELF_HOST_URL, UPDATE_DISCLOSURE } from "../lib/copy"
 <h2>The Mac app</h2>
 <p>The Mac app has no analytics. It uses read-only vendor balance or usage endpoints. Local history supports burn rates and run-out estimates. Checks and alerts require the app running and your Mac awake and online.</p>
 <h2>Website and contact</h2>
-<p>The website can use Plausible for aggregate page analytics when configured. Website and update-feed requests expose ordinary network metadata, including an IP address, to the serving infrastructure. If you email us, we receive your message and email address. Never include API keys in a message.</p>
+<p>The website uses Plausible for aggregate, cookieless page analytics. Website and update-feed requests expose ordinary network metadata, including an IP address, to the serving infrastructure. If you email us, we receive your message and email address. Never include API keys in a message.</p>
 <h2>Local deletion</h2>
 <p>Remove a connection to delete its stored key and history, or use Erase local data for all app-owned credentials and files. Uninstalling the app alone does not erase those stores. Vendor records and copies you make yourself are outside the app’s control.</p>
 <h2>Self-hosting</h2>
-<p>Not on a Mac? Run the web version yourself. You operate its server and database, and its server can decrypt the vendor keys it stores. Encryption at rest does not protect against someone with both the database and the server secrets. <a href={SELF_HOST_URL}>Read the self-host guide</a>.</p>
+<p>Not on a Mac? Run the web version yourself. You operate its server and database, and its server can decrypt the vendor keys it stores. Encryption at rest does not protect against someone with both the database and the server secrets. <a href={SELF_HOST_URL} target="_blank" rel="noopener">Read the self-host guide</a>.</p>
 <h2>Contact</h2>
 <p>For questions about information you send us, email <a href="mailto:hey@quotacanary.com">hey@quotacanary.com</a>.</p>
     </div>

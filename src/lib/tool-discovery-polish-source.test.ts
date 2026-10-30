@@ -5,23 +5,10 @@ import { describe, expect, it } from "vitest"
 const readSource = (path: string) =>
   readFileSync(resolve(process.cwd(), path), "utf8")
 
-const directory = readSource("src/components/marketing/ToolsDirectory.tsx")
-const directoryDetail = readSource(
-  "src/app/(marketing)/directory/[id]/page.tsx"
-)
 const toolGrid = readSource("src/components/connect/ToolGrid.tsx")
 
 describe("tool discovery polish", () => {
-  it("gives directory tiles and filters explicit pointer and keyboard states", () => {
-    expect(directory).toContain("aria-pressed={active}")
-    expect(directory).toMatch(/hover:[^"\s]+/)
-    expect(directory).toMatch(/focus-visible:ring-3/)
-    expect(directory).toMatch(/active:scale-\[0\.96\]/)
-    expect(directory).toMatch(/motion-reduce:active:scale-100/)
-  })
-
-  it("stabilizes changing directory and connection counts", () => {
-    expect(directory).toMatch(/className="f-mono tabular-nums"/)
+  it("stabilizes changing connection counts", () => {
     expect(toolGrid).toMatch(/tabular-nums[^"\n]*[\s\S]*?connectedCount/)
   })
 
@@ -30,11 +17,7 @@ describe("tool discovery polish", () => {
     expect(toolGrid).toContain("rounded-[var(--radius)]")
   })
 
-  it("applies intentional wrapping to directory and connect copy", () => {
-    expect(directory).toContain('className="f-display text-balance"')
-    expect(directory).toContain('className="text-pretty"')
-    expect(directoryDetail).toContain("text-balance")
-    expect(directoryDetail).toContain("text-pretty")
+  it("applies intentional wrapping to connect copy", () => {
     expect(toolGrid).toContain("text-pretty")
   })
 

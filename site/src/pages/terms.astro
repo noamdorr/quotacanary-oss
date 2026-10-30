@@ -3,14 +3,14 @@ import Layout from "../layouts/Layout.astro"
 import { UPDATE_DISCLOSURE, GITHUB_URL } from "../lib/copy"
 // QUO-325: Noam approved the complete Terms page on 2026-10-24.
 // Operator name supplied by Noam: QuotaCanary; no company status is asserted.
-// Israeli governing law approved; publication date and merge remain pending.
+// Israeli governing law approved; published 2026-10-29 on Noam's go.
 // This draft does not assert completed service shutdown.
 ---
 
 <Layout title="Terms of use - QuotaCanary" description="Terms for the free, local Mac app and self-host source." path="/terms">
   <article class="page page-narrow wrap">
     <h1>Terms of use</h1>
-    <p class="eyebrow page-meta">Draft for review. Publication date pending.</p>
+    <p class="eyebrow page-meta">Last updated 29 October 2026.</p>
     <p class="page-meta">Operator: QuotaCanary.</p>
     <div class="prose">
       <p>QuotaCanary is free, open-source software for checking API credit balances. Use only credentials you are authorized to use and follow each vendor’s terms.</p>
@@ -20,7 +20,7 @@ import { UPDATE_DISCLOSURE, GITHUB_URL } from "../lib/copy"
 <p>Vendor keys stay in the Mac’s login Keychain and go directly to their vendors, never to QuotaCanary servers.</p>
 <p>{UPDATE_DISCLOSURE}</p>
 <h2>Source and self-hosting</h2>
-<p>The source is provided under the <a href={`${GITHUB_URL}/blob/master/LICENSE`}>MIT license</a>, including its warranty disclaimer. If you run the web version yourself, you operate its server, database, credentials and polling schedule.</p>
+<p>The source is provided under the <a href={`${GITHUB_URL}/blob/main/LICENSE`} target="_blank" rel="noopener">MIT license</a>, including its warranty disclaimer. If you run the web version yourself, you operate its server, database, credentials and polling schedule.</p>
 <h2>Stopping use</h2>
 <p>You can stop using the app at any time. Use Erase local data to remove its stored credentials and files before uninstalling if you want those removed.</p>
 <h2>Governing law</h2>

@@ -5,11 +5,12 @@ import Testing
 /// Provider ids are strings validated against the bundled catalog plus the
 /// hand-written set (OpenRouter, Tavily, Apollo, lemlist, People Data Labs, PhantomBuster, Deepgram, Webshare, Decodo, Brevo, Twilio, Plivo, Vonage,
 /// DataForSEO, Tomba, Snov.io, Verifalia, PredictLeads, Crawlbase, Hyperbolic, Orthogonal, ZeroBounce,
-/// RocketReach, Enrich CRM, Majestic, Mangools, Semrush, Ahrefs, Diffbot, NetNut, ContactOut, Melt.ly, DeepSeek, Firecrawl, Apify, You.com). The picker lists all of them.
+/// RocketReach, Enrich CRM, Majestic, Mangools, Semrush, Ahrefs, Diffbot, NetNut, ContactOut, Melt.ly, DeepSeek, Firecrawl, Apify, You.com,
+/// HLR Lookup, Icypeas, The Companies API, treg). The picker lists all of them.
 @Suite struct ProviderRegistryTests {
   @Test func thePickerListsEveryCatalogToolPlusTheHandWrittenOnes() throws {
     let ids = ProviderID.allCases
-    #expect(ids.count == 95 + 36)
+    #expect(ids.count == 108 + 40)
     #expect(Set(ids).count == ids.count)
     #expect(ids.contains(.openrouter) && ids.contains(.tavily) && ids.contains(.apollo) && ids.contains(.lemlist)
       && ids.contains(.peopledatalabs) && ids.contains(.phantombuster) && ids.contains(.deepgram)
@@ -17,7 +18,7 @@ import Testing
       && ids.contains(.twilio) && ids.contains(.plivo) && ids.contains(.vonage)
       && [ProviderID.dataforseo, .tomba, .snov, .verifalia, .predictleads, .crawlbase, .hyperbolic, .orthogonal, .zerobounce,
          .rocketreach, .enrichcrm, .majestic, .mangools, .semrush, .ahrefs, .diffbot, .netnut,
-         .contactout, .meltly, .deepseek, .firecrawl, .apify, .youcom].allSatisfy(ids.contains))
+         .contactout, .meltly, .deepseek, .firecrawl, .apify, .youcom, .hlrlookup, .icypeas, .thecompaniesapi, .treg].allSatisfy(ids.contains))
     #expect(ids.contains(.hunter) && ids.contains(.prospeo) && ids.contains(ProviderID("shodan")))
     // Alphabetical by display name, case-insensitively, so the menu reads top to bottom.
     #expect(ids.map { $0.displayName.lowercased() } == ids.map { $0.displayName.lowercased() }.sorted())
@@ -101,6 +102,12 @@ import Testing
       (.firecrawl, "Firecrawl", Firecrawl.pools, PoolSettings(monitored: true, low: 15000, critical: 5000)),
       // QUO-319: the You.com twin.
       (.youcom, "You.com", YouCom.pools, PoolSettings(monitored: true, low: 15, critical: 5)),
+      // QUO-342: the second-value twins of the QUO-248 web adapters.
+      (.hlrlookup, "HLR Lookup", HLRLookup.pools, PoolSettings(monitored: true, low: 300, critical: 100)),
+      (.icypeas, "Icypeas", Icypeas.pools, PoolSettings(monitored: true, low: 300, critical: 100)),
+      (.thecompaniesapi, "The Companies API", TheCompaniesAPI.pools, PoolSettings(monitored: true, low: 300, critical: 100)),
+      // QUO-349: treg itself, org id as the second value.
+      (.treg, "treg", Treg.pools, PoolSettings(monitored: true, low: 15, critical: 5)),
     ]
     for (id, name, pools, defaults) in twins {
       #expect(id.displayName == name)
@@ -129,8 +136,8 @@ import Testing
     let registry = ProviderRegistry(catalog: .failure(CatalogError(reason: "tools.0: missing pools")))
     #expect(registry.ids == [
       .ahrefs, .apify, .apollo, .brevo, .contactout, .crawlbase, .dataforseo, .decodo, .deepgram, .deepseek, .diffbot, .enrichcrm, .firecrawl,
-      .hyperbolic, .lemlist, .majestic, .mangools, .meltly, .netnut, .openrouter, .orthogonal, .peopledatalabs, .phantombuster, .plivo, .predictleads, .rocketreach, .semrush, .snov, .tavily,
-      .tomba, .twilio, .verifalia, .vonage, .webshare, .youcom, .zerobounce,
+      .hlrlookup, .hyperbolic, .icypeas, .lemlist, .majestic, .mangools, .meltly, .netnut, .openrouter, .orthogonal, .peopledatalabs, .phantombuster, .plivo, .predictleads, .rocketreach, .semrush, .snov, .tavily,
+      .thecompaniesapi, .tomba, .treg, .twilio, .verifalia, .vonage, .webshare, .youcom, .zerobounce,
     ])
     #expect(registry.catalogFailure == "tools.0: missing pools")
     #expect(registry.isKnown(.openrouter))

@@ -23,9 +23,9 @@ private func points(_ balances: [Double]) -> [HistoryPoint] {
   @Test func declineOverThreeChecksGivesABurnAndARelativeEta() {
     // 1000 -> 940 -> 880 over two hours: 1440/day, 880 left = 0.61 days.
     #expect(PoolEta.of(row(880), history: points([1000, 940, 880]))
-      == BurnEta(short: "~15h", long: "Empties in ~15 hours."))
+      == BurnEta(short: "in ~15h", long: "Empties in ~15 hours."))
     // 1000 -> 970 -> 940: 720/day, 940 left = 1.31 days.
-    #expect(PoolEta.of(row(940), history: points([1000, 970, 940]))?.short == "burns out tomorrow")
+    #expect(PoolEta.of(row(940), history: points([1000, 970, 940]))?.short == "tomorrow")
     // 1000 -> 990 -> 980: 240/day, 980 left = 4.08 days. Relative, never a weekday.
     #expect(PoolEta.of(row(980), history: points([1000, 990, 980]))
       == BurnEta(short: "in ~4 days", long: "Empties in ~4 days."))
@@ -43,7 +43,7 @@ private func points(_ balances: [Double]) -> [HistoryPoint] {
   }
 
   @Test func aDepletedPoolIsAlreadyGoneEvenWithoutAMeasurableBurn() {
-    #expect(PoolEta.of(row(0), history: []) == BurnEta(short: "already gone", long: "Already empty."))
+    #expect(PoolEta.of(row(0), history: []) == BurnEta(short: "empty now", long: "Already empty."))
   }
 
   @Test func unreadAndNotInPlanPoolsHaveNoEta() {

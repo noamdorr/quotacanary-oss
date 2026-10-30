@@ -3,14 +3,26 @@ import { resolve } from "node:path"
 import { describe, expect, it } from "vitest"
 
 const source = readFileSync(
-  resolve(process.cwd(), "src/app/(marketing)/docs/page.tsx"),
+  resolve(process.cwd(), "src/app/(public)/docs/page.tsx"),
   "utf8"
 )
 
 describe("public docs", () => {
+  it("uses request headers to resolve the self-host origin at render time", () => {
+    expect(source).toContain("await headers()")
+    expect(source).toContain("resolveAppOrigin(")
+    expect(source).not.toContain("const appUrl = APP_URL")
+  })
+
   it("points token links at Settings integrations", () => {
     expect(source).toContain("/settings#integrations")
     expect(source).not.toContain("/developer")
+  })
+
+  it("does not claim the Mac app moves connections to a hosted account", () => {
+    expect(source).not.toContain("Move to")
+    expect(source).not.toContain("hosted poller")
+    expect(source).not.toContain("the Mac app asks for")
   })
 
   it("documents the webhooks integration", () => {

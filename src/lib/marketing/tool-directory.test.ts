@@ -1,12 +1,6 @@
 import type { Tool } from "@/lib/types"
 import { describe, expect, it } from "vitest"
-import {
-  categoryLabel,
-  sortToolsForDirectory,
-  toolMatchesQuery,
-  toolSubheading,
-  toolWebsiteUrl,
-} from "./tool-directory"
+import { categoryLabel, toolMatchesQuery } from "./tool-directory"
 
 const tool = (id: string, name: string, category: string | null): Tool => ({
   id,
@@ -52,78 +46,5 @@ describe("toolMatchesQuery", () => {
   it("normalizes separators and rejects unrelated queries", () => {
     expect(toolMatchesQuery(hunter, "email_finding")).toBe(true)
     expect(toolMatchesQuery(hunter, "web data")).toBe(false)
-  })
-})
-
-describe("toolSubheading", () => {
-  it("builds the SEO subheading from the tool name", () => {
-    expect(toolSubheading("Hunter")).toBe(
-      "Check your Hunter credit balance and burn rate"
-    )
-  })
-})
-
-describe("toolWebsiteUrl", () => {
-  it("prefers an explicit website_url over the derived root", () => {
-    expect(
-      toolWebsiteUrl({
-        website_url: "https://deepseek.com",
-        topup_url: null,
-        api_docs_url: "https://api-docs.deepseek.com/",
-      })
-    ).toBe("https://deepseek.com")
-  })
-
-  it("derives a root website from API docs", () => {
-    expect(
-      toolWebsiteUrl({
-        website_url: null,
-        topup_url: null,
-        api_docs_url: "https://hunter.io/api-documentation/v2",
-      })
-    ).toBe("https://hunter.io/")
-  })
-
-  it("strips service subdomains from docs and app links", () => {
-    expect(
-      toolWebsiteUrl({
-        website_url: null,
-        topup_url: null,
-        api_docs_url:
-          "https://docs.usebouncer.com/api-reference/credits/credits",
-      })
-    ).toBe("https://usebouncer.com/")
-    expect(
-      toolWebsiteUrl({
-        website_url: null,
-        topup_url: "https://app.dataforseo.com/billing",
-        api_docs_url: null,
-      })
-    ).toBe("https://dataforseo.com/")
-  })
-
-  it("returns null when no usable URL exists", () => {
-    expect(
-      toolWebsiteUrl({ website_url: null, topup_url: null, api_docs_url: null })
-    ).toBeNull()
-    expect(
-      toolWebsiteUrl({
-        website_url: null,
-        topup_url: "nope",
-        api_docs_url: null,
-      })
-    ).toBeNull()
-  })
-})
-
-describe("sortToolsForDirectory", () => {
-  it("orders by category rank, then name", () => {
-    const sorted = sortToolsForDirectory([
-      tool("d", "DeepSeek", "ai"),
-      tool("z", "ZeroBounce", "email_verification"),
-      tool("a", "Apify", "data"),
-      tool("n", "NeverBounce", "email_verification"),
-    ])
-    expect(sorted.map((t) => t.id)).toEqual(["n", "z", "a", "d"])
   })
 })

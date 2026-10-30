@@ -112,6 +112,13 @@ export async function dispatchAlerts(
   evaluations: AlertEvaluation[],
   stopped: StoppedCheckingEvaluation[] = []
 ): Promise<DispatchResult> {
+  const dashboardUrl = appDashboardUrl()
+  if (!dashboardUrl) {
+    console.error(
+      "[alerts] NEXT_PUBLIC_APP_URL must be a configured app origin"
+    )
+    return { sent: 0, failedSends: 0, degraded: true }
+  }
   // Cancellation runs first and must complete: whatever it fails to cancel is
   // still due, and processing it fires the exact stale alert the cancellation
   // exists to stop. Three paths cancel - recovery for a healed connection, a
@@ -127,8 +134,12 @@ export async function dispatchAlerts(
   }
   // Preparation only creates work. A failure there delays new alerts by a poll
   // without making the deliveries already due unsafe to process.
-  const prepared = await prepareEscalations(supabase, evaluations)
-  const preparedStopped = await prepareStoppedChecking(supabase, stopped)
+  const prepared = await prepareEscalations(supabase, evaluations, dashboardUrl)
+  const preparedStopped = await prepareStoppedChecking(
+    supabase,
+    stopped,
+    dashboardUrl
+  )
   const result = await processDueDeliveries(supabase)
   return {
     ...result,
@@ -437,7 +448,8 @@ async function supersedeLowAlerts(
 // Returns false when a lookup failed, leaving escalations unprepared.
 async function prepareEscalations(
   supabase: SupabaseClient,
-  evaluations: AlertEvaluation[]
+  evaluations: AlertEvaluation[],
+  dashboardUrl: string
 ): Promise<boolean> {
   // A pool that newly crossed its own threshold is news even when the
   // connection's overall severity is unchanged, which is exactly the case the
@@ -453,7 +465,6 @@ async function prepareEscalations(
   )
   if (!recipients) return false
   const { usersById, destinationsByUser } = recipients
-  const dashboardUrl = appDashboardUrl()
 
   let ok = true
   for (const { e, esc } of candidates) {
@@ -603,10 +614,24 @@ async function loadRecipients(
   return { usersById, destinationsByUser }
 }
 
-function appDashboardUrl(): string {
-  const appUrl =
-    process.env.NEXT_PUBLIC_APP_URL ?? "https://app.quotacanary.com"
-  return `${appUrl}/dashboard`
+function appDashboardUrl(): string | null {
+  const configured = process.env.NEXT_PUBLIC_APP_URL?.trim()
+  if (!configured) return null
+  try {
+    const url = new URL(configured)
+    if (
+      !["http:", "https:"].includes(url.protocol) ||
+      url.username ||
+      url.password ||
+      url.pathname !== "/" ||
+      url.search ||
+      url.hash
+    )
+      return null
+    return `${url.origin}/dashboard`
+  } catch {
+    return null
+  }
 }
 
 // QUO-289. A failed read that reached the alert (stoppedCheckingDue) on a
@@ -622,7 +647,8 @@ function appDashboardUrl(): string {
 // Returns false when a lookup failed, leaving some candidates unprepared.
 async function prepareStoppedChecking(
   supabase: SupabaseClient,
-  stopped: StoppedCheckingEvaluation[]
+  stopped: StoppedCheckingEvaluation[],
+  dashboardUrl: string
 ): Promise<boolean> {
   let ok = true
   const candidates: StoppedCheckingEvaluation[] = []
@@ -658,7 +684,6 @@ async function prepareStoppedChecking(
     candidates.map((s) => s.userId)
   )
   if (!recipients) return false
-  const dashboardUrl = appDashboardUrl()
 
   for (const s of candidates) {
     const u = recipients.usersById.get(s.userId)

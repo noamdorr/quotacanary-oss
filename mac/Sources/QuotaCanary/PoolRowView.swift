@@ -13,11 +13,13 @@ struct PoolRowView: View {
       Text(row.pool.label).lineLimit(1)
       Spacer(minLength: 8)
       NotMonitoredCue(row: row, compact: true)
+      MutedCue(row: row)
       Text(Self.amount(row))
         .font(.title3.weight(.medium).monospacedDigit())
         .fixedSize(horizontal: true, vertical: false)
         .foregroundStyle(row.balance == nil || row.status == .unavailable ? Color.secondary : Color.primary)
     }
+    .opacity(row.muted ? MutedCue.dimming : 1)
     .help(Self.summary(row))
     .accessibilityElement(children: .ignore)
     .accessibilityLabel(Text(Self.summary(row)))
@@ -32,6 +34,7 @@ struct PoolRowView: View {
   static func summary(_ row: PoolRow) -> String {
     var parts = [row.pool.label, StatusIndicator.label(row.status), amount(row)]
     if !row.settings.monitored { parts.append(Copy.notMonitored) }
+    if row.muted { parts.append(Copy.muted) }
     return parts.joined(separator: ", ")
   }
 }
@@ -114,6 +117,34 @@ struct NotMonitoredCue: View {
       }
       .font(.caption).foregroundStyle(.secondary)
       .accessibilityLabel(cue)
+    }
+  }
+}
+
+/// The "muted" marker on a balance muted until it changes (QUO-351); the
+/// row around it is dimmed by `dimming`.
+struct MutedCue: View {
+  let row: PoolRow
+  static let dimming = 0.55
+
+  var body: some View {
+    if row.muted {
+      Text(Copy.muted).font(.caption).foregroundStyle(.secondary).lineLimit(1).fixedSize()
+    }
+  }
+}
+
+/// "Mute until it changes" on an at-risk balance, "Unmute" on a muted one
+/// (QUO-351). Renders nothing otherwise, so it can sit in any context menu.
+struct MuteButton: View {
+  let model: AppModel
+  let row: PoolRow
+
+  var body: some View {
+    if row.muted {
+      Button(Copy.unmuteButton) { model.setMuted(row.key, false) }
+    } else if row.alerts {
+      Button(Copy.muteButton) { model.setMuted(row.key, true) }
     }
   }
 }

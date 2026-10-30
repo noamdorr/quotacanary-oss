@@ -10,7 +10,8 @@ import os
 /// forget it: the key (also percent-encoded, and each value of a multi-value
 /// credential), every auth-style request header value and its token, and
 /// anything shaped like an email are replaced before the body is cut to
-/// `bodyLimit`. The URL keeps host and path only, never the query. The
+/// `bodyLimit`. Response JSON is parsed before redaction; unparseable bodies
+/// are omitted. The URL keeps host and path only, never the query. The
 /// service drops the body of a check that read fine (`withoutBody`): an
 /// account response can carry names and addresses and the export is meant to
 /// be shared.
@@ -67,15 +68,38 @@ public struct CheckRecord: Codable, Equatable, Sendable {
     method: String, url: URL, status: Int?, durationMs: Int, body: Data?, secrets: [String], now: Date
   ) -> CheckRecord {
     let redacted = { (text: String) in scrub(text, secrets: secrets) }
+    let projectID = deepgramProjectID(in: url)
+    let bodySecrets = projectID.map {
+      secrets + [$0, $0.addingPercentEncoding(withAllowedCharacters: Deepgram.idAllowed) ?? $0]
+    } ?? secrets
     var text = ""
-    if let body {
-      text = redacted(String(decoding: body, as: UTF8.self))
+    // The projects listing has no request ID to match against a provider echo.
+    // Failed listing bodies are omitted rather than exposing a project ID.
+    let unknownDeepgramProject = url.host == "api.deepgram.com" && projectID == nil
+    if let body, !unknownDeepgramProject, let safeBody = sanitizedBody(body, secrets: bodySecrets) {
+      text = safeBody
       if text.count > bodyLimit { text = String(text.prefix(bodyLimit)) + "..." }
     }
+    let path: String
+    if url.host == "api.deepgram.com", url.path.hasPrefix("/v1/projects/") {
+      path = projectID == nil ? "/v1/projects/[project]" : "/v1/projects/[project]/balances"
+    } else {
+      path = redacted(url.path)
+    }
     return CheckRecord(
-      method: method, host: url.host ?? "", path: redacted(url.path), status: status,
+      method: method, host: url.host ?? "", path: path, status: status,
       durationMs: durationMs, body: text, checkedAt: now
     )
+  }
+
+  /// The ID is private even though it is part of Deepgram's request URL.
+  /// Read it from the encoded path so IDs containing a slash stay one value.
+  private static func deepgramProjectID(in url: URL) -> String? {
+    guard url.host == "api.deepgram.com",
+          let path = URLComponents(url: url, resolvingAgainstBaseURL: false)?.percentEncodedPath,
+          path.hasPrefix("/v1/projects/"), path.hasSuffix("/balances") else { return nil }
+    let encoded = String(path.dropFirst("/v1/projects/".count).dropLast("/balances".count))
+    return encoded.isEmpty ? nil : encoded.removingPercentEncoding
   }
 
   /// Every string that identifies the credential: the key as stored, its
@@ -95,14 +119,66 @@ public struct CheckRecord: Codable, Equatable, Sendable {
       // "Bearer abc" and "Basic <base64>": the token alone can be echoed too.
       if let token = value.split(separator: " ").last.map(String.init), token != value { found.append(token) }
     }
-    // Short pieces would shred an innocent body; the whole key is always kept.
-    return found.filter { !$0.isEmpty && ($0 == key || $0.count >= 4) }
+    return found.filter { !$0.isEmpty }
       .sorted { $0.count > $1.count }
   }
 
+  /// Redact decoded JSON values and keys, then serialize them again. This catches
+  /// JSON string escapes that cannot match a raw search of the response bytes.
+  /// Unknown formats are discarded because their escaping rules are unknown.
+  private static func sanitizedBody(_ body: Data, secrets: [String]) -> String? {
+    guard String(data: body, encoding: .utf8) != nil,
+          let json = try? JSONSerialization.jsonObject(with: body, options: .fragmentsAllowed) else { return nil }
+    let safe = sanitize(json, secrets: secrets)
+    guard let data = try? JSONSerialization.data(withJSONObject: safe, options: [.fragmentsAllowed, .sortedKeys]) else {
+      return nil
+    }
+    return String(data: data, encoding: .utf8)
+  }
+
+  private static func sanitize(_ value: Any, secrets: [String]) -> Any {
+    if let object = value as? [String: Any] {
+      var safe: [String: Any] = [:]
+      for (key, field) in object {
+        let name = scrub(key, secrets: secrets)
+        safe[name] = sensitiveField(key) ? "[redacted]" : sanitize(field, secrets: secrets)
+      }
+      return safe
+    }
+    if let array = value as? [Any] { return array.map { sanitize($0, secrets: secrets) } }
+    if let string = value as? String {
+      let trimmed = string.trimmingCharacters(in: .whitespacesAndNewlines)
+      if (trimmed.hasPrefix("{") || trimmed.hasPrefix("[")),
+         let nested = sanitizedBody(Data(string.utf8), secrets: secrets) { return nested }
+      // A malformed serialized value, or another layer of JSON escaping, may
+      // hide a credential from literal replacement.
+      if trimmed.hasPrefix("{") || trimmed.hasPrefix("[") ||
+         string.range(of: #"\\(?:u[0-9a-fA-F]{4}|["\\/bfnrt])"#, options: .regularExpression) != nil {
+        return "[redacted]"
+      }
+      return scrub(string, secrets: secrets)
+    }
+    if let number = value as? NSNumber, secrets.contains(number.stringValue) { return "[redacted]" }
+    return value
+  }
+
+  private static func sensitiveField(_ name: String) -> Bool {
+    let normalized = name.lowercased().filter(\.isLetter)
+    return ["password", "passwd", "secret", "token", "apikey", "accesskey", "authorization", "credential", "privatekey"]
+      .contains { normalized.contains($0) }
+  }
+
   static func scrub(_ text: String, secrets: [String]) -> String {
-    let withoutSecrets = Diagnostics.redact(text, secrets: secrets)
-    return withoutSecrets.replacingOccurrences(of: emailPattern, with: "[email]", options: .regularExpression)
+    var result = Diagnostics.redact(text, secrets: secrets)
+    for secret in secrets where !secret.isEmpty {
+      let strict = secret.addingPercentEncoding(withAllowedCharacters: .alphanumerics) ?? secret
+      let unreserved = CatalogProvider.encode(secret)
+      let encodedValues = [strict, unreserved].flatMap { [$0, $0.replacingOccurrences(of: "%20", with: "+")] }
+      for encoded in encodedValues where encoded != secret {
+        result = result.replacingOccurrences(of: encoded, with: "[redacted]", options: .caseInsensitive)
+      }
+    }
+    return result.replacingOccurrences(of: emailPattern, with: "[email]", options: .regularExpression)
   }
 
   private static let emailPattern = "[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}"

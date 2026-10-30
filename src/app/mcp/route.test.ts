@@ -42,7 +42,7 @@ function request(
   token: string | null = "reader-a"
 ) {
   return POST(
-    new Request("https://app.quotacanary.com/mcp", {
+    new Request("https://selfhost.example/mcp", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",

@@ -2,7 +2,7 @@
   {
     "id": "ahrefs",
     "name": "Ahrefs",
-    "logo_url": "/logos/ahrefs.png",
+    "logo_url": "/logos/ahrefs.webp",
     "category": "data",
     "description": "SEO data and backlink intelligence APIs, billed from monthly API units.",
     "website_url": "https://ahrefs.com",
@@ -18,9 +18,63 @@
     ]
   },
   {
+    "id": "aiark",
+    "name": "AI Ark",
+    "logo_url": "/logos/aiark.webp",
+    "category": "data",
+    "description": "B2B people and company search with contact enrichment, billed from prepaid credits.",
+    "website_url": "https://ai-ark.com",
+    "api_docs_url": "https://docs.ai-ark.com/reference/fetch-credit",
+    "key_instructions": "",
+    "topup_url": "https://ai-ark.com/pricing",
+    "pools": [
+      {
+        "unit": "credits",
+        "label": "Credits",
+        "credit_type": "credits"
+      }
+    ]
+  },
+  {
+    "id": "akta",
+    "name": "Akta",
+    "logo_url": "/logos/akta.webp",
+    "category": "data",
+    "description": "Company data and news signals API, billed from credits.",
+    "website_url": "https://akta.pro",
+    "api_docs_url": "https://docs.akta.pro/docs/developer-tools/cli/commands",
+    "key_instructions": "",
+    "topup_url": "https://docs.akta.pro/getting-started/pricing",
+    "pools": [
+      {
+        "unit": "credits",
+        "label": "Credits",
+        "credit_type": "credits"
+      }
+    ]
+  },
+  {
+    "id": "anyapi",
+    "name": "AnyAPI",
+    "logo_url": "/logos/anyapi.webp",
+    "category": "ai",
+    "description": "One API key and one USD wallet for many third-party APIs.",
+    "website_url": "https://getanyapi.com",
+    "api_docs_url": "https://api.getanyapi.com/openapi.json",
+    "key_instructions": "",
+    "topup_url": "https://getanyapi.com",
+    "pools": [
+      {
+        "unit": "usd",
+        "label": "Wallet",
+        "credit_type": "wallet"
+      }
+    ]
+  },
+  {
     "id": "anymailfinder",
     "name": "Anymail Finder",
-    "logo_url": "/logos/anymailfinder.png",
+    "logo_url": "/logos/anymailfinder.webp",
     "category": "email_finding",
     "description": "Email finding that charges only for verified results, billed per credit.",
     "website_url": null,
@@ -32,7 +86,7 @@
   {
     "id": "apify",
     "name": "Apify",
-    "logo_url": "/logos/apify.png",
+    "logo_url": "/logos/apify.webp",
     "category": "data",
     "description": "A platform of scrapers and automations, billed from a prepaid balance.",
     "website_url": null,
@@ -44,7 +98,7 @@
   {
     "id": "apollo",
     "name": "Apollo",
-    "logo_url": "/logos/apollo.png",
+    "logo_url": "/logos/apollo.webp",
     "category": "email_finding",
     "description": "B2B contact database and sales engagement, metered from separate lead, export, dial, and AI credit pools.",
     "website_url": "https://www.apollo.io",
@@ -75,9 +129,27 @@
     ]
   },
   {
+    "id": "aviato",
+    "name": "Aviato",
+    "logo_url": "/logos/aviato.webp",
+    "category": "data",
+    "description": "People and company data API, billed from prepaid credits.",
+    "website_url": "https://www.aviato.co",
+    "api_docs_url": "https://docs.data.aviato.co/api-reference/billing/get-balance",
+    "key_instructions": "",
+    "topup_url": "https://data.aviato.co",
+    "pools": [
+      {
+        "unit": "credits",
+        "label": "Credits",
+        "credit_type": "credits"
+      }
+    ]
+  },
+  {
     "id": "bettercontact",
     "name": "BetterContact",
-    "logo_url": "/logos/bettercontact.png",
+    "logo_url": "/logos/bettercontact.webp",
     "category": "email_finding",
     "description": "Waterfall contact enrichment for email and phone, billed from account credits.",
     "website_url": "https://bettercontact.rocks",
@@ -93,9 +165,45 @@
     ]
   },
   {
+    "id": "blitzapi",
+    "name": "BlitzAPI",
+    "logo_url": "/logos/blitzapi.webp",
+    "category": "data",
+    "description": "Contact and company enrichment API, billed in records that reset every month.",
+    "website_url": "https://www.blitz-api.ai",
+    "api_docs_url": "https://docs.blitz-api.ai/api-reference/account/get-api-key-details",
+    "key_instructions": "",
+    "topup_url": "https://www.blitz-api.ai/pricing",
+    "pools": [
+      {
+        "unit": "credits",
+        "label": "Records",
+        "credit_type": "credits"
+      }
+    ]
+  },
+  {
+    "id": "bounceban",
+    "name": "BounceBan",
+    "logo_url": "/logos/bounceban.webp",
+    "category": "email_verification",
+    "description": "Email verification that handles catch-all domains, billed from prepaid credits.",
+    "website_url": "https://bounceban.com",
+    "api_docs_url": "https://bounceban.com/public/doc/api.html",
+    "key_instructions": "",
+    "topup_url": "https://bounceban.com/pricing",
+    "pools": [
+      {
+        "unit": "credits",
+        "label": "Credits",
+        "credit_type": "credits"
+      }
+    ]
+  },
+  {
     "id": "bouncer",
     "name": "Bouncer",
-    "logo_url": "/logos/bouncer.png",
+    "logo_url": "/logos/bouncer.webp",
     "category": "email_verification",
     "description": "Email verification and deliverability checks, priced per credit.",
     "website_url": null,
@@ -107,7 +215,7 @@
   {
     "id": "bouncify",
     "name": "Bouncify",
-    "logo_url": "/logos/bouncify.png",
+    "logo_url": "/logos/bouncify.webp",
     "category": "email_verification",
     "description": "Bulk email verification, priced per verification credit.",
     "website_url": null,
@@ -117,9 +225,37 @@
     "pools": null
   },
   {
+    "id": "brevo",
+    "name": "Brevo",
+    "logo_url": "/logos/brevo.webp",
+    "category": "data",
+    "description": "Email, SMS and marketing automation platform (formerly Sendinblue), with sends paid from email and SMS credits.",
+    "website_url": "https://www.brevo.com",
+    "api_docs_url": "https://developers.brevo.com/reference/getaccount",
+    "key_instructions": "",
+    "topup_url": "https://www.brevo.com/pricing/",
+    "pools": [
+      {
+        "unit": "credits",
+        "label": "Email credits",
+        "credit_type": "emails"
+      },
+      {
+        "unit": "credits",
+        "label": "SMS credits",
+        "credit_type": "sms"
+      },
+      {
+        "unit": "credits",
+        "label": "Free daily emails",
+        "credit_type": "free_emails"
+      }
+    ]
+  },
+  {
     "id": "brightdata",
     "name": "Bright Data",
-    "logo_url": "/logos/brightdata.png",
+    "logo_url": "/logos/brightdata.webp",
     "category": "data",
     "description": "Proxies and web data at scale, billed by usage balance.",
     "website_url": null,
@@ -131,7 +267,7 @@
   {
     "id": "builtwith",
     "name": "BuiltWith",
-    "logo_url": "/logos/builtwith.png",
+    "logo_url": "/logos/builtwith.webp",
     "category": "data",
     "description": "Website technology intelligence and lead data APIs, billed from API credits.",
     "website_url": "https://builtwith.com",
@@ -149,7 +285,7 @@
   {
     "id": "captaindata",
     "name": "Captain Data",
-    "logo_url": "/logos/captaindata.png",
+    "logo_url": "/logos/captaindata.webp",
     "category": "data",
     "description": "No-code data extraction and automation, priced per credit.",
     "website_url": null,
@@ -159,9 +295,32 @@
     "pools": null
   },
   {
+    "id": "clay",
+    "name": "Clay",
+    "logo_url": "/logos/clay.webp",
+    "category": "data",
+    "description": "GTM data enrichment workbench, billed from data credits and actions.",
+    "website_url": "https://www.clay.com",
+    "api_docs_url": "https://developers.clay.com/api-reference/credits/get-workspace-credit-balances",
+    "key_instructions": "",
+    "topup_url": "https://www.clay.com/pricing",
+    "pools": [
+      {
+        "unit": "credits",
+        "label": "Data credits",
+        "credit_type": "credits"
+      },
+      {
+        "unit": "credits",
+        "label": "Actions",
+        "credit_type": "actions"
+      }
+    ]
+  },
+  {
     "id": "clearout",
     "name": "Clearout",
-    "logo_url": "/logos/clearout.png",
+    "logo_url": "/logos/clearout.webp",
     "category": "email_verification",
     "description": "Email verification and finding from a shared credit balance.",
     "website_url": null,
@@ -171,9 +330,45 @@
     "pools": null
   },
   {
+    "id": "cloro",
+    "name": "cloro",
+    "logo_url": "/logos/cloro.webp",
+    "category": "data",
+    "description": "AI search answers from ChatGPT, Perplexity, Gemini and more as an API, billed from credits.",
+    "website_url": "https://cloro.dev",
+    "api_docs_url": "https://cloro.dev/docs/api-reference/endpoint/get-credits",
+    "key_instructions": "",
+    "topup_url": "https://cloro.dev/pricing/",
+    "pools": [
+      {
+        "unit": "credits",
+        "label": "Credits",
+        "credit_type": "credits"
+      }
+    ]
+  },
+  {
+    "id": "companyenrich",
+    "name": "CompanyEnrich",
+    "logo_url": "/logos/companyenrich.webp",
+    "category": "data",
+    "description": "Company and people data API for enrichment and search, billed from credits.",
+    "website_url": "https://companyenrich.com",
+    "api_docs_url": "https://docs.companyenrich.com/reference/get_me",
+    "key_instructions": "",
+    "topup_url": "https://companyenrich.com/pricing",
+    "pools": [
+      {
+        "unit": "credits",
+        "label": "Credits",
+        "credit_type": "credits"
+      }
+    ]
+  },
+  {
     "id": "contactout",
     "name": "ContactOut",
-    "logo_url": "/logos/contactout.png",
+    "logo_url": "/logos/contactout.webp",
     "category": "email_finding",
     "description": "B2B contact data and people search, with separate email, phone, and search credit pools.",
     "website_url": "https://contactout.com",
@@ -199,9 +394,45 @@
     ]
   },
   {
+    "id": "contextdev",
+    "name": "Context.dev",
+    "logo_url": "/logos/contextdev.webp",
+    "category": "data",
+    "description": "Brand, scraping and company data API (formerly Brand.dev), billed from credits.",
+    "website_url": "https://www.context.dev",
+    "api_docs_url": "https://docs.context.dev/api-reference/usage/retrieve",
+    "key_instructions": "",
+    "topup_url": "https://www.context.dev/pricing",
+    "pools": [
+      {
+        "unit": "credits",
+        "label": "Credits",
+        "credit_type": "credits"
+      }
+    ]
+  },
+  {
+    "id": "crawl4ai",
+    "name": "Crawl4AI",
+    "logo_url": "/logos/crawl4ai.webp",
+    "category": "data",
+    "description": "Hosted crawling and page extraction for LLM pipelines, billed from prepaid credits.",
+    "website_url": "https://api.crawl4ai.com",
+    "api_docs_url": "https://api.crawl4ai.com/docs",
+    "key_instructions": "",
+    "topup_url": "https://api.crawl4ai.com/dashboard/",
+    "pools": [
+      {
+        "unit": "credits",
+        "label": "Credits",
+        "credit_type": "credits"
+      }
+    ]
+  },
+  {
     "id": "crawlbase",
     "name": "Crawlbase",
-    "logo_url": "/logos/crawlbase.png",
+    "logo_url": "/logos/crawlbase.webp",
     "category": "data",
     "description": "Crawling and scraping APIs with remaining monthly credits for subscription products.",
     "website_url": "https://crawlbase.com",
@@ -217,9 +448,27 @@
     ]
   },
   {
+    "id": "crustdata",
+    "name": "Crustdata",
+    "logo_url": "/logos/crustdata.webp",
+    "category": "data",
+    "description": "Company and people data API with live signals, billed from a shared credit balance.",
+    "website_url": "https://crustdata.com",
+    "api_docs_url": "https://docs.crustdata.com/api-reference/account-apis/get-account-credit-balance",
+    "key_instructions": "",
+    "topup_url": "https://crustdata.com/pricing",
+    "pools": [
+      {
+        "unit": "credits",
+        "label": "Credits",
+        "credit_type": "credits"
+      }
+    ]
+  },
+  {
     "id": "dataforseo",
     "name": "DataForSEO",
-    "logo_url": "/logos/dataforseo.png",
+    "logo_url": "/logos/dataforseo.webp",
     "category": "data",
     "description": "SEO and SERP data APIs, billed from a prepaid balance.",
     "website_url": null,
@@ -235,9 +484,27 @@
     ]
   },
   {
+    "id": "datagma",
+    "name": "Datagma",
+    "logo_url": "/logos/datagma.webp",
+    "category": "data",
+    "description": "Contact and company enrichment API (emails, phones, firmographics), billed from prepaid credits.",
+    "website_url": "https://datagma.com",
+    "api_docs_url": "https://datagmaapi.readme.io/reference/ingressservice_getcredit",
+    "key_instructions": "",
+    "topup_url": "https://datagma.com/pricing",
+    "pools": [
+      {
+        "unit": "credits",
+        "label": "Credits",
+        "credit_type": "credits"
+      }
+    ]
+  },
+  {
     "id": "debounce",
     "name": "DeBounce",
-    "logo_url": "/logos/debounce.png",
+    "logo_url": "/logos/debounce.webp",
     "category": "email_verification",
     "description": "Email list cleaning and verification, billed per credit.",
     "website_url": null,
@@ -247,9 +514,57 @@
     "pools": null
   },
   {
+    "id": "decodo",
+    "name": "Decodo",
+    "logo_url": "/logos/decodo.webp",
+    "category": "data",
+    "description": "Residential proxy network (formerly Smartproxy), billed by the GB of traffic.",
+    "website_url": "https://decodo.com",
+    "api_docs_url": "https://help.decodo.com/api-reference/subscriptions/get-subscriptions",
+    "key_instructions": "",
+    "topup_url": "https://decodo.com/proxies/residential-proxies/pricing",
+    "pools": [
+      {
+        "unit": "gb",
+        "label": "Residential traffic",
+        "credit_type": "traffic"
+      }
+    ]
+  },
+  {
+    "id": "deepgram",
+    "name": "Deepgram",
+    "logo_url": "/logos/deepgram.webp",
+    "category": "ai",
+    "description": "Speech-to-text, text-to-speech and voice agent APIs, billed from a prepaid dollar balance on each project.",
+    "website_url": "https://deepgram.com",
+    "api_docs_url": "https://developers.deepgram.com/reference/manage/billing/list",
+    "key_instructions": "Give the key the Admin or Owner role: a Member key can list projects but cannot read billing.",
+    "topup_url": "https://deepgram.com/pricing",
+    "pools": null
+  },
+  {
+    "id": "deepl",
+    "name": "DeepL",
+    "logo_url": "/logos/deepl.webp",
+    "category": "data",
+    "description": "Machine translation API, billed per character against your plan or cost-control limit.",
+    "website_url": "https://www.deepl.com",
+    "api_docs_url": "https://developers.deepl.com/api-reference/usage-and-quota/check-usage-and-limits",
+    "key_instructions": "Only DeepL API Pro keys work here. Free keys (ending in :fx) are not supported yet.",
+    "topup_url": "https://www.deepl.com/pro-api",
+    "pools": [
+      {
+        "unit": "credits",
+        "label": "Characters",
+        "credit_type": "characters"
+      }
+    ]
+  },
+  {
     "id": "deepseek",
     "name": "DeepSeek",
-    "logo_url": "/logos/deepseek.png",
+    "logo_url": "/logos/deepseek.webp",
     "category": "ai",
     "description": "DeepSeek's LLM API, billed from a prepaid balance.",
     "website_url": "https://deepseek.com",
@@ -259,9 +574,27 @@
     "pools": null
   },
   {
+    "id": "diffbot",
+    "name": "Diffbot",
+    "logo_url": "/logos/diffbot.webp",
+    "category": "data",
+    "description": "Knowledge Graph and AI extraction APIs for web data, billed from a monthly credit allowance.",
+    "website_url": "https://www.diffbot.com",
+    "api_docs_url": "https://www.diffbot.com/docs/account",
+    "key_instructions": "",
+    "topup_url": "https://www.diffbot.com/pricing",
+    "pools": [
+      {
+        "unit": "credits",
+        "label": "Monthly credits",
+        "credit_type": "credits"
+      }
+    ]
+  },
+  {
     "id": "dropcontact",
     "name": "Dropcontact",
-    "logo_url": "/logos/dropcontact.png",
+    "logo_url": "/logos/dropcontact.webp",
     "category": "email_finding",
     "description": "Email finding and B2B enrichment without a database, priced per credit.",
     "website_url": null,
@@ -271,9 +604,45 @@
     "pools": null
   },
   {
+    "id": "dropleads",
+    "name": "DropLeads",
+    "logo_url": "/logos/dropleads.webp",
+    "category": "data",
+    "description": "B2B lead database with verified contacts, billed from prepaid credits.",
+    "website_url": "https://www.dropleads.io",
+    "api_docs_url": "https://dropleads.readme.io/reference/get_api-v2-prime-db-credits-balance",
+    "key_instructions": "Use your Prime-DB API key. Keys for other DropLeads products do not work here.",
+    "topup_url": "https://www.dropleads.io/#pricing",
+    "pools": [
+      {
+        "unit": "credits",
+        "label": "Credits",
+        "credit_type": "credits"
+      }
+    ]
+  },
+  {
+    "id": "elevenlabs",
+    "name": "ElevenLabs",
+    "logo_url": "/logos/elevenlabs.webp",
+    "category": "ai",
+    "description": "Text-to-speech and voice AI API, billed against a character quota per billing period.",
+    "website_url": "https://elevenlabs.io",
+    "api_docs_url": "https://elevenlabs.io/docs/api-reference/user/subscription/get",
+    "key_instructions": "",
+    "topup_url": "https://elevenlabs.io/pricing",
+    "pools": [
+      {
+        "unit": "credits",
+        "label": "Characters",
+        "credit_type": "characters"
+      }
+    ]
+  },
+  {
     "id": "emailable",
     "name": "Emailable",
-    "logo_url": "/logos/emailable.png",
+    "logo_url": "/logos/emailable.webp",
     "category": "email_verification",
     "description": "Email verification for lists and real-time signups, billed per credit.",
     "website_url": null,
@@ -285,7 +654,7 @@
   {
     "id": "emailhippo",
     "name": "Email Hippo",
-    "logo_url": "/logos/emailhippo.png",
+    "logo_url": "/logos/emailhippo.webp",
     "category": "email_verification",
     "description": "Email verification and quota checks for the MORE API, billed from a credit balance.",
     "website_url": null,
@@ -303,7 +672,7 @@
   {
     "id": "emaillistverify",
     "name": "EmailListVerify",
-    "logo_url": "/logos/emaillistverify.png",
+    "logo_url": "/logos/emaillistverify.webp",
     "category": "email_verification",
     "description": "Bulk and real-time email list verification, priced per credit.",
     "website_url": null,
@@ -326,7 +695,7 @@
   {
     "id": "enrichcrm",
     "name": "Enrich CRM",
-    "logo_url": "/logos/enrichcrm.png",
+    "logo_url": "/logos/enrichcrm.webp",
     "category": "email_finding",
     "description": "Real-time CRM enrichment and intent data, billed from a shared credit pool.",
     "website_url": "https://enrich-crm.com",
@@ -342,9 +711,27 @@
     ]
   },
   {
+    "id": "enrichlayer",
+    "name": "Enrich Layer",
+    "logo_url": "/logos/enrichlayer.webp",
+    "category": "data",
+    "description": "Person and company enrichment API, the successor to Proxycurl, billed from prepaid credits.",
+    "website_url": "https://enrichlayer.com",
+    "api_docs_url": "https://enrichlayer.com/docs/knowledge-base/billing/understanding-credits",
+    "key_instructions": "Former Proxycurl keys do not work here, since Enrich Layer issues new keys.",
+    "topup_url": "https://enrichlayer.com/pricing",
+    "pools": [
+      {
+        "unit": "credits",
+        "label": "Credits",
+        "credit_type": "credits"
+      }
+    ]
+  },
+  {
     "id": "enrow",
     "name": "Enrow",
-    "logo_url": "/logos/enrow.png",
+    "logo_url": "/logos/enrow.webp",
     "category": "email_finding",
     "description": "Email finding and verification for outreach, billed per credit.",
     "website_url": "https://enrow.io",
@@ -354,9 +741,86 @@
     "pools": null
   },
   {
+    "id": "eodhd",
+    "name": "EODHD",
+    "logo_url": "/logos/eodhd.webp",
+    "category": "data",
+    "description": "Stock, fundamentals and market data API with a daily call limit.",
+    "website_url": "https://eodhd.com",
+    "api_docs_url": "https://eodhd.com/financial-apis/user-api",
+    "key_instructions": "",
+    "topup_url": "https://eodhd.com/pricing",
+    "pools": [
+      {
+        "unit": "credits",
+        "label": "Daily API calls",
+        "credit_type": "daily"
+      },
+      {
+        "unit": "credits",
+        "label": "Extra API calls",
+        "credit_type": "extra"
+      }
+    ]
+  },
+  {
+    "id": "fal",
+    "name": "fal.ai",
+    "logo_url": "/logos/fal.webp",
+    "category": "ai",
+    "description": "Generative media API for image, video and audio models, billed from a prepaid dollar balance.",
+    "website_url": "https://fal.ai",
+    "api_docs_url": "https://fal.ai/docs/platform-apis/v1/account/billing",
+    "key_instructions": "Use the Read Only, Billing or Full preset: the balance needs billing:usage:read.",
+    "topup_url": "https://fal.ai/dashboard/billing",
+    "pools": [
+      {
+        "unit": "usd",
+        "label": "Credits",
+        "credit_type": "credits"
+      }
+    ]
+  },
+  {
+    "id": "fetchin",
+    "name": "Fetchin",
+    "logo_url": "/logos/fetchin.webp",
+    "category": "data",
+    "description": "Real-time professional profile and company data API, billed from credits.",
+    "website_url": "https://fetchin.io",
+    "api_docs_url": "https://docs.fetchin.io/api-reference/endpoint/get-subscription",
+    "key_instructions": "",
+    "topup_url": "https://fetchin.io/pricing",
+    "pools": [
+      {
+        "unit": "credits",
+        "label": "Credits",
+        "credit_type": "credits"
+      }
+    ]
+  },
+  {
+    "id": "fiberai",
+    "name": "Fiber AI",
+    "logo_url": "/logos/fiberai.webp",
+    "category": "data",
+    "description": "Company and people data API for AI agents, billed from credits.",
+    "website_url": "https://www.fiber.ai",
+    "api_docs_url": "https://docs.fiber.ai/billing",
+    "key_instructions": "",
+    "topup_url": "https://www.fiber.ai/pricing",
+    "pools": [
+      {
+        "unit": "credits",
+        "label": "Credits",
+        "credit_type": "credits"
+      }
+    ]
+  },
+  {
     "id": "findymail",
     "name": "Findymail",
-    "logo_url": "/logos/findymail.png",
+    "logo_url": "/logos/findymail.webp",
     "category": "email_finding",
     "description": "Verified email finding for outreach, priced per credit.",
     "website_url": null,
@@ -368,7 +832,7 @@
   {
     "id": "firecrawl",
     "name": "Firecrawl",
-    "logo_url": "/logos/firecrawl.png",
+    "logo_url": "/logos/firecrawl.webp",
     "category": "data",
     "description": "Turn websites into clean, LLM-ready data, priced per credit.",
     "website_url": null,
@@ -378,9 +842,27 @@
     "pools": null
   },
   {
+    "id": "fishaudio",
+    "name": "Fish Audio",
+    "logo_url": "/logos/fishaudio.webp",
+    "category": "ai",
+    "description": "Text-to-speech and voice cloning API, billed from prepaid API credit.",
+    "website_url": "https://fish.audio",
+    "api_docs_url": "https://docs.fish.audio/developer-guide/models-pricing/pricing-and-rate-limits",
+    "key_instructions": "",
+    "topup_url": "https://fish.audio",
+    "pools": [
+      {
+        "unit": "usd",
+        "label": "API credit",
+        "credit_type": "wallet"
+      }
+    ]
+  },
+  {
     "id": "fullenrich",
     "name": "FullEnrich",
-    "logo_url": "/logos/fullenrich.png",
+    "logo_url": "/logos/fullenrich.webp",
     "category": "email_finding",
     "description": "Waterfall contact enrichment across providers, billed per credit.",
     "website_url": null,
@@ -390,9 +872,109 @@
     "pools": null
   },
   {
+    "id": "getleads",
+    "name": "GetLeads",
+    "logo_url": "/logos/getleads.webp",
+    "category": "data",
+    "description": "B2B contact search and enrichment API, billed from plan credits.",
+    "website_url": "https://www.getleads.io",
+    "api_docs_url": "https://www.getleads.io/docs/",
+    "key_instructions": "",
+    "topup_url": "https://www.getleads.io/pricing/",
+    "pools": [
+      {
+        "unit": "credits",
+        "label": "Credits",
+        "credit_type": "credits"
+      }
+    ]
+  },
+  {
+    "id": "hasdata",
+    "name": "HasData",
+    "logo_url": "/logos/hasdata.webp",
+    "category": "data",
+    "description": "Web scraping and SERP data API, billed from a credit balance.",
+    "website_url": "https://hasdata.com",
+    "api_docs_url": "https://docs.hasdata.com/credits-and-concurrency",
+    "key_instructions": "",
+    "topup_url": "https://hasdata.com/prices",
+    "pools": [
+      {
+        "unit": "credits",
+        "label": "Credits",
+        "credit_type": "credits"
+      }
+    ]
+  },
+  {
+    "id": "heygen",
+    "name": "HeyGen",
+    "logo_url": "/logos/heygen.webp",
+    "category": "ai",
+    "description": "AI avatar video API, billed from a wallet, subscription credits or metered spend under a cap.",
+    "website_url": "https://www.heygen.com",
+    "api_docs_url": "https://developers.heygen.com/reference/get-current-user",
+    "key_instructions": "Enterprise wallets billed in credits are not supported yet.",
+    "topup_url": "https://www.heygen.com/api-pricing",
+    "pools": [
+      {
+        "unit": "usd",
+        "label": "Wallet",
+        "credit_type": "wallet"
+      },
+      {
+        "unit": "credits",
+        "label": "Premium credits",
+        "credit_type": "subscription"
+      },
+      {
+        "unit": "usd",
+        "label": "Spending cap",
+        "credit_type": "usage_based"
+      }
+    ]
+  },
+  {
+    "id": "hlrlookup",
+    "name": "HLR Lookup",
+    "logo_url": "/logos/hlrlookup.webp",
+    "category": "data",
+    "description": "Phone number validation API with live HLR and MNP lookups, billed from prepaid credits.",
+    "website_url": "https://www.hlrlookup.com",
+    "api_docs_url": "https://www.hlrlookup.com/knowledge",
+    "key_instructions": "",
+    "topup_url": "https://www.hlrlookup.com/pricing",
+    "pools": [
+      {
+        "unit": "credits",
+        "label": "Credits",
+        "credit_type": "credits"
+      }
+    ]
+  },
+  {
+    "id": "hubspot",
+    "name": "HubSpot",
+    "logo_url": "/logos/hubspot.webp",
+    "category": "data",
+    "description": "CRM platform. QuotaCanary watches the daily API call limit for private apps, since HubSpot credits have no balance API.",
+    "website_url": "https://www.hubspot.com",
+    "api_docs_url": "https://developers.hubspot.com/docs/api-reference/latest/account/account-information/get-usage-details",
+    "key_instructions": "Use a private legacy app's access token. This watches the daily API call limit your private apps share, not HubSpot credits.",
+    "topup_url": "https://www.hubspot.com/pricing",
+    "pools": [
+      {
+        "unit": "credits",
+        "label": "Daily API calls",
+        "credit_type": "api_calls"
+      }
+    ]
+  },
+  {
     "id": "hunter",
     "name": "Hunter",
-    "logo_url": "/logos/hunter.png",
+    "logo_url": "/logos/hunter.webp",
     "category": "email_finding",
     "description": "Find and verify professional email addresses. Bills searches and verifications as separate quotas.",
     "website_url": null,
@@ -415,7 +997,7 @@
   {
     "id": "hyperbolic",
     "name": "Hyperbolic",
-    "logo_url": "/logos/hyperbolic.png",
+    "logo_url": "/logos/hyperbolic.webp",
     "category": "ai",
     "description": "Open-model inference and GPUs, billed from a prepaid balance.",
     "website_url": null,
@@ -425,9 +1007,104 @@
     "pools": null
   },
   {
+    "id": "icypeas",
+    "name": "Icypeas",
+    "logo_url": "/logos/icypeas.webp",
+    "category": "data",
+    "description": "Email finder and verifier API for B2B contacts, billed from credits.",
+    "website_url": "https://www.icypeas.com",
+    "api_docs_url": "https://api-doc.icypeas.com/subscriptions/subscription-information/",
+    "key_instructions": "",
+    "topup_url": "https://www.icypeas.com/pricing",
+    "pools": [
+      {
+        "unit": "credits",
+        "label": "Credits",
+        "credit_type": "credits"
+      }
+    ]
+  },
+  {
+    "id": "influencersclub",
+    "name": "Influencers Club",
+    "logo_url": "/logos/influencersclub.webp",
+    "category": "data",
+    "description": "Creator and influencer discovery and enrichment API, billed from credits.",
+    "website_url": "https://influencers.club",
+    "api_docs_url": "https://docs.influencers.club/openapi/account-credits-and-usage/account_credits_usage_retrieve",
+    "key_instructions": "",
+    "topup_url": "https://influencers.club/pricing/",
+    "pools": [
+      {
+        "unit": "credits",
+        "label": "Credits",
+        "credit_type": "credits"
+      }
+    ]
+  },
+  {
+    "id": "instantly",
+    "name": "Instantly",
+    "logo_url": "/logos/instantly.webp",
+    "category": "data",
+    "description": "Cold email outreach platform, billed from Instantly Credits and a plan lead limit.",
+    "website_url": "https://instantly.ai",
+    "api_docs_url": "https://developer.instantly.ai/api-reference/workspacebilling/get-workspace-plan-details",
+    "key_instructions": "Create the key with the workspace_billing:read scope (all:read works too).",
+    "topup_url": "https://instantly.ai/pricing",
+    "pools": [
+      {
+        "unit": "credits",
+        "label": "Credits",
+        "credit_type": "credits"
+      },
+      {
+        "unit": "credits",
+        "label": "Leads",
+        "credit_type": "leads"
+      }
+    ]
+  },
+  {
+    "id": "ipinfo",
+    "name": "IPinfo",
+    "logo_url": "/logos/ipinfo.webp",
+    "category": "data",
+    "description": "IP geolocation and network data API, billed by monthly requests.",
+    "website_url": "https://ipinfo.io",
+    "api_docs_url": "https://ipinfo.io/developers",
+    "key_instructions": "",
+    "topup_url": "https://ipinfo.io/pricing",
+    "pools": [
+      {
+        "unit": "credits",
+        "label": "Requests",
+        "credit_type": "requests"
+      }
+    ]
+  },
+  {
+    "id": "iproyal",
+    "name": "IPRoyal",
+    "logo_url": "/logos/iproyal.webp",
+    "category": "data",
+    "description": "Residential proxy network, billed by the GB of traffic.",
+    "website_url": "https://iproyal.com",
+    "api_docs_url": "https://docs.iproyal.com/proxies/residential/api/user",
+    "key_instructions": "Only residential traffic shows here. Datacenter, ISP and mobile proxies are not supported yet.",
+    "topup_url": "https://iproyal.com/residential-proxies/",
+    "pools": [
+      {
+        "unit": "gb",
+        "label": "Residential traffic",
+        "credit_type": "traffic"
+      }
+    ]
+  },
+  {
     "id": "keywordseverywhere",
     "name": "Keywords Everywhere",
-    "logo_url": "/logos/keywordseverywhere.png",
+    "logo_url": "/logos/keywordseverywhere.webp",
     "category": "data",
     "description": "SEO keyword, traffic, and backlink data APIs, billed from account credits.",
     "website_url": "https://keywordseverywhere.com",
@@ -443,9 +1120,27 @@
     ]
   },
   {
+    "id": "kickbox",
+    "name": "Kickbox",
+    "logo_url": "/logos/kickbox.webp",
+    "category": "email_verification",
+    "description": "Email verification API with a pay-as-you-go verification credit balance.",
+    "website_url": "https://kickbox.com",
+    "api_docs_url": "https://docs.kickbox.com/docs/using-the-api",
+    "key_instructions": "Use a production key (it starts with live_).",
+    "topup_url": "https://kickbox.com/pricing",
+    "pools": [
+      {
+        "unit": "credits",
+        "label": "Credits",
+        "credit_type": "credits"
+      }
+    ]
+  },
+  {
     "id": "leadmagic",
     "name": "LeadMagic",
-    "logo_url": "/logos/leadmagic.png",
+    "logo_url": "/logos/leadmagic.webp",
     "category": "email_finding",
     "description": "B2B email finding and enrichment, priced per credit.",
     "website_url": null,
@@ -455,9 +1150,81 @@
     "pools": null
   },
   {
+    "id": "leadsforge",
+    "name": "Leadsforge",
+    "logo_url": "/logos/leadsforge.webp",
+    "category": "data",
+    "description": "AI lead generation and contact enrichment, billed from prepaid credits.",
+    "website_url": "https://www.leadsforge.ai",
+    "api_docs_url": "https://api.leadsforge.ai/public/swagger/index.html",
+    "key_instructions": "",
+    "topup_url": "https://www.leadsforge.ai/pricing",
+    "pools": [
+      {
+        "unit": "credits",
+        "label": "Credits",
+        "credit_type": "credits"
+      }
+    ]
+  },
+  {
+    "id": "lemlist",
+    "name": "lemlist",
+    "logo_url": "/logos/lemlist.webp",
+    "category": "data",
+    "description": "Cold outreach sequencer for email and LinkedIn, with lead data enrichment billed from a team credit balance.",
+    "website_url": "https://www.lemlist.com",
+    "api_docs_url": "https://developer.lemlist.com/api-reference/endpoints/team/get-team-credits",
+    "key_instructions": "",
+    "topup_url": "https://www.lemlist.com/pricing",
+    "pools": [
+      {
+        "unit": "credits",
+        "label": "Credits",
+        "credit_type": "credits"
+      }
+    ]
+  },
+  {
+    "id": "linkup",
+    "name": "Linkup",
+    "logo_url": "/logos/linkup.webp",
+    "category": "data",
+    "description": "Web search API for AI agents, billed from prepaid credits.",
+    "website_url": "https://www.linkup.so",
+    "api_docs_url": "https://docs.linkup.so/api-reference/credits/creditsbalance",
+    "key_instructions": "",
+    "topup_url": "https://app.linkup.so/billing",
+    "pools": [
+      {
+        "unit": "credits",
+        "label": "Credits",
+        "credit_type": "credits"
+      }
+    ]
+  },
+  {
+    "id": "litescrape",
+    "name": "Litescrape",
+    "logo_url": "/logos/litescrape.webp",
+    "category": "data",
+    "description": "SERP and web scraping API for Google, Amazon, TikTok and more, billed per call.",
+    "website_url": "https://litescrape.com",
+    "api_docs_url": "https://litescrape.com/docs/key-status",
+    "key_instructions": "",
+    "topup_url": "https://litescrape.com/pricing",
+    "pools": [
+      {
+        "unit": "credits",
+        "label": "Calls",
+        "credit_type": "calls"
+      }
+    ]
+  },
+  {
     "id": "lusha",
     "name": "Lusha",
-    "logo_url": "/logos/lusha.png",
+    "logo_url": "/logos/lusha.webp",
     "category": "email_finding",
     "description": "B2B contact and company data, priced per credit.",
     "website_url": null,
@@ -469,7 +1236,7 @@
   {
     "id": "mailercheck",
     "name": "MailerCheck",
-    "logo_url": "/logos/mailercheck.png",
+    "logo_url": "/logos/mailercheck.webp",
     "category": "email_verification",
     "description": "Email verification and list cleaning from MailerLite, priced per verification credit.",
     "website_url": null,
@@ -479,9 +1246,65 @@
     "pools": null
   },
   {
+    "id": "majestic",
+    "name": "Majestic",
+    "logo_url": "/logos/majestic.webp",
+    "category": "data",
+    "description": "Backlink index API with Trust Flow and Citation Flow, billed from analysis, retrieval and index item info units.",
+    "website_url": "https://majestic.com",
+    "api_docs_url": "https://developer-support.majestic.com/api/commands/get-subscription-info.shtml",
+    "key_instructions": "",
+    "topup_url": "https://majestic.com/plans-pricing",
+    "pools": [
+      {
+        "unit": "credits",
+        "label": "Analysis units",
+        "credit_type": "analysis_units"
+      },
+      {
+        "unit": "credits",
+        "label": "Retrieval units",
+        "credit_type": "retrieval_units"
+      },
+      {
+        "unit": "credits",
+        "label": "Index item info units",
+        "credit_type": "index_item_info_units"
+      }
+    ]
+  },
+  {
+    "id": "mangools",
+    "name": "Mangools",
+    "logo_url": "/logos/mangools.webp",
+    "category": "data",
+    "description": "SEO suite (KWFinder, SERPChecker, LinkMiner) with an API, billed from daily lookups and monthly backlink rows.",
+    "website_url": "https://mangools.com",
+    "api_docs_url": "https://mangools.com/api",
+    "key_instructions": "",
+    "topup_url": "https://mangools.com/plans-and-pricing",
+    "pools": [
+      {
+        "unit": "credits",
+        "label": "Keyword lookups",
+        "credit_type": "keyword_lookups"
+      },
+      {
+        "unit": "credits",
+        "label": "SERP lookups",
+        "credit_type": "serp_lookups"
+      },
+      {
+        "unit": "credits",
+        "label": "Backlink rows",
+        "credit_type": "backlink_rows"
+      }
+    ]
+  },
+  {
     "id": "meltly",
     "name": "Melt.ly",
-    "logo_url": "/logos/meltly.png",
+    "logo_url": "/logos/meltly.webp",
     "category": "ai",
     "description": "AI sales research and icebreaker generation, billed from subscription and pay-as-you-go credits.",
     "website_url": "https://melt.ly",
@@ -504,7 +1327,7 @@
   {
     "id": "millionverifier",
     "name": "MillionVerifier",
-    "logo_url": "/logos/millionverifier.png",
+    "logo_url": "/logos/millionverifier.webp",
     "category": "email_verification",
     "description": "Bulk email list verification with a pay-as-you-go credit balance.",
     "website_url": null,
@@ -514,9 +1337,63 @@
     "pools": null
   },
   {
+    "id": "mobiusengine-jobs",
+    "name": "Arihaan Jobs",
+    "logo_url": "/logos/mobiusengine-jobs.webp",
+    "category": "data",
+    "description": "Job postings API pulled from employer career sites, metered in daily tokens.",
+    "website_url": "https://jobs.arihaan.ai",
+    "api_docs_url": "https://jobs.arihaan.ai/docs/api/usage",
+    "key_instructions": "",
+    "topup_url": "https://jobs.arihaan.ai/pricing",
+    "pools": [
+      {
+        "unit": "credits",
+        "label": "Daily tokens",
+        "credit_type": "daily_tokens"
+      }
+    ]
+  },
+  {
+    "id": "moltsets",
+    "name": "MoltSets",
+    "logo_url": "/logos/moltsets.webp",
+    "category": "data",
+    "description": "Identity resolution API for emails, phones and company data, billed from tokens.",
+    "website_url": "https://moltsets.com",
+    "api_docs_url": "https://developer.moltsets.com/api-reference/account/get-account",
+    "key_instructions": "",
+    "topup_url": "https://moltsets.com/pricing",
+    "pools": [
+      {
+        "unit": "credits",
+        "label": "Credits",
+        "credit_type": "credits"
+      }
+    ]
+  },
+  {
+    "id": "moz",
+    "name": "Moz",
+    "logo_url": "/logos/moz.webp",
+    "category": "data",
+    "description": "SEO metrics API for links, domain authority and keywords, billed in rows.",
+    "website_url": "https://moz.com",
+    "api_docs_url": "https://moz.com/api/docs/beta/quota-lookup",
+    "key_instructions": "",
+    "topup_url": "https://moz.com/products/api/pricing",
+    "pools": [
+      {
+        "unit": "credits",
+        "label": "Rows",
+        "credit_type": "rows"
+      }
+    ]
+  },
+  {
     "id": "myemailverifier",
     "name": "MyEmailVerifier",
-    "logo_url": "/logos/myemailverifier.png",
+    "logo_url": "/logos/myemailverifier.webp",
     "category": "email_verification",
     "description": "Bulk and real-time email verification, priced per credit.",
     "website_url": "https://myemailverifier.com",
@@ -528,7 +1405,7 @@
   {
     "id": "netnut",
     "name": "NetNut",
-    "logo_url": "/logos/netnut.png",
+    "logo_url": "/logos/netnut.webp",
     "category": "data",
     "description": "Residential and static proxies, billed by traffic balance.",
     "website_url": null,
@@ -540,7 +1417,7 @@
   {
     "id": "neverbounce",
     "name": "NeverBounce",
-    "logo_url": "/logos/neverbounce.png",
+    "logo_url": "/logos/neverbounce.webp",
     "category": "email_verification",
     "description": "Real-time and bulk email verification, priced per verification credit.",
     "website_url": null,
@@ -550,9 +1427,68 @@
     "pools": null
   },
   {
+    "id": "oceanio",
+    "name": "Ocean.io",
+    "logo_url": "/logos/oceanio.webp",
+    "category": "email_finding",
+    "description": "Lookalike company and contact data for B2B prospecting, billed from standard credits.",
+    "website_url": "https://www.ocean.io",
+    "api_docs_url": "https://app.ocean.io/docs/getCreditBalance",
+    "key_instructions": "",
+    "topup_url": "https://www.ocean.io/pricing",
+    "pools": [
+      {
+        "unit": "credits",
+        "label": "One-time credits",
+        "credit_type": "one_time"
+      },
+      {
+        "unit": "credits",
+        "label": "Recurring credits",
+        "credit_type": "recurrent"
+      }
+    ]
+  },
+  {
+    "id": "olostep",
+    "name": "Olostep",
+    "logo_url": "/logos/olostep.webp",
+    "category": "data",
+    "description": "Web scraping and crawling API for AI agents, billed from credits.",
+    "website_url": "https://www.olostep.com",
+    "api_docs_url": "https://docs.olostep.com/api-reference/billing/credits-info",
+    "key_instructions": "",
+    "topup_url": "https://www.olostep.com/pricing",
+    "pools": [
+      {
+        "unit": "credits",
+        "label": "Credits",
+        "credit_type": "credits"
+      }
+    ]
+  },
+  {
+    "id": "openmart",
+    "name": "Openmart",
+    "logo_url": "/logos/openmart.webp",
+    "category": "data",
+    "description": "Local business data and decision-maker contacts API, billed from credits.",
+    "website_url": "https://www.openmart.com",
+    "api_docs_url": "https://app.openmart.com/api-docs/get-credit-balance",
+    "key_instructions": "",
+    "topup_url": "https://www.openmart.com/pricing",
+    "pools": [
+      {
+        "unit": "credits",
+        "label": "Credits",
+        "credit_type": "credits"
+      }
+    ]
+  },
+  {
     "id": "openrouter",
     "name": "OpenRouter",
-    "logo_url": "/logos/openrouter.png",
+    "logo_url": "/logos/openrouter.webp",
     "category": "ai",
     "description": "One API for many LLMs, drawn from a prepaid credit balance.",
     "website_url": null,
@@ -564,7 +1500,7 @@
   {
     "id": "oppora",
     "name": "Oppora",
-    "logo_url": "/logos/oppora.png",
+    "logo_url": "/logos/oppora.webp",
     "category": "email_finding",
     "description": "Outbound sales automation with contact discovery and phone lookup, billed from data and phone credit pools.",
     "website_url": "https://oppora.ai",
@@ -585,9 +1521,27 @@
     ]
   },
   {
+    "id": "orbisearch",
+    "name": "OrbiSearch",
+    "logo_url": "/logos/orbisearch.webp",
+    "category": "data",
+    "description": "B2B email finder and verifier with company enrichment, billed from credits.",
+    "website_url": "https://orbisearch.com",
+    "api_docs_url": "https://orbisearch.com/docs/api-reference/credits",
+    "key_instructions": "",
+    "topup_url": "https://orbisearch.com/pricing",
+    "pools": [
+      {
+        "unit": "credits",
+        "label": "Credits",
+        "credit_type": "credits"
+      }
+    ]
+  },
+  {
     "id": "orthogonal",
     "name": "Orthogonal",
-    "logo_url": "/logos/orthogonal.png",
+    "logo_url": "/logos/orthogonal.webp",
     "category": "data",
     "description": "Data and enrichment API usage, billed from a credit balance.",
     "website_url": null,
@@ -599,7 +1553,7 @@
   {
     "id": "outscraper",
     "name": "Outscraper",
-    "logo_url": "/logos/outscraper.png",
+    "logo_url": "/logos/outscraper.webp",
     "category": "data",
     "description": "Maps, reviews, and web data extraction, billed from a prepaid balance.",
     "website_url": null,
@@ -609,9 +1563,109 @@
     "pools": null
   },
   {
+    "id": "peopledatalabs",
+    "name": "People Data Labs",
+    "logo_url": "/logos/peopledatalabs.webp",
+    "category": "data",
+    "description": "Person and company data API for enrichment and search, billed per matched record from a credit balance.",
+    "website_url": "https://www.peopledatalabs.com",
+    "api_docs_url": "https://docs.peopledatalabs.com/docs/usage-limits",
+    "key_instructions": "",
+    "topup_url": "https://www.peopledatalabs.com/pricing",
+    "pools": [
+      {
+        "unit": "credits",
+        "label": "Credits",
+        "credit_type": "credits"
+      }
+    ]
+  },
+  {
+    "id": "phantombuster",
+    "name": "PhantomBuster",
+    "logo_url": "/logos/phantombuster.webp",
+    "category": "data",
+    "description": "Cloud automations that scrape and act on LinkedIn and the web, metered in monthly execution time, AI credits and email credits.",
+    "website_url": "https://phantombuster.com",
+    "api_docs_url": "https://hub.phantombuster.com/reference/get_orgs-fetch-resources",
+    "key_instructions": "",
+    "topup_url": "https://phantombuster.com/pricing",
+    "pools": [
+      {
+        "unit": "minutes",
+        "label": "Execution time",
+        "credit_type": "execution_time"
+      },
+      {
+        "unit": "credits",
+        "label": "AI credits",
+        "credit_type": "ai_credits"
+      },
+      {
+        "unit": "credits",
+        "label": "Emails",
+        "credit_type": "emails"
+      }
+    ]
+  },
+  {
+    "id": "piapi",
+    "name": "PiAPI",
+    "logo_url": "/logos/piapi.webp",
+    "category": "ai",
+    "description": "One API for AI media models (Midjourney, Kling, Flux and more), billed from prepaid credits.",
+    "website_url": "https://piapi.ai",
+    "api_docs_url": "https://piapi.ai/docs/account-info-api",
+    "key_instructions": "",
+    "topup_url": "https://piapi.ai/pricing",
+    "pools": [
+      {
+        "unit": "usd",
+        "label": "Balance",
+        "credit_type": "wallet"
+      }
+    ]
+  },
+  {
+    "id": "plivo",
+    "name": "Plivo",
+    "logo_url": "/logos/plivo.webp",
+    "category": "data",
+    "description": "SMS and voice API for business messaging, billed from a cash credit balance in dollars.",
+    "website_url": "https://www.plivo.com",
+    "api_docs_url": "https://www.plivo.com/docs/account/api/account",
+    "key_instructions": "",
+    "topup_url": "https://console.plivo.com/billing/",
+    "pools": [
+      {
+        "unit": "usd",
+        "label": "Balance (USD)",
+        "credit_type": "balance"
+      }
+    ]
+  },
+  {
+    "id": "predictleads",
+    "name": "PredictLeads",
+    "logo_url": "/logos/predictleads.webp",
+    "category": "data",
+    "description": "Company intelligence signals such as job openings, news and technologies, billed from a monthly credit quota.",
+    "website_url": "https://predictleads.com",
+    "api_docs_url": "https://docs.predictleads.com/v3/api_endpoints/api_subscription/get_api_subscription_information",
+    "key_instructions": "",
+    "topup_url": "https://predictleads.com/pricing",
+    "pools": [
+      {
+        "unit": "credits",
+        "label": "Monthly credits",
+        "credit_type": "credits"
+      }
+    ]
+  },
+  {
     "id": "prospeo",
     "name": "Prospeo",
-    "logo_url": "/logos/prospeo.png",
+    "logo_url": "/logos/prospeo.webp",
     "category": "email_finding",
     "description": "Email and phone finding for B2B prospecting, billed per credit.",
     "website_url": null,
@@ -621,9 +1675,27 @@
     "pools": null
   },
   {
+    "id": "reapi",
+    "name": "ReAPI",
+    "logo_url": "/logos/reapi.webp",
+    "category": "ai",
+    "description": "Image, video, audio and chat model API, billed from prepaid credits.",
+    "website_url": "https://reapi.ai",
+    "api_docs_url": "https://reapi.ai/docs/api/balance",
+    "key_instructions": "",
+    "topup_url": "https://reapi.ai/pricing",
+    "pools": [
+      {
+        "unit": "credits",
+        "label": "Credits",
+        "credit_type": "credits"
+      }
+    ]
+  },
+  {
     "id": "reoon",
     "name": "Reoon",
-    "logo_url": "/logos/reoon.png",
+    "logo_url": "/logos/reoon.webp",
     "category": "email_verification",
     "description": "Email verification with fast bulk processing, billed per credit.",
     "website_url": null,
@@ -646,7 +1718,7 @@
   {
     "id": "rocketreach",
     "name": "RocketReach",
-    "logo_url": "/logos/rocketreach.png",
+    "logo_url": "/logos/rocketreach.webp",
     "category": "email_finding",
     "description": "Contact and company lookups, priced per lookup credit.",
     "website_url": null,
@@ -656,9 +1728,27 @@
     "pools": null
   },
   {
+    "id": "runway",
+    "name": "Runway",
+    "logo_url": "/logos/runway.webp",
+    "category": "ai",
+    "description": "Video and image generation API, billed from prepaid credits at one cent each.",
+    "website_url": "https://runwayml.com",
+    "api_docs_url": "https://docs.dev.runwayml.com/api/",
+    "key_instructions": "",
+    "topup_url": "https://dev.runwayml.com",
+    "pools": [
+      {
+        "unit": "credits",
+        "label": "Credits",
+        "credit_type": "credits"
+      }
+    ]
+  },
+  {
     "id": "scaleserp",
     "name": "Scale SERP",
-    "logo_url": "/logos/scaleserp.png",
+    "logo_url": "/logos/scaleserp.webp",
     "category": "data",
     "description": "High-scale Google SERP data API, billed from monthly search credits.",
     "website_url": "https://trajectdata.com/serp/scale-serp-api/",
@@ -674,9 +1764,45 @@
     ]
   },
   {
+    "id": "scrapecreators",
+    "name": "Scrape Creators",
+    "logo_url": "/logos/scrapecreators.webp",
+    "category": "data",
+    "description": "Public social media data from TikTok, Instagram, YouTube and more as an API, billed per credit.",
+    "website_url": "https://scrapecreators.com",
+    "api_docs_url": "https://docs.scrapecreators.com/account/credit-balance",
+    "key_instructions": "",
+    "topup_url": "https://scrapecreators.com/pricing",
+    "pools": [
+      {
+        "unit": "credits",
+        "label": "Credits",
+        "credit_type": "credits"
+      }
+    ]
+  },
+  {
+    "id": "scrapedo",
+    "name": "Scrape.do",
+    "logo_url": "/logos/scrapedo.webp",
+    "category": "data",
+    "description": "Web scraping API with rotating proxies, billed by monthly successful requests.",
+    "website_url": "https://scrape.do",
+    "api_docs_url": "https://scrape.do/documentation/api-response/usage-stats/",
+    "key_instructions": "An inactive subscription reads as a rejected key.",
+    "topup_url": "https://scrape.do/pricing/",
+    "pools": [
+      {
+        "unit": "credits",
+        "label": "Requests",
+        "credit_type": "requests"
+      }
+    ]
+  },
+  {
     "id": "scrapegraphai",
     "name": "ScrapeGraphAI",
-    "logo_url": "/logos/scrapegraphai.png",
+    "logo_url": "/logos/scrapegraphai.webp",
     "category": "data",
     "description": "AI-powered web scraping and extraction, priced per credit.",
     "website_url": null,
@@ -688,7 +1814,7 @@
   {
     "id": "scrapeops",
     "name": "ScrapeOps",
-    "logo_url": "/logos/scrapeops.png",
+    "logo_url": "/logos/scrapeops.webp",
     "category": "data",
     "description": "Proxy aggregation and scraping monitoring, billed per request.",
     "website_url": null,
@@ -700,7 +1826,7 @@
   {
     "id": "scraperapi",
     "name": "ScraperAPI",
-    "logo_url": "/logos/scraperapi.png",
+    "logo_url": "/logos/scraperapi.webp",
     "category": "data",
     "description": "Web scraping with rotating proxies, priced per API credit.",
     "website_url": null,
@@ -712,7 +1838,7 @@
   {
     "id": "scrapfly",
     "name": "Scrapfly",
-    "logo_url": "/logos/scrapfly.png",
+    "logo_url": "/logos/scrapfly.webp",
     "category": "data",
     "description": "Web scraping API with anti-bot bypass, billed per credit.",
     "website_url": null,
@@ -724,7 +1850,7 @@
   {
     "id": "scrapingant",
     "name": "ScrapingAnt",
-    "logo_url": "/logos/scrapingant.png",
+    "logo_url": "/logos/scrapingant.webp",
     "category": "data",
     "description": "Web scraping with headless browsers and proxies, priced per credit.",
     "website_url": null,
@@ -736,7 +1862,7 @@
   {
     "id": "scrapingbee",
     "name": "ScrapingBee",
-    "logo_url": "/logos/scrapingbee.png",
+    "logo_url": "/logos/scrapingbee.webp",
     "category": "data",
     "description": "Web scraping API with proxies and headless rendering, billed per credit.",
     "website_url": null,
@@ -748,7 +1874,7 @@
   {
     "id": "scrapingdog",
     "name": "Scrapingdog",
-    "logo_url": "/logos/scrapingdog.png",
+    "logo_url": "/logos/scrapingdog.webp",
     "category": "data",
     "description": "Web and search scraping API, billed per request credit.",
     "website_url": null,
@@ -758,9 +1884,27 @@
     "pools": null
   },
   {
+    "id": "search1api",
+    "name": "Search1API",
+    "logo_url": "/logos/search1api.webp",
+    "category": "data",
+    "description": "Search, news and crawl API, billed from prepaid credits.",
+    "website_url": "https://s1.dev",
+    "api_docs_url": "https://s1.dev/docs/essentials/credits-and-limits",
+    "key_instructions": "",
+    "topup_url": "https://s1.dev/pricing",
+    "pools": [
+      {
+        "unit": "credits",
+        "label": "Credits",
+        "credit_type": "credits"
+      }
+    ]
+  },
+  {
     "id": "searchapi",
     "name": "SearchApi",
-    "logo_url": "/logos/searchapi.png",
+    "logo_url": "/logos/searchapi.webp",
     "category": "data",
     "description": "Real-time SERP and search data API, priced per search.",
     "website_url": null,
@@ -772,7 +1916,7 @@
   {
     "id": "semrush",
     "name": "Semrush",
-    "logo_url": "/logos/semrush.png",
+    "logo_url": "/logos/semrush.webp",
     "category": "data",
     "description": "SEO and competitive intelligence APIs, billed from API units.",
     "website_url": "https://www.semrush.com",
@@ -788,9 +1932,45 @@
     ]
   },
   {
+    "id": "sendgrid",
+    "name": "SendGrid",
+    "logo_url": "/logos/sendgrid.webp",
+    "category": "data",
+    "description": "Transactional and marketing email API from Twilio, with a monthly email credit allotment.",
+    "website_url": "https://sendgrid.com",
+    "api_docs_url": "https://www.twilio.com/docs/sendgrid/api-reference/users-api/retrieve-your-credit-balance",
+    "key_instructions": "The key needs the user.credits.read permission. EU regional subusers are not supported yet.",
+    "topup_url": "https://sendgrid.com/en-us/pricing",
+    "pools": [
+      {
+        "unit": "credits",
+        "label": "Emails",
+        "credit_type": "emails"
+      }
+    ]
+  },
+  {
+    "id": "seranking",
+    "name": "SE Ranking",
+    "logo_url": "/logos/seranking.webp",
+    "category": "data",
+    "description": "SEO data API for keywords, backlinks, domains and SERPs, billed from API units.",
+    "website_url": "https://seranking.com",
+    "api_docs_url": "https://seranking.com/api/data/account-system/",
+    "key_instructions": "",
+    "topup_url": "https://seranking.com/api.html",
+    "pools": [
+      {
+        "unit": "credits",
+        "label": "API units",
+        "credit_type": "units"
+      }
+    ]
+  },
+  {
     "id": "serpapi",
     "name": "SerpApi",
-    "logo_url": "/logos/serpapi.png",
+    "logo_url": "/logos/serpapi.webp",
     "category": "data",
     "description": "Search engine results as structured data, priced per search.",
     "website_url": null,
@@ -800,9 +1980,45 @@
     "pools": null
   },
   {
+    "id": "serper",
+    "name": "Serper",
+    "logo_url": "/logos/serper.webp",
+    "category": "data",
+    "description": "Google search results (SERP) API, billed from prepaid credits.",
+    "website_url": "https://serper.dev",
+    "api_docs_url": "https://serper.dev",
+    "key_instructions": "",
+    "topup_url": "https://serper.dev/billing",
+    "pools": [
+      {
+        "unit": "credits",
+        "label": "Credits",
+        "credit_type": "credits"
+      }
+    ]
+  },
+  {
+    "id": "serpstat",
+    "name": "Serpstat",
+    "logo_url": "/logos/serpstat.webp",
+    "category": "data",
+    "description": "SEO platform API for keyword, domain, backlink and SERP data, billed per returned row.",
+    "website_url": "https://serpstat.com",
+    "api_docs_url": "https://api-docs.serpstat.com/docs/serpstat-public-api/p2grcut8yurv0-get-stats",
+    "key_instructions": "",
+    "topup_url": "https://serpstat.com/page/pricing-plans/",
+    "pools": [
+      {
+        "unit": "credits",
+        "label": "API credits",
+        "credit_type": "credits"
+      }
+    ]
+  },
+  {
     "id": "serpwow",
     "name": "SerpWow",
-    "logo_url": "/logos/serpwow.png",
+    "logo_url": "/logos/serpwow.webp",
     "category": "data",
     "description": "Search engine results across engines, billed per credit.",
     "website_url": "https://serpwow.com",
@@ -814,7 +2030,7 @@
   {
     "id": "shodan",
     "name": "Shodan",
-    "logo_url": "/logos/shodan.png",
+    "logo_url": "/logos/shodan.webp",
     "category": "data",
     "description": "Internet intelligence and search APIs, billed from query and scan credits.",
     "website_url": "https://shodan.io",
@@ -835,9 +2051,45 @@
     ]
   },
   {
+    "id": "similarweb",
+    "name": "Similarweb",
+    "logo_url": "/logos/similarweb.webp",
+    "category": "data",
+    "description": "Website and app traffic intelligence API, billed from data credits.",
+    "website_url": "https://www.similarweb.com",
+    "api_docs_url": "https://developers.similarweb.com/docs/check-capabilities",
+    "key_instructions": "The REST API is a paid add-on, so the key needs an API subscription.",
+    "topup_url": "https://www.similarweb.com/corp/pricing/",
+    "pools": [
+      {
+        "unit": "credits",
+        "label": "Data credits",
+        "credit_type": "data_credits"
+      }
+    ]
+  },
+  {
+    "id": "sixtyfour",
+    "name": "Sixtyfour",
+    "logo_url": "/logos/sixtyfour.webp",
+    "category": "email_finding",
+    "description": "AI research agents that enrich people and companies, billed from organization credits.",
+    "website_url": "https://sixtyfour.ai",
+    "api_docs_url": "https://docs.sixtyfour.ai/api-reference/account/check-balance",
+    "key_instructions": "",
+    "topup_url": "https://sixtyfour.ai/pricing",
+    "pools": [
+      {
+        "unit": "credits",
+        "label": "Credits",
+        "credit_type": "credits"
+      }
+    ]
+  },
+  {
     "id": "skrapp",
     "name": "Skrapp",
-    "logo_url": "/logos/skrapp.png",
+    "logo_url": "/logos/skrapp.webp",
     "category": "email_finding",
     "description": "B2B email finding and verification for outreach, billed from monthly email credits.",
     "website_url": "https://skrapp.io",
@@ -855,7 +2107,7 @@
   {
     "id": "snov",
     "name": "Snov.io",
-    "logo_url": "/logos/snov.png",
+    "logo_url": "/logos/snov.webp",
     "category": "email_finding",
     "description": "Email finding, verification, and outreach automation, billed from account credits.",
     "website_url": "https://snov.io",
@@ -865,9 +2117,63 @@
     "pools": null
   },
   {
+    "id": "spidercloud",
+    "name": "Spider",
+    "logo_url": "/logos/spidercloud.webp",
+    "category": "data",
+    "description": "Web crawling and scraping API for AI pipelines, billed from prepaid credits.",
+    "website_url": "https://spider.cloud",
+    "api_docs_url": "https://spider.cloud/docs/api",
+    "key_instructions": "",
+    "topup_url": "https://spider.cloud/credits/new",
+    "pools": [
+      {
+        "unit": "credits",
+        "label": "Credits",
+        "credit_type": "credits"
+      }
+    ]
+  },
+  {
+    "id": "stability",
+    "name": "Stability AI",
+    "logo_url": "/logos/stability.webp",
+    "category": "ai",
+    "description": "Stable Diffusion image generation API, billed from prepaid credits.",
+    "website_url": "https://stability.ai",
+    "api_docs_url": "https://platform.stability.ai/docs/api-reference#tag/User/operation/userBalance",
+    "key_instructions": "",
+    "topup_url": "https://platform.stability.ai/account/credits",
+    "pools": [
+      {
+        "unit": "credits",
+        "label": "Credits",
+        "credit_type": "credits"
+      }
+    ]
+  },
+  {
+    "id": "sumble",
+    "name": "Sumble",
+    "logo_url": "/logos/sumble.webp",
+    "category": "data",
+    "description": "Company and technographics intelligence API, billed from credits.",
+    "website_url": "https://sumble.com",
+    "api_docs_url": "https://docs.sumble.com/api/lookups/technologies",
+    "key_instructions": "",
+    "topup_url": "https://sumble.com/pricing",
+    "pools": [
+      {
+        "unit": "credits",
+        "label": "Credits",
+        "credit_type": "credits"
+      }
+    ]
+  },
+  {
     "id": "surfe",
     "name": "Surfe",
-    "logo_url": "/logos/surfe.png",
+    "logo_url": "/logos/surfe.webp",
     "category": "email_finding",
     "description": "Contact data and enrichment inside your CRM, billed per credit.",
     "website_url": null,
@@ -895,7 +2201,7 @@
   {
     "id": "tavily",
     "name": "Tavily",
-    "logo_url": "/logos/tavily.png",
+    "logo_url": "/logos/tavily.webp",
     "category": "data",
     "description": "Search, extraction, crawl, and research APIs for AI agents, billed from API credits.",
     "website_url": "https://tavily.com",
@@ -921,9 +2227,99 @@
     ]
   },
   {
+    "id": "telnyx",
+    "name": "Telnyx",
+    "logo_url": "/logos/telnyx.webp",
+    "category": "data",
+    "description": "Communications platform API for SMS, voice and phone numbers, billed from an account balance in dollars.",
+    "website_url": "https://telnyx.com",
+    "api_docs_url": "https://developers.telnyx.com/api-reference/billing/get-user-balance-details",
+    "key_instructions": "Use a v2 API key. Accounts billed in a currency other than US dollars are not supported yet.",
+    "topup_url": "https://portal.telnyx.com/",
+    "pools": [
+      {
+        "unit": "usd",
+        "label": "Balance (USD)",
+        "credit_type": "balance"
+      }
+    ]
+  },
+  {
+    "id": "thecompaniesapi",
+    "name": "The Companies API",
+    "logo_url": "/logos/thecompaniesapi.webp",
+    "category": "data",
+    "description": "Company data API for enrichment, search and lookalikes, billed from team credits.",
+    "website_url": "https://www.thecompaniesapi.com",
+    "api_docs_url": "https://www.thecompaniesapi.com/api/fetch-team",
+    "key_instructions": "",
+    "topup_url": "https://www.thecompaniesapi.com/pricing",
+    "pools": [
+      {
+        "unit": "credits",
+        "label": "Credits",
+        "credit_type": "credits"
+      }
+    ]
+  },
+  {
+    "id": "theirstack",
+    "name": "TheirStack",
+    "logo_url": "/logos/theirstack.webp",
+    "category": "data",
+    "description": "Job postings and technographics API, billed from credits.",
+    "website_url": "https://theirstack.com",
+    "api_docs_url": "https://theirstack.com/en/docs/api-reference/billing/get_billing_credit_balance_v0",
+    "key_instructions": "",
+    "topup_url": "https://theirstack.com/en/pricing",
+    "pools": [
+      {
+        "unit": "credits",
+        "label": "API credits",
+        "credit_type": "api_credits"
+      }
+    ]
+  },
+  {
+    "id": "tikhub",
+    "name": "TikHub",
+    "logo_url": "/logos/tikhub.webp",
+    "category": "data",
+    "description": "Social data API for TikTok, Douyin, Instagram and more, billed from a USD balance.",
+    "website_url": "https://tikhub.io",
+    "api_docs_url": "https://docs.tikhub.io/186826050e0",
+    "key_instructions": "",
+    "topup_url": "https://tikhub.io/pricing",
+    "pools": [
+      {
+        "unit": "usd",
+        "label": "Balance (USD)",
+        "credit_type": "balance"
+      }
+    ]
+  },
+  {
+    "id": "tinyfish",
+    "name": "TinyFish",
+    "logo_url": "/logos/tinyfish.webp",
+    "category": "data",
+    "description": "Browser agent API for web automation, fetch and search, billed from a USD wallet.",
+    "website_url": "https://www.tinyfish.ai",
+    "api_docs_url": "https://docs.tinyfish.ai/api-reference/wallet/get-wallet",
+    "key_instructions": "",
+    "topup_url": "https://www.tinyfish.ai/pricing",
+    "pools": [
+      {
+        "unit": "usd",
+        "label": "Wallet",
+        "credit_type": "wallet"
+      }
+    ]
+  },
+  {
     "id": "tomba",
     "name": "Tomba",
-    "logo_url": "/logos/tomba.png",
+    "logo_url": "/logos/tomba.webp",
     "category": "email_finding",
     "description": "Email finding and verification for B2B outreach, billed from account credits.",
     "website_url": null,
@@ -954,9 +2350,63 @@
     ]
   },
   {
+    "id": "treg",
+    "name": "treg",
+    "logo_url": "/logos/treg.webp",
+    "category": "data",
+    "description": "One token for thousands of SEO, enrichment, social and scraping API tools, billed from a prepaid USD balance.",
+    "website_url": "https://treg.to",
+    "api_docs_url": "https://treg.to/integrate.md",
+    "key_instructions": "",
+    "topup_url": "https://treg.to/app",
+    "pools": [
+      {
+        "unit": "usd",
+        "label": "Balance",
+        "credit_type": "balance"
+      }
+    ]
+  },
+  {
+    "id": "twilio",
+    "name": "Twilio",
+    "logo_url": "/logos/twilio.webp",
+    "category": "data",
+    "description": "Communications platform API for SMS, voice and WhatsApp, billed from a prepaid balance in dollars.",
+    "website_url": "https://www.twilio.com",
+    "api_docs_url": "https://www.twilio.com/docs/iam/api/account",
+    "key_instructions": "Use the parent account: subaccounts have no balance of their own. Accounts billed in a currency other than US dollars are not supported yet.",
+    "topup_url": "https://console.twilio.com/us1/billing/manage-billing/billing-overview",
+    "pools": [
+      {
+        "unit": "usd",
+        "label": "Balance (USD)",
+        "credit_type": "balance"
+      }
+    ]
+  },
+  {
+    "id": "uplead",
+    "name": "UpLead",
+    "logo_url": "/logos/uplead.webp",
+    "category": "data",
+    "description": "B2B contact and company data, billed from prepaid credits.",
+    "website_url": "https://www.uplead.com",
+    "api_docs_url": "https://docs.uplead.com/",
+    "key_instructions": "",
+    "topup_url": "https://www.uplead.com/pricing/",
+    "pools": [
+      {
+        "unit": "credits",
+        "label": "Credits",
+        "credit_type": "credits"
+      }
+    ]
+  },
+  {
     "id": "valueserp",
     "name": "ValueSERP",
-    "logo_url": "/logos/valueserp.png",
+    "logo_url": "/logos/valueserp.webp",
     "category": "data",
     "description": "Google search results as an API, priced per search credit.",
     "website_url": "https://valueserp.com",
@@ -977,9 +2427,27 @@
     ]
   },
   {
+    "id": "valyu",
+    "name": "Valyu",
+    "logo_url": "/logos/valyu.webp",
+    "category": "data",
+    "description": "Search API over web and proprietary data for AI agents, billed from a prepaid USD balance.",
+    "website_url": "https://www.valyu.ai",
+    "api_docs_url": "https://github.com/valyuAI/valyu-cli",
+    "key_instructions": "Create the key with the billing:read scope. Data keys lack it by default and are rejected here.",
+    "topup_url": "https://www.valyu.ai/pricing",
+    "pools": [
+      {
+        "unit": "usd",
+        "label": "Balance (USD)",
+        "credit_type": "balance"
+      }
+    ]
+  },
+  {
     "id": "verifalia",
     "name": "Verifalia",
-    "logo_url": "/logos/verifalia.png",
+    "logo_url": "/logos/verifalia.webp",
     "category": "email_verification",
     "description": "Email verification and list cleaning, billed from credit packs and optional free daily credits.",
     "website_url": "https://verifalia.com",
@@ -1000,9 +2468,50 @@
     ]
   },
   {
+    "id": "vonage",
+    "name": "Vonage",
+    "logo_url": "/logos/vonage.webp",
+    "category": "data",
+    "description": "Communications APIs for SMS, voice and verification, billed from an account balance in euros.",
+    "website_url": "https://www.vonage.com",
+    "api_docs_url": "https://developer.vonage.com/en/api/account",
+    "key_instructions": "",
+    "topup_url": "https://dashboard.nexmo.com/billing-and-payments",
+    "pools": [
+      {
+        "unit": "eur",
+        "label": "Balance (EUR)",
+        "credit_type": "balance"
+      }
+    ]
+  },
+  {
+    "id": "webshare",
+    "name": "Webshare",
+    "logo_url": "/logos/webshare.webp",
+    "category": "data",
+    "description": "Datacenter, static and rotating residential proxies, with plans capped by monthly bandwidth in GB.",
+    "website_url": "https://www.webshare.io",
+    "api_docs_url": "https://apidocs.webshare.io/subscription",
+    "key_instructions": "",
+    "topup_url": "https://www.webshare.io/pricing",
+    "pools": [
+      {
+        "unit": "gb",
+        "label": "Traffic",
+        "credit_type": "traffic"
+      },
+      {
+        "unit": "usd",
+        "label": "Free credits",
+        "credit_type": "free_credits"
+      }
+    ]
+  },
+  {
     "id": "wiza",
     "name": "Wiza",
-    "logo_url": "/logos/wiza.png",
+    "logo_url": "/logos/wiza.webp",
     "category": "email_finding",
     "description": "Email and phone finding from LinkedIn searches, priced per credit.",
     "website_url": null,
@@ -1012,9 +2521,45 @@
     "pools": null
   },
   {
+    "id": "x",
+    "name": "X",
+    "logo_url": "/logos/x.webp",
+    "category": "data",
+    "description": "The X API, with a monthly cap on Post reads per project.",
+    "website_url": "https://x.com",
+    "api_docs_url": "https://docs.x.com/x-api/usage/get-usage",
+    "key_instructions": "",
+    "topup_url": "https://console.x.com",
+    "pools": [
+      {
+        "unit": "credits",
+        "label": "Post reads",
+        "credit_type": "post_reads"
+      }
+    ]
+  },
+  {
+    "id": "youcom",
+    "name": "You.com",
+    "logo_url": "/logos/youcom.webp",
+    "category": "data",
+    "description": "Web search, contents and research APIs for AI agents, billed from a prepaid USD balance.",
+    "website_url": "https://you.com",
+    "api_docs_url": "https://you.com/docs/api-reference/billing/get-account-balance",
+    "key_instructions": "",
+    "topup_url": "https://you.com/platform",
+    "pools": [
+      {
+        "unit": "usd",
+        "label": "Balance",
+        "credit_type": "balance"
+      }
+    ]
+  },
+  {
     "id": "zenserp",
     "name": "Zenserp",
-    "logo_url": "/logos/zenserp.png",
+    "logo_url": "/logos/zenserp.webp",
     "category": "data",
     "description": "SERP scraping API across search engines, billed per request.",
     "website_url": null,
@@ -1026,7 +2571,7 @@
   {
     "id": "zerobounce",
     "name": "ZeroBounce",
-    "logo_url": "/logos/zerobounce.png",
+    "logo_url": "/logos/zerobounce.webp",
     "category": "email_verification",
     "description": "Email verification, scoring, and data appends, billed per credit.",
     "website_url": null,

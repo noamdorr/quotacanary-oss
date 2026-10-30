@@ -3,6 +3,10 @@
 # wraps the result in dist/QuotaCanary.app, signed ad hoc (a development
 # package, not a Developer ID release).
 #
+# QUOTACANARY_SIGN_IDENTITY, when set, signs with that Developer ID Application
+# identity instead (hardened runtime, secure timestamp). Run scripts/notarize.sh
+# on the result to notarize and staple it.
+#
 #   CFBundleShortVersionString  <- mac/VERSION
 #   CFBundleVersion             <- `git rev-list --count HEAD` (commit count of
 #                                  the checkout you build from), or
@@ -85,5 +89,12 @@ cat > "$APP/Contents/Info.plist" <<PLIST
 </plist>
 PLIST
 
-codesign -s - --force "$APP"
-echo "Built $APP ($VERSION build $BUILD, $COMMIT, $ARCHS), ad hoc signed"
+if [ -n "${QUOTACANARY_SIGN_IDENTITY:-}" ]; then
+  # Hardened runtime plus a secure timestamp: what notarization requires.
+  codesign --force --options runtime --timestamp -s "$QUOTACANARY_SIGN_IDENTITY" "$APP"
+  SIGNED="signed with $QUOTACANARY_SIGN_IDENTITY"
+else
+  codesign -s - --force "$APP"
+  SIGNED="ad hoc signed"
+fi
+echo "Built $APP ($VERSION build $BUILD, $COMMIT, $ARCHS), $SIGNED"

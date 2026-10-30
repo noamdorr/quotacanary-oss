@@ -70,7 +70,7 @@ enum Snapshot {
     let clientWork = twoHunter.connections.last?.id ?? ""
     // Adding a second Hunter: the Name field suggests "Hunter 2".
     let secondHunter = await model(.hunter)
-    secondHunter.isAddingConnection = true
+    secondHunter.beginAdding(on: .panel)
     secondHunter.provider = .hunter
     // QUO-283: the checklist right after a two-balance connect, and the
     // inspector's control once one of them is hidden.
@@ -136,14 +136,24 @@ enum Snapshot {
       let name = alerting ? "quiet-truth-attention" : "quiet-truth"
       quietTruthStates += [(name, view), ("\(name)-increased-contrast", view)]
     }
+    // QUO-351: a balance muted until it changes, dimmed with its marker.
+    let muted = await SnapshotStacks.model(.muted)
+    quietTruthStates += [("muted-balance", panel(muted, reference: reference)), ("muted-balance-window", window(muted))]
     // QUO-212, QUO-213: the website heroes and launch gallery.
     let showcase = await SnapshotStacks.model(.showcase)
     // QUO-51: the local --demo fixture.
     let demo = SnapshotStacks.demoModel(now: reference)
     await demo.scheduler.settle()
+    // QUO-50: the launch gallery's Warn below frame. At risk filter, the low
+    // Apollo pool selected so its editor sits beside the two rows.
+    let warnState = StackWindowState(selection: showcase.connections.first { $0.provider == .apollo }?.poolRows.first?.key)
+    warnState.filter = .atRisk
     let birdCountStates: [Scene] = [0, 1, 12].map { count in
       ("bird-count-\(count)", AnyView(BirdLabel(active: true, severity: count == 0 ? .none : .low, poolsAtRisk: count).padding(8)))
-    }
+    } + [
+      // QUO-50: the showcase stack's menu bar label (Hunter critical, Apollo low).
+      ("bird-count-showcase", AnyView(BirdLabel(active: true, severity: .critical, poolsAtRisk: 2).padding(8))),
+    ]
     // QUO-288: one picker scene per plated logo (a search shows one of them each).
     let platedPickerStates: [Scene] = ["ocean", "myemail", "tavily"].map { query in
       ("connect-form-picker-\(query)", panel(firstRun { $0.providerSearch = query }))
@@ -181,6 +191,7 @@ enum Snapshot {
       ("showcase", panel(showcase, reference: reference)),
       ("showcase-site", panel(await SnapshotStacks.model(.showcaseSite), reference: reference)),
       ("showcase-window", window(showcase, StackWindowState(selection: firstBalance(showcase)), height: 560)),
+      ("showcase-window-warn", window(showcase, warnState, height: 560)),
       ("demo-window", window(demo, StackWindowState(selection: demo.connections.first?.poolRows.first?.key), height: 560)),
     ] + birdCountStates + platedPickerStates
     // NSAppearance(named:) returns plain Aqua for the high-contrast names, so a

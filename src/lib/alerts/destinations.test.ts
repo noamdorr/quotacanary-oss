@@ -51,7 +51,7 @@ const event: AlertDestinationEvent = {
       unit: "credits",
     },
   ],
-  dashboardUrl: "https://app.quotacanary.com/dashboard",
+  dashboardUrl: "https://selfhost.example/dashboard",
   topupUrl: "https://hunter.io/welcome/upgrade",
   createdAt: "2026-06-10T10:00:00.000Z",
 }
@@ -65,7 +65,7 @@ describe("alert destination payloads", () => {
       tool: { name: "Hunter" },
       connection: { id: "conn-1", name: "Hunter main" },
       pools: [{ label: "Credits", balance: 38, threshold: 50 }],
-      dashboard_url: "https://app.quotacanary.com/dashboard",
+      dashboard_url: "https://selfhost.example/dashboard",
       topup_url: "https://hunter.io/welcome/upgrade",
     })
   })
@@ -587,7 +587,7 @@ describe("test deliveries", () => {
   it("marks the generic payload so a receiver can skip paging anyone", () => {
     const payload = renderDestinationPayload(
       "webhook",
-      testDestinationEvent("https://app.quotacanary.com/dashboard")
+      testDestinationEvent("https://selfhost.example/dashboard")
     ) as { event: string; level: string }
 
     expect(payload.event).toBe("quota.alert.test")
@@ -598,7 +598,7 @@ describe("test deliveries", () => {
   it("says it is a test in the Slack message itself", () => {
     const payload = renderDestinationPayload(
       "slack_webhook",
-      testDestinationEvent("https://app.quotacanary.com/dashboard")
+      testDestinationEvent("https://selfhost.example/dashboard")
     ) as { text: string }
 
     expect(payload.text).toContain("Test alert from QuotaCanary")

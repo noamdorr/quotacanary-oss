@@ -1,9 +1,4 @@
-import {
-  isAppOnlyPath,
-  isIpLiteralHost,
-  isProtectedAppPath,
-  resolveHost,
-} from "@/lib/host-routing"
+import { isProtectedAppPath } from "@/lib/host-routing"
 import { type CookieOptions, createServerClient } from "@supabase/ssr"
 import { type NextRequest, NextResponse } from "next/server"
 
@@ -42,31 +37,17 @@ function redirectWithCookies(url: string, response: NextResponse) {
 
 export async function updateSession(request: NextRequest) {
   const { host, proto } = publicHost(request)
-  const surface = resolveHost(host)
-  const { pathname, search } = request.nextUrl
+  const { pathname } = request.nextUrl
 
-  if (surface === "marketing") {
-    // The marketing host only serves the homepage + Next internals. App
-    // paths don't exist here - bounce them to the app subdomain.
-    if (isAppOnlyPath(pathname)) {
-      // An IP-literal host can't be prefixed with app. (the resulting URL is
-      // invalid and NextResponse.redirect throws). The marketing surface
-      // still refuses app paths, so send the visitor to the homepage on the
-      // same host instead of crashing.
-      if (isIpLiteralHost(host)) {
-        return NextResponse.redirect(`${proto}://${host}/`)
-      }
-      const appHost = host.replace(/^(www\.|marketing\.)?/, "app.")
-      return NextResponse.redirect(`${proto}://${appHost}${pathname}${search}`)
-    }
-    // Anonymous marketing visitors need no session work.
-    return NextResponse.next({ request })
-  }
-
-  // surface === "app": send the app root to the dashboard, then fall through
-  // to the existing session-refresh + route-protection logic unchanged.
+  // Every self-host hostname serves the app on the same origin.
   if (pathname === "/") {
     return withAppNoIndex(NextResponse.redirect(`${proto}://${host}/dashboard`))
+  }
+
+  // Self-host setup and security guidance must work before Supabase is
+  // configured or reachable. Keep the proxy's forwarded nonce/CSP headers.
+  if (pathname === "/docs" || pathname === "/security") {
+    return withAppNoIndex(NextResponse.next({ request }))
   }
 
   const response = NextResponse.next({ request })

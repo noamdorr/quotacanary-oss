@@ -1,23 +1,38 @@
 ---
-import { HOME } from "../lib/copy"
+import { GITHUB_URL, HOME, MAC_DOWNLOAD_URL } from "../lib/copy"
 import AppleIcon from "./AppleIcon.astro"
 
 // The Mac download call to action, shared by the hero and the closing
-// section (QUO-212). Deliberately not a link while there is no public build:
-// it turns into one only when QUO-142 publishes a real artifact URL.
+// section (QUO-212). A link only while MAC_DOWNLOAD_URL names a real artifact;
+// otherwise the disabled span. The first fact links to the public source.
+//
+// The link's plausible-event-name class is the launch download metric
+// (QUO-55): the analytics script sends "Mac Download Click" once per click and,
+// because the link is tagged, skips its automatic "File Download" and
+// "Outbound Link: Click" events for it. Only real download links carry the
+// class (this one and the header button), so the disabled span never counts.
 ---
 
 <div class="download">
-  <span class="button primary download-button" aria-disabled="true">
-    <AppleIcon width={15} height={18} />
-    {HOME.downloadButton}
-  </span>
+  {
+    MAC_DOWNLOAD_URL ? (
+      <a class="button primary download-button plausible-event-name=Mac+Download+Click" href={MAC_DOWNLOAD_URL}>
+        <AppleIcon width={15} height={18} />
+        {HOME.navCta}
+      </a>
+    ) : (
+      <span class="button primary download-button" aria-disabled="true">
+        <AppleIcon width={15} height={18} />
+        {HOME.downloadButton}
+      </span>
+    )
+  }
   <p class="download-facts">
     {
       HOME.facts.map((fact, index) => (
         <span>
           {index > 0 && <span aria-hidden="true"> · </span>}
-          {fact}
+          {index === 0 ? <a href={GITHUB_URL} target="_blank" rel="noopener">{fact}</a> : fact}
         </span>
       ))
     }
