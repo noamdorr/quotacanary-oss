@@ -40,7 +40,7 @@ import Testing
   }
 
   @Test func plentyOfRunwayPastAYear() {
-    #expect(BurnEta.format(daysLeft: 400) == BurnEta(short: "next year or later", long: "Plenty of runway."))
+    #expect(BurnEta.format(daysLeft: 400) == BurnEta(short: "in a year+", long: "Plenty of runway."))
   }
 
   /// No ETA string, at any runway, names a day of the week (QUO-184).

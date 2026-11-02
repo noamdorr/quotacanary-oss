@@ -11,6 +11,7 @@ afterEach(() => vi.restoreAllMocks())
 // required field present, values invented). The top-level counters are read
 // as USAGE (QUO-229 hypothesis; the QUO-252 live probe supports it). Execution
 // time is in milliseconds (QUO-252 probe): 72,000,000 ms is 1200 minutes.
+// AI credits are scaled by 10,000 (QUO-397): 100,000,000 raw is 10,000 credits.
 function fixture(overrides: Record<string, unknown> = {}) {
   return {
     dailyExecutionTime: 12,
@@ -23,7 +24,7 @@ function fixture(overrides: Record<string, unknown> = {}) {
     monthlyMail: 100,
     monthlyCaptcha: 0,
     monthlyDiscoveredMail: 0,
-    monthlyAiCredit: 2500,
+    monthlyAiCredit: 25_000_000,
     monthlySerpCredits: 0,
     s3Storage: 1024,
     agentCount: 3,
@@ -45,7 +46,7 @@ function fixture(overrides: Record<string, unknown> = {}) {
       monthlyMails: 500,
       monthlyCaptchas: 0,
       monthlyDiscoveredMails: 0,
-      monthlyAiCredits: 10000,
+      monthlyAiCredits: 100_000_000,
       monthlySerpCredits: 0,
       isAvailable: true,
       isUpgradable: true,
@@ -62,8 +63,13 @@ function fixture(overrides: Record<string, unknown> = {}) {
         { id: "tu_2", amount: 500, remaining: 500, expiresAt: 1810000000000 },
       ],
       aiCredits: [
-        { id: "tu_3", amount: 5000, remaining: 0, expiresAt: 1800000000000 },
-        { id: "tu_4", amount: 2000, remaining: "lots", expiresAt: 1 },
+        {
+          id: "tu_3",
+          amount: 50_000_000,
+          remaining: 0,
+          expiresAt: 1800000000000,
+        },
+        { id: "tu_4", amount: 20_000_000, remaining: "lots", expiresAt: 1 },
       ],
     },
     ...overrides,
@@ -150,6 +156,44 @@ describe("PhantomBuster adapter", () => {
     )
   })
 
+  it("divides AI credits by 10,000 (the trial plan reads 1,000)", async () => {
+    // QUO-397: the 2026-10-31 probe on a starterTrial_1 key read
+    // plan.monthlyAiCredits = 10,000,000; the dashboard shows 0 / 1000.
+    const base = fixture()
+    stubFetch(
+      200,
+      fixture({
+        monthlyAiCredit: 0,
+        plan: { ...base.plan, monthlyAiCredits: 10_000_000 },
+        topUps: null,
+      })
+    )
+    const result = await adapter.readBalance(KEY)
+    expect(result.ok && result.balances[1]).toEqual(
+      POOL("ai_credits", "AI credits", 1000, 1000)
+    )
+  })
+
+  it("divides AI-credit top-up lots by the same 10,000", async () => {
+    // Unverified: the trial has no lots, so their scale is assumed to match
+    // the plan field's. 30,000,000 of 50,000,000 left is 3,000 of 5,000.
+    stubFetch(
+      200,
+      fixture({
+        topUps: {
+          aiCredits: [
+            { id: "tu_5", amount: 50_000_000, remaining: 30_000_000 },
+          ],
+        },
+      })
+    )
+    const result = await adapter.readBalance(KEY)
+    // 10000 - 2500 + 3000, limit 10000 + 5000.
+    expect(result.ok && result.balances[1]).toEqual(
+      POOL("ai_credits", "AI credits", 10500, 15000)
+    )
+  })
+
   it("drops a pool whose plan limit is 0 or missing", async () => {
     const base = fixture()
     const { monthlyMails: _dropped, ...planWithoutMails } = base.plan
@@ -177,7 +221,7 @@ describe("PhantomBuster adapter", () => {
   })
 
   it("fails when a counter exceeds its plan limit (inverted semantics guard)", async () => {
-    stubFetch(200, fixture({ monthlyAiCredit: 10001 }))
+    stubFetch(200, fixture({ monthlyAiCredit: 100_000_001 }))
     expect(await adapter.readBalance(KEY)).toEqual(UNEXPECTED)
   })
 

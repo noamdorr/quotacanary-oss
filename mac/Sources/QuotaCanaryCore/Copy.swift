@@ -232,6 +232,8 @@ public enum Copy {
   public static let tregOrgIDLabel = "Org ID"
   public static let tregBalancePoolLabel = "Balance"
   public static let tregOrgNotReadable = "This treg token can't read the balance of this org ID."
+  // QUO-420: the route wants the integer id; a team name or slug answers 422.
+  public static let tregOrgIDNotANumber = "Org ID is the number from treg org ls, not the team name."
   // Vendor-error copy, verbatim from the web adapters (enrichcrm.ts, majestic.ts).
   public static let enrichCRMCreditsUnreadable = "Enrich CRM couldn't read credits for this key."
   public static let enrichCRMError = "Enrich CRM returned an error."
@@ -577,7 +579,7 @@ public extension Copy {
   static func etaWeeksShort(_ weeks: Int) -> String { "in ~\(weeks) week\(weeks == 1 ? "" : "s")" }
   static func etaMonthsShort(_ months: Int) -> String { "in ~\(months) month\(months == 1 ? "" : "s")" }
   static func etaMonthsLong(_ months: Int) -> String { "Empties in ~\(months) month\(months == 1 ? "" : "s")." }
-  static let etaNextYearShort = "next year or later"
+  static let etaNextYearShort = "in a year+"
   static let etaNextYearLong = "Plenty of runway."
   /// The web drawer's line under the ETA: "Burning ~200/day".
   static func burningPerDay(_ amount: String) -> String { "Burning ~\(amount)/day" }

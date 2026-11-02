@@ -24,12 +24,16 @@ type PoolSpec = {
   planField: string
   counterField: string
   topUpField: string | null
-  // Raw units per reported unit; both the plan limit and the counter divide.
+  // Raw units per reported unit; the plan limit, the counter and the top-up
+  // lots all divide.
   divisor: number
 }
 
 // Execution time is in milliseconds (QUO-252 probe: 7,200,000 on a plan the
-// dashboard shows as 02h00m), reported in minutes.
+// dashboard shows as 02h00m), reported in minutes. AI credits are scaled by
+// 10,000 (QUO-397: the same trial read 10,000,000 where the dashboard shows
+// 1,000). The top-up lots' scale is unverified (the trial has none) and is
+// assumed to match the plan field's.
 const POOLS: PoolSpec[] = [
   {
     creditType: "execution_time",
@@ -47,7 +51,7 @@ const POOLS: PoolSpec[] = [
     planField: "monthlyAiCredits",
     counterField: "monthlyAiCredit",
     topUpField: "aiCredits",
-    divisor: 1,
+    divisor: 10_000,
   },
   {
     creditType: "emails",
@@ -132,8 +136,8 @@ export const phantombusterAdapter: ToolAdapter = {
       balances.push({
         creditType: spec.creditType,
         label: spec.label,
-        balance: (planLimit - used) / spec.divisor + (lots?.remaining ?? 0),
-        balanceLimit: planLimit / spec.divisor + (lots?.amount ?? 0),
+        balance: (planLimit - used + (lots?.remaining ?? 0)) / spec.divisor,
+        balanceLimit: (planLimit + (lots?.amount ?? 0)) / spec.divisor,
         unit: spec.unit,
       })
     }

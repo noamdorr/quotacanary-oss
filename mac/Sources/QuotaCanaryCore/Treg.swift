@@ -29,6 +29,10 @@ public enum Treg: HandWrittenProvider {
     guard let (apiToken, orgID) = CredentialFields.pair(key, "api_token", "org_id") else {
       throw ProviderReadError.keyRejected
     }
+    // The route takes the integer id; a team name or slug is refused here, not sent.
+    guard orgID.allSatisfy({ $0.isASCII && $0.isNumber }) else {
+      throw ProviderReadError.reportedError(Copy.tregOrgIDNotANumber)
+    }
     let response: HTTPResponse
     do {
       response = try await transport.get(
@@ -42,9 +46,11 @@ public enum Treg: HandWrittenProvider {
 
   public static func parse(_ response: HTTPResponse) throws -> [PoolBalance] {
     if response.status == 401 { throw ProviderReadError.keyRejected }
-    // A slug for the id (422), an unknown org (404), an identity token with no
-    // pinned org (400), or a token that may not read this org (403).
-    if [400, 403, 404, 422].contains(response.status) {
+    // A slug for the id (422, normally caught before sending).
+    if response.status == 422 { throw ProviderReadError.reportedError(Copy.tregOrgIDNotANumber) }
+    // An unknown org (404), an identity token with no pinned org (400), or a
+    // token that may not read this org (403).
+    if [400, 403, 404].contains(response.status) {
       throw ProviderReadError.reportedError(Copy.tregOrgNotReadable)
     }
     if response.status == 429 { throw ProviderReadError.rateLimited }

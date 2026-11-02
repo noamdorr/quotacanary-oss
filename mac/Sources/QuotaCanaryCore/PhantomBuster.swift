@@ -21,12 +21,16 @@ public enum PhantomBuster: HandWrittenProvider {
     let planField: String
     let counterField: String
     let topUpField: String?
-    /// Raw units per reported unit; both the plan limit and the counter divide.
+    /// Raw units per reported unit; the plan limit, the counter and the top-up
+    /// lots all divide.
     var divisor: Double = 1
   }
 
   /// Execution time is in milliseconds (QUO-252 probe: 7,200,000 on a plan the
-  /// dashboard shows as 02h00m), reported in minutes.
+  /// dashboard shows as 02h00m), reported in minutes. AI credits are scaled by
+  /// 10,000 (QUO-397: the same trial read 10,000,000 where the dashboard shows
+  /// 1,000). The top-up lots' scale is unverified (the trial has none) and is
+  /// assumed to match the plan field's.
   static let specs = [
     Spec(
       pool: Pool(creditType: "execution_time", label: Copy.phantomBusterExecutionTimePoolLabel, unit: .minutes, cap: nil),
@@ -35,7 +39,8 @@ public enum PhantomBuster: HandWrittenProvider {
     ),
     Spec(
       pool: Pool(creditType: "ai_credits", label: Copy.phantomBusterAICreditsPoolLabel, unit: .credits, cap: nil),
-      planField: "monthlyAiCredits", counterField: "monthlyAiCredit", topUpField: "aiCredits"
+      planField: "monthlyAiCredits", counterField: "monthlyAiCredit", topUpField: "aiCredits",
+      divisor: 10000
     ),
     Spec(
       pool: Pool(creditType: "emails", label: Copy.phantomBusterEmailsPoolLabel, unit: .credits, cap: nil),
@@ -81,8 +86,8 @@ public enum PhantomBuster: HandWrittenProvider {
       }
       let lots = spec.topUpField.map { sumTopUps(topUps?[$0]) } ?? (remaining: 0, amount: 0)
       var pool = spec.pool
-      pool.cap = planLimit / spec.divisor + lots.amount
-      balances.append(PoolBalance(pool: pool, balance: (planLimit - used) / spec.divisor + lots.remaining))
+      pool.cap = (planLimit + lots.amount) / spec.divisor
+      balances.append(PoolBalance(pool: pool, balance: (planLimit - used + lots.remaining) / spec.divisor))
     }
     guard !balances.isEmpty else { throw ProviderReadError.missingField("plan") }
     return balances

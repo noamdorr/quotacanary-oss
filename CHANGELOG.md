@@ -9,6 +9,21 @@ migration under **Upgrade notes**. Always run the migration step after updating.
 
 ## [Unreleased]
 
+## [1.2.3] - 2026-11-03
+
+Mac app 0.1.3. The public mirror carries the exact `mac/` source the download
+was built from.
+
+### Changed
+- Mac: a tight panel row drops its run-out caption before it cuts the pool
+  label. The caption is still in the tooltip and for VoiceOver.
+
+### Fixed
+- Mac: connecting treg with a team name in Org ID now says the field wants the
+  number from `treg org ls`, instead of blaming the token.
+- PhantomBuster AI credits are reported in the dashboard's units. The API sends
+  them multiplied by 10,000.
+
 ## [1.2.2] - 2026-11-02
 
 Mac app 0.1.2. The public mirror carries the exact `mac/` source the download

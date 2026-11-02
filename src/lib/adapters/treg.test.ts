@@ -69,15 +69,19 @@ describe("treg adapter", () => {
     expect(fetchMock).toHaveBeenCalledWith(ENDPOINT, expect.anything())
   })
 
-  it("percent-encodes the org id in the path", async () => {
+  it("refuses a team name or slug for the org id without sending", async () => {
     const fetchMock = stubFetch(200, REAL_RESPONSE)
-    await adapter.readBalance(
-      JSON.stringify({ api_token: TOKEN, org_id: "1/../me" })
-    )
-    expect(fetchMock).toHaveBeenCalledWith(
-      "https://treg.to/orgs/1%2F..%2Fme/balance",
-      expect.anything()
-    )
+    for (const orgId of ["Reechee", "reechee", "1/../me", "26314x"]) {
+      expect(
+        await adapter.readBalance(
+          JSON.stringify({ api_token: TOKEN, org_id: orgId })
+        )
+      ).toEqual({
+        ok: false,
+        error: "Org ID is the number from treg org ls, not the team name.",
+      })
+    }
+    expect(fetchMock).not.toHaveBeenCalled()
   })
 
   it("asks for both values when one is missing or blank", async () => {
@@ -105,11 +109,20 @@ describe("treg adapter", () => {
     })
   })
 
-  it("points at the org on 400, 403, 404 and 422", async () => {
-    // 422 is a slug instead of the integer id (seen 2026-10-29); 400 is an
-    // unpinned identity token asking for an org; 403 covers a token that may
-    // not read this org (agent tokens are unconfirmed on this route).
-    for (const status of [400, 403, 404, 422]) {
+  it("names the org id on a 422", async () => {
+    // A slug instead of the integer id (seen 2026-10-29), normally caught
+    // before sending.
+    stubFetch(422, { detail: "int_parsing" })
+    expect(await adapter.readBalance(SECRET)).toEqual({
+      ok: false,
+      error: "Org ID is the number from treg org ls, not the team name.",
+    })
+  })
+
+  it("points at the org on 400, 403 and 404", async () => {
+    // 400 is an unpinned identity token asking for an org; 403 covers a token
+    // that may not read this org.
+    for (const status of [400, 403, 404]) {
       stubFetch(status, { detail: "nope" })
       expect(await adapter.readBalance(SECRET)).toEqual({
         ok: false,

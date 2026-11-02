@@ -56,6 +56,8 @@ struct RefreshProgressLabel: View {
 /// A panel row: name, then the balance label (or failure reason) and the
 /// trailing amount on one line when all of it fits at full length; otherwise
 /// the name above and the rest below, so neither is cut to "Searc..." (QUO-269).
+/// When even that is too tight, the trailing content drops its run-out caption
+/// before the label is cut (QUO-413): `trailing` gets `false` and leaves it out.
 struct AdaptiveRowLine<Leading: View, Trailing: View>: View {
   let name: String
   let detail: String
@@ -63,7 +65,8 @@ struct AdaptiveRowLine<Leading: View, Trailing: View>: View {
   /// does not crowd the detail and amount.
   var nameNote: String?
   @ViewBuilder let leading: Leading
-  @ViewBuilder let trailing: Trailing
+  /// Whether to include the run-out caption; a row without one ignores it.
+  @ViewBuilder let trailing: (_ withCaption: Bool) -> Trailing
 
   var body: some View {
     ViewThatFits(in: .horizontal) {
@@ -73,23 +76,28 @@ struct AdaptiveRowLine<Leading: View, Trailing: View>: View {
         note
         Text(detail).foregroundStyle(.secondary).lineLimit(1)
         Spacer(minLength: 0)
-        trailing
+        trailing(true)
       }
-      HStack(spacing: 6) {
-        leading
-        VStack(alignment: .leading, spacing: 1) {
-          HStack(spacing: 6) {
-            Text(name).fontWeight(.medium).lineLimit(1).truncationMode(.middle)
-            note
-          }
-          HStack(spacing: 6) {
-            Text(detail).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
-            Spacer(minLength: 4)
-            trailing
-          }
+      twoLines(withCaption: true)
+      twoLines(withCaption: false)
+    }
+  }
+
+  private func twoLines(withCaption: Bool) -> some View {
+    HStack(spacing: 6) {
+      leading
+      VStack(alignment: .leading, spacing: 1) {
+        HStack(spacing: 6) {
+          Text(name).fontWeight(.medium).lineLimit(1).truncationMode(.middle)
+          note
         }
-        .padding(.vertical, 2)
+        HStack(spacing: 6) {
+          Text(detail).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
+          Spacer(minLength: 4)
+          trailing(withCaption)
+        }
       }
+      .padding(.vertical, 2)
     }
   }
 

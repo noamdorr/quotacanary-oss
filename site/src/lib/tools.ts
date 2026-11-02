@@ -1,5 +1,6 @@
 import raw from "../data/tools.json"
 import { BUCKETS, TOOL_BUCKET } from "./buckets.mjs"
+import { KEY_IN_URL } from "./key-in-url.mjs"
 
 // The public tool catalog, snapshotted from the migrations' `tools` table by
 // scripts/pull-tools.mjs, one record per tool the Mac app supports. Mirrors
@@ -28,6 +29,10 @@ export function bucketOf(tool: Tool): string {
 
 export function bucketLabel(bucket: string): string {
   return BUCKETS.find((b) => b.id === bucket)?.label ?? "Other"
+}
+
+export function keyInUrl(tool: Tool): boolean {
+  return KEY_IN_URL.has(tool.id)
 }
 
 export function toolSubheading(name: string): string {

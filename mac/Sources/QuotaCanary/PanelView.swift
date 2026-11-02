@@ -165,11 +165,11 @@ struct PanelView: View {
       AdaptiveRowLine(name: connection.name, detail: row.pool.label, nameNote: row.backFromMute ? Copy.backFromMute : nil) {
         StatusCue(row: row)
         ProviderLogo(provider: connection.provider)
-      } trailing: {
+      } trailing: { withCaption in
         NotMonitoredCue(row: row, compact: true)
         if row.muted { MutedCue(row: row) }
         // The short run-out time beside the amount (QUO-401); a muted row dims it with the rest.
-        if let caption = PoolRowView.etaCaption(row, eta: eta) {
+        if withCaption, let caption = PoolRowView.etaCaption(row, eta: eta) {
           Text(caption).font(.caption).monospacedDigit().foregroundStyle(.secondary).lineLimit(1).fixedSize()
         }
         Text(Self.compactAmount(row)).monospacedDigit().fixedSize().foregroundStyle(PoolRowView.amountColor(row))
@@ -193,7 +193,7 @@ struct PanelView: View {
         AdaptiveRowLine(name: connection.name, detail: failure.detail) {
           Image(systemName: "clock.badge.exclamationmark").frame(width: 14)
           ProviderLogo(provider: connection.provider)
-        } trailing: {
+        } trailing: { _ in
           Text(connection.lastReading.map { Copy.lastGoodShort(ConnectedView.relative($0.checkedAt, now: referenceDate ?? context.date)) } ?? Copy.noGoodCheckYet)
             .font(.caption).foregroundStyle(.secondary).fixedSize()
         }

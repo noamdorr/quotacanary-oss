@@ -9,7 +9,7 @@ const page = (id) => readFileSync(new URL(`../dist/directory/${id}.html`, import
 
 describe("tool page key section", () => {
   it("falls back to the generic line when key_instructions is empty", () => {
-    assert.match(page("clay"), /<p>Your Clay API key\.<\/p>/)
+    assert.match(page("aiark"), /<p>Your AI Ark API key\.<\/p>/)
   })
 
   it("keeps the tool's own hint when it has one", () => {

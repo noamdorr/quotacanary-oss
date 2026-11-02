@@ -82,6 +82,8 @@ import AppleIcon from "./AppleIcon.astro"
       } catch {
         if (status) status.textContent = url
       }
+      // QUO-416: the header may run this hand-off from another control on the page.
+      status?.scrollIntoView({ block: "nearest" })
     })
   }
 </script>

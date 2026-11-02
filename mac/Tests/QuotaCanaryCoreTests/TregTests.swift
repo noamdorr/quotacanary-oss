@@ -32,8 +32,14 @@ private func read(key: String = tregSecret, body: String = tregFixture, status: 
     #expect(request.body == nil)
     let (_, colon) = await read(key: "treg-token:26314")
     #expect(colon.requests.first?.url.absoluteString == "https://treg.to/orgs/26314/balance")
-    let (_, encoded) = await read(key: #"{"api_token":"t","org_id":"1/../me"}"#)
-    #expect(encoded.requests.first?.url.absoluteString == "https://treg.to/orgs/1%2F..%2Fme/balance")
+  }
+
+  @Test func aTeamNameOrSlugForTheOrgIDIsRefusedWithoutASend() async {
+    for orgID in ["Reechee", "reechee", "1/../me", "26314x", "２６３１４"] {
+      let (result, transport) = await read(key: #"{"api_token":"t","org_id":"\#(orgID)"}"#)
+      #expect(result.error == .reportedError("Org ID is the number from treg org ls, not the team name."), "\(orgID)")
+      #expect(transport.requests.isEmpty, "\(orgID)")
+    }
   }
 
   @Test func readsAZeroAndRefusesAMissingBalance() async throws {
@@ -45,10 +51,12 @@ private func read(key: String = tregSecret, body: String = tregFixture, status: 
 
   @Test func statusesMapLikeTheWeb() async {
     #expect(await read(body: "{}", status: 401).0.error == .keyRejected)
-    for status in [400, 403, 404, 422] {
+    for status in [400, 403, 404] {
       #expect(await read(body: "{}", status: status).0.error
         == .reportedError("This treg token can't read the balance of this org ID."), "\(status)")
     }
+    #expect(await read(body: "{}", status: 422).0.error
+      == .reportedError("Org ID is the number from treg org ls, not the team name."))
     #expect(await read(body: "{}", status: 429).0.error == .rateLimited)
     #expect(await read(body: "{}", status: 500).0.error == .httpStatus(500))
     #expect(await read(body: "not json").0.error == .notJSON)

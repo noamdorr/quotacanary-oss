@@ -6,12 +6,13 @@ import Testing
 /// fetch-resources 200 schema (no live sanitized response exists), trimmed to
 /// the fields the adapter reads. Counters are read as usage (QUO-229 hypothesis,
 /// supported by the QUO-252 probe). Execution time is in milliseconds:
-/// 72,000,000 ms is 1200 minutes.
+/// 72,000,000 ms is 1200 minutes. AI credits are scaled by 10,000 (QUO-397):
+/// 100,000,000 raw is 10,000 credits.
 private func fixture(
-  counters: String = #""monthlyExecutionTime":18000000,"monthlyAiCredit":2500,"monthlyMail":100"#,
-  plan: String = #"{"name":"Starter","monthlyExecutionTime":72000000,"monthlyAiCredits":10000,"monthlyMails":500}"#,
+  counters: String = #""monthlyExecutionTime":18000000,"monthlyAiCredit":25000000,"monthlyMail":100"#,
+  plan: String = #"{"name":"Starter","monthlyExecutionTime":72000000,"monthlyAiCredits":100000000,"monthlyMails":500}"#,
   topUps: String = #"""
-  {"emailCredits":[{"id":"tu_1","amount":1000,"remaining":400,"expiresAt":1800000000000},{"id":"tu_2","amount":500,"remaining":500,"expiresAt":1810000000000}],"aiCredits":[{"id":"tu_3","amount":5000,"remaining":0,"expiresAt":1800000000000},{"id":"tu_4","amount":2000,"remaining":"lots","expiresAt":1}]}
+  {"emailCredits":[{"id":"tu_1","amount":1000,"remaining":400,"expiresAt":1800000000000},{"id":"tu_2","amount":500,"remaining":500,"expiresAt":1810000000000}],"aiCredits":[{"id":"tu_3","amount":50000000,"remaining":0,"expiresAt":1800000000000},{"id":"tu_4","amount":20000000,"remaining":"lots","expiresAt":1}]}
   """#
 ) -> String {
   #"{"#
@@ -57,10 +58,27 @@ private func read(_ body: String, status: Int = 200) async -> Result<[PoolBalanc
   @Test func executionTimeIsMillisecondsReportedAsMinutes() async {
     // The QUO-252 probe on a starterTrial_1 key: 7,200,000 ms is the 2h00m
     // the dashboard shows, with nothing run yet.
-    let counters = #""monthlyExecutionTime":0,"monthlyAiCredit":2500,"monthlyMail":100"#
+    let counters = #""monthlyExecutionTime":0,"monthlyAiCredit":25000000,"monthlyMail":100"#
     let plan = #"{"monthlyExecutionTime":7200000}"#
     let balances = try? await read(fixture(counters: counters, plan: plan, topUps: "{}")).get()
     #expect(balances == [PoolBalance(pool: pool("execution_time", "Execution time", .minutes, cap: 120), balance: 120)])
+  }
+
+  @Test func aiCreditsDivideByTenThousand() async {
+    // QUO-397: the 2026-10-31 probe on a starterTrial_1 key read
+    // plan.monthlyAiCredits = 10,000,000; the dashboard shows 0 / 1000.
+    let counters = #""monthlyExecutionTime":0,"monthlyAiCredit":0,"monthlyMail":0"#
+    let plan = #"{"monthlyAiCredits":10000000}"#
+    let balances = try? await read(fixture(counters: counters, plan: plan, topUps: "{}")).get()
+    #expect(balances == [PoolBalance(pool: pool("ai_credits", "AI credits", .credits, cap: 1000), balance: 1000)])
+  }
+
+  @Test func aiCreditTopUpLotsDivideByTheSameTenThousand() async {
+    // Unverified: the trial has no lots, so their scale is assumed to match
+    // the plan field's. 30,000,000 of 50,000,000 left is 3,000 of 5,000.
+    let topUps = #"{"aiCredits":[{"id":"tu_5","amount":50000000,"remaining":30000000}]}"#
+    let balances = try? await read(fixture(topUps: topUps)).get()
+    #expect(balances?[1] == PoolBalance(pool: pool("ai_credits", "AI credits", .credits, cap: 15000), balance: 10500))
   }
 
   @Test func aPoolOffThePlanIsDropped() async {
@@ -69,12 +87,12 @@ private func read(_ body: String, status: Int = 200) async -> Result<[PoolBalanc
   }
 
   @Test func aFullySpentPoolIsARealZero() async {
-    let counters = #""monthlyExecutionTime":72000000,"monthlyAiCredit":2500,"monthlyMail":100"#
+    let counters = #""monthlyExecutionTime":72000000,"monthlyAiCredit":25000000,"monthlyMail":100"#
     #expect(await read(fixture(counters: counters)).balances?["execution_time"] == 0)
   }
 
   @Test func aCounterAboveItsPlanLimitIsUnexpected() async {
-    let counters = #""monthlyExecutionTime":18000000,"monthlyAiCredit":10001,"monthlyMail":100"#
+    let counters = #""monthlyExecutionTime":18000000,"monthlyAiCredit":100000001,"monthlyMail":100"#
     #expect(await read(fixture(counters: counters)).error == .missingField("monthlyAiCredit"))
     #expect(MonitorError.provider(.phantombuster, .missingField("monthlyAiCredit")).message
       == "PhantomBuster returned an unexpected response.")
@@ -82,7 +100,7 @@ private func read(_ body: String, status: Int = 200) async -> Result<[PoolBalanc
 
   @Test func aMissingOrNegativeCounterIsNotAFabricatedBalance() async {
     for mail in [#""monthlyMail":null"#, #""monthlyMail":"lots""#, #""monthlyMail":-1"#, #""other":1"#] {
-      let counters = #""monthlyExecutionTime":18000000,"monthlyAiCredit":2500,"# + mail
+      let counters = #""monthlyExecutionTime":18000000,"monthlyAiCredit":25000000,"# + mail
       #expect(await read(fixture(counters: counters)).error == .missingField("monthlyMail"))
     }
   }

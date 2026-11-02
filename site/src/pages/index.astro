@@ -75,11 +75,20 @@ const jsonLd = JSON.stringify({
           <div>
             <h3>{feature.title}</h3>
             <p>{feature.body}</p>
-            {"link" in feature && (
-              <a class="text-link feature-link" href={feature.link.href} target="_blank" rel="noopener">
-                {feature.link.label} <Arrow />
-              </a>
+            {"triggers" in feature && (
+              <p class="feature-triggers">
+                {feature.triggers.lead}
+                {feature.triggers.items.map((item) => (
+                  <span>{item}</span>
+                ))}
+              </p>
             )}
+            {"links" in feature &&
+              feature.links.map((link) => (
+                <a class="text-link feature-link" href={link.href} target="_blank" rel="noopener">
+                  {link.label} <Arrow />
+                </a>
+              ))}
           </div>
           <div class="feature-media">
             <picture class="feature-shot">
@@ -186,7 +195,7 @@ const jsonLd = JSON.stringify({
       <details><summary>Will it send me notifications I don’t want?<span aria-hidden="true"></span></summary><p>Notifications are optional. They warn when balances are low, critical or empty, and when a tool can’t be checked. The app needs to be running, and your Mac awake and online.</p></details>
       {/* QUO-374: merges "Does it touch my data, sends, or campaigns?" and "What does the Mac app send you?", picked by Noam on 2026-10-30; wording approved at PR review. */}
       {/* QUO-403: the URL-parameter sentence, option A picked by Noam on 2026-11-02. */}
-      <details><summary>What leaves my Mac?<span aria-hidden="true"></span></summary><p>Balance requests, each sent directly to the vendor with that vendor’s key. Keys never go to QuotaCanary servers. A few vendors only accept the key in the URL, which their logs or a proxy’s can record even over HTTPS. It only reads the usage endpoint: no contacts, no message bodies, nothing outbound. Use a scoped key where your tool offers one; plenty only issue an all-or-nothing key, and I won’t pretend otherwise.</p><p>{UPDATE_DISCLOSURE} <a href="/security">The whole security model</a> is public.</p></details>
+      <details><summary>What leaves my Mac?<span aria-hidden="true"></span></summary><p>Balance requests, each sent directly to the vendor with that vendor’s key. Keys never go to QuotaCanary servers. A few vendors only accept the key in the URL, which their logs or a proxy’s can record even over HTTPS. It only reads the usage endpoint: no contacts, no message bodies, nothing outbound. The app has no analytics and no telemetry. Use a scoped key where your tool offers one; plenty only issue an all-or-nothing key, and I won’t pretend otherwise.</p><p>{UPDATE_DISCLOSURE} <a href="/security">The whole security model</a> is public.</p></details>
       {/* QUO-382: option A of both entries, approved by Noam on 2026-10-30. Vendor sources are in PR #239. */}
       <details><summary>What does a balance check cost me?<span aria-hidden="true"></span></summary><p>While it’s running, the app asks each tool for its balance about every {MAC_POLL_MINUTES} minutes: one read-only account call. Hunter, Apollo, Prospeo and DataForSEO document that call as free. OpenRouter, Tavily, NeverBounce and Firecrawl don’t say either way, so check your vendor’s docs if it matters. Each tool’s page in <a href="/directory">the directory</a> says which key to use.</p></details>
       <details><summary>How does the run-out estimate work?<span aria-hidden="true"></span></summary><p>After two readings it adds up what you actually burned between checks, divides by the time that passed, and divides your balance by that. A top-up doesn’t erase the burn before it. Under a day it says hours; after that days, weeks, then months. With fewer than two readings, or a balance that hasn’t moved for a full day yet, it says it’s still collecting.</p></details>

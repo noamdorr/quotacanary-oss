@@ -23,6 +23,8 @@ export const MAC_VERSION: string = macFeed.version
 export const MAC_RELEASE_URL = `${GITHUB_URL}/releases/tag/mac-v${MAC_VERSION}`
 // QUO-380: the Keychain store behind "Local, always." on the public mirror.
 export const KEYCHAIN_CODE_URL = `${GITHUB_URL}/blob/main/mac/Sources/QuotaCanaryCore/CredentialStore.swift`
+// QUO-417: the vendor transport and its redirect policy, proof that a key only goes to its own vendor.
+export const TRANSPORT_CODE_URL = `${GITHUB_URL}/blob/main/mac/Sources/QuotaCanaryCore/Transport.swift`
 // PollScheduler.nominalInterval in the Mac app, in minutes; test/poll-interval.test.mjs
 // fails when they drift apart.
 export const MAC_POLL_MINUTES = 15
@@ -64,7 +66,7 @@ export const HOME = {
       title: "Run-out estimates",
       // QUO-405: the last sentence bridges the estimate to the awake-Mac limit.
       // Picked by Noam on 2026-11-02 (option A).
-      body: "After a few readings it works out how fast each balance is going down and roughly when it hits zero: 2 days, 3 weeks. The one that runs out first is at the top of the list. You see it coming days out, so a Mac asleep at 3am doesn’t cost you the campaign.",
+      body: "After two readings it works out how fast each balance is going down and roughly when it hits zero: 2 days, 3 weeks. The one that runs out first is at the top of the list. You see it coming days out, so a Mac asleep at 3am doesn’t cost you the campaign.",
       image: "/mac/window.webp",
       width: 1000,
       height: 592,
@@ -81,6 +83,8 @@ export const HOME = {
         height: 100,
         alt: "A QuotaCanary notification. Apollo: Lead Credits low: 1,000 of 10,000 left.",
       },
+      // QUO-418: the four notification triggers, from the FAQ answer. Staged option A, Noam's pick pending.
+      triggers: { lead: "Warns at", items: ["Low", "Critical", "Empty", "Can’t be checked"] },
     },
     {
       id: "keys",
@@ -94,7 +98,11 @@ export const HOME = {
       phoneHeight: 122,
       alt: "Connecting Hunter in QuotaCanary, with the note that the key is stored in the Mac's Keychain and sent only to Hunter.",
       // QUO-380: label option A, approved by Noam on 2026-10-30.
-      link: { label: "Read the Keychain code", href: KEYCHAIN_CODE_URL },
+      // QUO-417: the transport link, staged option A, Noam's pick pending.
+      links: [
+        { label: "Read the Keychain code", href: KEYCHAIN_CODE_URL },
+        { label: "Read the transport code", href: TRANSPORT_CODE_URL },
+      ],
     },
   ],
   webHeading: "Not on a Mac?",

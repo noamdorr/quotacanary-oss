@@ -1,0 +1,648 @@
+{
+  "anymailfinder": {
+    "method": "GET",
+    "url": "https://api.anymailfinder.com/v5.1/account",
+    "in": "header",
+    "name": "Authorization"
+  },
+  "bettercontact": {
+    "method": "GET",
+    "url": "https://app.bettercontact.rocks/api/v2/account",
+    "in": "header",
+    "name": "X-API-Key"
+  },
+  "bouncer": {
+    "method": "GET",
+    "url": "https://api.usebouncer.com/v1.1/credits",
+    "in": "header",
+    "name": "x-api-key"
+  },
+  "bouncify": {
+    "method": "GET",
+    "url": "https://api.bouncify.io/v1/info",
+    "in": "query",
+    "name": "apikey"
+  },
+  "brightdata": {
+    "method": "GET",
+    "url": "https://api.brightdata.com/customer/balance",
+    "in": "header",
+    "name": "Authorization"
+  },
+  "builtwith": {
+    "method": "GET",
+    "url": "https://payments.builtwith.com/v1/billing/api-discovery",
+    "in": "header",
+    "name": "Authorization"
+  },
+  "captaindata": {
+    "method": "GET",
+    "url": "https://api.captaindata.com/v1/quotas",
+    "in": "header",
+    "name": "X-API-Key"
+  },
+  "clearout": {
+    "method": "GET",
+    "url": "https://api.clearout.io/v2/email_verify/getcredits",
+    "in": "header",
+    "name": "Authorization"
+  },
+  "debounce": {
+    "method": "GET",
+    "url": "https://api.debounce.io/v1/balance/",
+    "in": "query",
+    "name": "api"
+  },
+  "dropcontact": {
+    "method": "POST",
+    "url": "https://api.dropcontact.com/v1/enrich/all",
+    "in": "header",
+    "name": "X-Access-Token"
+  },
+  "emailable": {
+    "method": "GET",
+    "url": "https://api.emailable.com/v1/account",
+    "in": "header",
+    "name": "Authorization"
+  },
+  "enrow": {
+    "method": "GET",
+    "url": "https://api.enrow.io/account/info",
+    "in": "header",
+    "name": "x-api-key"
+  },
+  "findymail": {
+    "method": "GET",
+    "url": "https://app.findymail.com/api/credits",
+    "in": "header",
+    "name": "Authorization"
+  },
+  "fullenrich": {
+    "method": "GET",
+    "url": "https://app.fullenrich.com/api/v1/account/credits",
+    "in": "header",
+    "name": "Authorization"
+  },
+  "hunter": {
+    "method": "GET",
+    "url": "https://api.hunter.io/v2/account",
+    "in": "header",
+    "name": "Authorization"
+  },
+  "keywordseverywhere": {
+    "method": "GET",
+    "url": "https://api.keywordseverywhere.com/v1/account/credits",
+    "in": "header",
+    "name": "Authorization"
+  },
+  "leadmagic": {
+    "method": "GET",
+    "url": "https://api.leadmagic.io/v1/credits",
+    "in": "header",
+    "name": "X-API-Key"
+  },
+  "lusha": {
+    "method": "GET",
+    "url": "https://api.lusha.com/v3/account/usage",
+    "in": "header",
+    "name": "api_key"
+  },
+  "mailercheck": {
+    "method": "GET",
+    "url": "https://app.mailercheck.com/api/credits",
+    "in": "header",
+    "name": "Authorization"
+  },
+  "millionverifier": {
+    "method": "GET",
+    "url": "https://api.millionverifier.com/api/v3/credits",
+    "in": "query",
+    "name": "api"
+  },
+  "myemailverifier": {
+    "method": "GET",
+    "url": "https://client.myemailverifier.com/verifier/getcredits/{key}",
+    "in": "path"
+  },
+  "neverbounce": {
+    "method": "GET",
+    "url": "https://api.neverbounce.com/v4/account/info",
+    "in": "query",
+    "name": "key"
+  },
+  "oppora": {
+    "method": "GET",
+    "url": "https://api.oppora.ai/api/v1/public/credits",
+    "in": "header",
+    "name": "Authorization"
+  },
+  "outscraper": {
+    "method": "GET",
+    "url": "https://api.outscraper.com/profile/balance",
+    "in": "header",
+    "name": "X-API-KEY"
+  },
+  "prospeo": {
+    "method": "GET",
+    "url": "https://api.prospeo.io/account-information",
+    "in": "header",
+    "name": "X-KEY"
+  },
+  "reoon": {
+    "method": "GET",
+    "url": "https://emailverifier.reoon.com/api/v1/check-account-balance/",
+    "in": "query",
+    "name": "key"
+  },
+  "scaleserp": {
+    "method": "GET",
+    "url": "https://api.scaleserp.com/account",
+    "in": "query",
+    "name": "api_key"
+  },
+  "scrapegraphai": {
+    "method": "GET",
+    "url": "https://v2-api.scrapegraphai.com/api/credits",
+    "in": "header",
+    "name": "SGAI-APIKEY"
+  },
+  "scraperapi": {
+    "method": "GET",
+    "url": "https://api.scraperapi.com/account",
+    "in": "query",
+    "name": "api_key"
+  },
+  "scrapfly": {
+    "method": "GET",
+    "url": "https://api.scrapfly.io/account",
+    "in": "query",
+    "name": "key"
+  },
+  "scrapingant": {
+    "method": "GET",
+    "url": "https://api.scrapingant.com/v2/usage",
+    "in": "query",
+    "name": "x-api-key"
+  },
+  "scrapingbee": {
+    "method": "GET",
+    "url": "https://app.scrapingbee.com/api/v1/usage",
+    "in": "header",
+    "name": "Authorization"
+  },
+  "scrapingdog": {
+    "method": "GET",
+    "url": "https://api.scrapingdog.com/account",
+    "in": "query",
+    "name": "api_key"
+  },
+  "searchapi": {
+    "method": "GET",
+    "url": "https://www.searchapi.io/api/v1/me",
+    "in": "header",
+    "name": "Authorization"
+  },
+  "serpapi": {
+    "method": "GET",
+    "url": "https://serpapi.com/account.json",
+    "in": "query",
+    "name": "api_key"
+  },
+  "serpwow": {
+    "method": "GET",
+    "url": "https://api.serpwow.com/live/account",
+    "in": "query",
+    "name": "api_key"
+  },
+  "shodan": {
+    "method": "GET",
+    "url": "https://api.shodan.io/api-info",
+    "in": "query",
+    "name": "key"
+  },
+  "surfe": {
+    "method": "GET",
+    "url": "https://api.surfe.com/v1/credits",
+    "in": "header",
+    "name": "Authorization"
+  },
+  "valueserp": {
+    "method": "GET",
+    "url": "https://api.valueserp.com/account",
+    "in": "query",
+    "name": "api_key"
+  },
+  "wiza": {
+    "method": "GET",
+    "url": "https://wiza.co/api/meta/credits",
+    "in": "header",
+    "name": "Authorization"
+  },
+  "zenserp": {
+    "method": "GET",
+    "url": "https://app.zenserp.com/api/v2/status",
+    "in": "header",
+    "name": "apikey"
+  },
+  "bounceban": {
+    "method": "GET",
+    "url": "https://api.bounceban.com/v1/account",
+    "in": "header",
+    "name": "Authorization"
+  },
+  "oceanio": {
+    "method": "GET",
+    "url": "https://api.ocean.io/v2/credits/balance",
+    "in": "header",
+    "name": "x-api-token"
+  },
+  "sixtyfour": {
+    "method": "GET",
+    "url": "https://api.sixtyfour.ai/check-balance",
+    "in": "header",
+    "name": "x-api-key"
+  },
+  "scrapecreators": {
+    "method": "GET",
+    "url": "https://api.scrapecreators.com/v1/account/credit-balance",
+    "in": "header",
+    "name": "x-api-key"
+  },
+  "crawl4ai": {
+    "method": "GET",
+    "url": "https://api.crawl4ai.com/v1/billing/balance",
+    "in": "header",
+    "name": "Authorization"
+  },
+  "seranking": {
+    "method": "GET",
+    "url": "https://api.seranking.com/v1/account/subscription",
+    "in": "header",
+    "name": "Authorization"
+  },
+  "cloro": {
+    "method": "GET",
+    "url": "https://api.cloro.dev/v1/credits",
+    "in": "header",
+    "name": "Authorization"
+  },
+  "serpstat": {
+    "method": "POST",
+    "url": "https://api.serpstat.com/v4/",
+    "in": "query",
+    "name": "token"
+  },
+  "clay": {
+    "method": "GET",
+    "url": "https://api.clay.com/public/v0/credits/balance",
+    "in": "header",
+    "name": "clay-api-key"
+  },
+  "instantly": {
+    "method": "GET",
+    "url": "https://api.instantly.ai/api/v2/workspace-billing/plan-details",
+    "in": "header",
+    "name": "Authorization"
+  },
+  "kickbox": {
+    "method": "GET",
+    "url": "https://api.kickbox.com/v2/balance",
+    "in": "header",
+    "name": "Authorization"
+  },
+  "sendgrid": {
+    "method": "GET",
+    "url": "https://api.sendgrid.com/v3/user/credits",
+    "in": "header",
+    "name": "Authorization"
+  },
+  "elevenlabs": {
+    "method": "GET",
+    "url": "https://api.elevenlabs.io/v1/user/subscription",
+    "in": "header",
+    "name": "xi-api-key"
+  },
+  "fal": {
+    "method": "GET",
+    "url": "https://api.fal.ai/v1/account/billing?expand=credits",
+    "in": "header",
+    "name": "Authorization"
+  },
+  "stability": {
+    "method": "GET",
+    "url": "https://api.stability.ai/v1/user/balance",
+    "in": "header",
+    "name": "Authorization"
+  },
+  "runway": {
+    "method": "GET",
+    "url": "https://api.dev.runwayml.com/v1/organization",
+    "in": "header",
+    "name": "Authorization"
+  },
+  "heygen": {
+    "method": "GET",
+    "url": "https://api.heygen.com/v3/users/me",
+    "in": "header",
+    "name": "x-api-key"
+  },
+  "hubspot": {
+    "method": "GET",
+    "url": "https://api.hubapi.com/account-info/2026-03/api-usage/daily/private-apps",
+    "in": "header",
+    "name": "Authorization"
+  },
+  "enrichlayer": {
+    "method": "GET",
+    "url": "https://enrichlayer.com/api/v2/credit-balance",
+    "in": "header",
+    "name": "Authorization"
+  },
+  "deepl": {
+    "method": "GET",
+    "url": "https://api.deepl.com/v2/usage",
+    "in": "header",
+    "name": "Authorization"
+  },
+  "uplead": {
+    "method": "GET",
+    "url": "https://api.uplead.com/v2/credits",
+    "in": "header",
+    "name": "Authorization"
+  },
+  "crustdata": {
+    "method": "GET",
+    "url": "https://api.crustdata.com/account/credits",
+    "in": "header",
+    "name": "Authorization"
+  },
+  "iproyal": {
+    "method": "GET",
+    "url": "https://resi-api.iproyal.com/v1/me",
+    "in": "header",
+    "name": "Authorization"
+  },
+  "similarweb": {
+    "method": "GET",
+    "url": "https://api.similarweb.com/capabilities",
+    "in": "query",
+    "name": "api_key"
+  },
+  "ipinfo": {
+    "method": "GET",
+    "url": "https://ipinfo.io/me",
+    "in": "header",
+    "name": "Authorization"
+  },
+  "telnyx": {
+    "method": "GET",
+    "url": "https://api.telnyx.com/v2/balance",
+    "in": "header",
+    "name": "Authorization"
+  },
+  "scrapedo": {
+    "method": "GET",
+    "url": "https://api.scrape.do/info",
+    "in": "query",
+    "name": "token"
+  },
+  "hasdata": {
+    "method": "GET",
+    "url": "https://api.hasdata.com/user/me/usage",
+    "in": "header",
+    "name": "x-api-key"
+  },
+  "olostep": {
+    "method": "GET",
+    "url": "https://api.olostep.com/user/credits/info",
+    "in": "header",
+    "name": "Authorization"
+  },
+  "emaillistverify": {
+    "method": "GET",
+    "url": "https://api.emaillistverify.com/api/credits",
+    "in": "header",
+    "name": "x-api-key"
+  },
+  "scrapeops": {
+    "method": "GET",
+    "url": "https://backend.scrapeops.io/v1/proxy/account/usage",
+    "in": "query",
+    "name": "api_key"
+  },
+  "skrapp": {
+    "method": "GET",
+    "url": "https://api.skrapp.io/api/v2/account",
+    "in": "header",
+    "name": "X-Access-Key"
+  },
+  "aiark": {
+    "method": "GET",
+    "url": "https://api.ai-ark.com/api/developer-portal/v1/payments/credits",
+    "in": "header",
+    "name": "X-TOKEN"
+  },
+  "blitzapi": {
+    "method": "GET",
+    "url": "https://api.blitz-api.ai/v2/account/key-info",
+    "in": "header",
+    "name": "x-api-key"
+  },
+  "dropleads": {
+    "method": "GET",
+    "url": "https://prime.dropleads.io/api/v2/prime-db/credits/balance",
+    "in": "header",
+    "name": "X-API-Key"
+  },
+  "leadsforge": {
+    "method": "GET",
+    "url": "https://api.leadsforge.ai/public/v1/balance",
+    "in": "header",
+    "name": "Authorization"
+  },
+  "emailhippo": {
+    "method": "GET",
+    "url": "https://api.hippoapi.com/customer/reports/v3/quota/{key}",
+    "in": "path"
+  },
+  "serper": {
+    "method": "GET",
+    "url": "https://google.serper.dev/account",
+    "in": "header",
+    "name": "X-API-KEY"
+  },
+  "linkup": {
+    "method": "GET",
+    "url": "https://api.linkup.so/v1/credits/balance",
+    "in": "header",
+    "name": "Authorization"
+  },
+  "search1api": {
+    "method": "GET",
+    "url": "https://api.search1api.com/usage",
+    "in": "header",
+    "name": "Authorization"
+  },
+  "valyu": {
+    "method": "GET",
+    "url": "https://api.valyu.ai/v1/account/balance",
+    "in": "header",
+    "name": "x-api-key"
+  },
+  "companyenrich": {
+    "method": "GET",
+    "url": "https://api.companyenrich.com/me",
+    "in": "header",
+    "name": "Authorization"
+  },
+  "fetchin": {
+    "method": "GET",
+    "url": "https://api.fetchin.io/api/v1/subscription",
+    "in": "header",
+    "name": "X-API-Key"
+  },
+  "fiberai": {
+    "method": "GET",
+    "url": "https://api.fiber.ai/v1/get-org-credits",
+    "in": "header",
+    "name": "x-api-key"
+  },
+  "aviato": {
+    "method": "GET",
+    "url": "https://data.api.aviato.co/billing/balance",
+    "in": "header",
+    "name": "Authorization"
+  },
+  "getleads": {
+    "method": "GET",
+    "url": "https://app.getleads.io/api/v1/usage/fair-use",
+    "in": "header",
+    "name": "X-API-Key"
+  },
+  "moltsets": {
+    "method": "POST",
+    "url": "https://api.moltsets.com/api/v1/tools/get_account",
+    "in": "header",
+    "name": "Authorization"
+  },
+  "openmart": {
+    "method": "GET",
+    "url": "https://api.openmart.ai/api/v2/credit-balance",
+    "in": "header",
+    "name": "Authorization"
+  },
+  "moz": {
+    "method": "POST",
+    "url": "https://api.moz.com/jsonrpc",
+    "in": "header",
+    "name": "x-moz-token"
+  },
+  "contextdev": {
+    "method": "GET",
+    "url": "https://api.context.dev/v1/org/usage",
+    "in": "header",
+    "name": "Authorization"
+  },
+  "akta": {
+    "method": "GET",
+    "url": "https://api.akta.pro/api/v1/mcp/account",
+    "in": "header",
+    "name": "x-api-key"
+  },
+  "litescrape": {
+    "method": "GET",
+    "url": "https://api.litescrape.com/api/keys/status",
+    "in": "header",
+    "name": "Authorization"
+  },
+  "tinyfish": {
+    "method": "GET",
+    "url": "https://agent.tinyfish.ai/v1/wallet",
+    "in": "header",
+    "name": "X-API-Key"
+  },
+  "tikhub": {
+    "method": "GET",
+    "url": "https://api.tikhub.io/api/v1/tikhub/user/get_user_info",
+    "in": "header",
+    "name": "Authorization"
+  },
+  "influencersclub": {
+    "method": "GET",
+    "url": "https://api-dashboard.influencers.club/public/v1/accounts/credits/",
+    "in": "header",
+    "name": "Authorization"
+  },
+  "spidercloud": {
+    "method": "GET",
+    "url": "https://api.spider.cloud/data/credits",
+    "in": "header",
+    "name": "Authorization"
+  },
+  "anyapi": {
+    "method": "GET",
+    "url": "https://api.getanyapi.com/v1/balance",
+    "in": "header",
+    "name": "X-API-Key"
+  },
+  "orbisearch": {
+    "method": "GET",
+    "url": "https://api.orbisearch.com/v1/credits",
+    "in": "header",
+    "name": "X-API-Key"
+  },
+  "reapi": {
+    "method": "GET",
+    "url": "https://reapi.ai/api/v1/balance",
+    "in": "header",
+    "name": "Authorization"
+  },
+  "mobiusengine-jobs": {
+    "method": "GET",
+    "url": "https://jobs-api.arihaan.ai/v1/usage",
+    "in": "header",
+    "name": "Authorization"
+  },
+  "eodhd": {
+    "method": "GET",
+    "url": "https://eodhd.com/api/user?fmt=json",
+    "in": "query",
+    "name": "api_token"
+  },
+  "x": {
+    "method": "GET",
+    "url": "https://api.x.com/2/usage/tweets?usage.fields=project_cap,project_usage,cap_reset_day",
+    "in": "header",
+    "name": "Authorization"
+  },
+  "datagma": {
+    "method": "GET",
+    "url": "https://gateway.datagma.net/api/ingress/v1/mine",
+    "in": "query",
+    "name": "apiId"
+  },
+  "theirstack": {
+    "method": "GET",
+    "url": "https://api.theirstack.com/v0/billing/credit-balance",
+    "in": "header",
+    "name": "Authorization"
+  },
+  "piapi": {
+    "method": "GET",
+    "url": "https://api.piapi.ai/account/info",
+    "in": "header",
+    "name": "x-api-key"
+  },
+  "fishaudio": {
+    "method": "GET",
+    "url": "https://api.fish.audio/wallet/self/api-credit",
+    "in": "header",
+    "name": "Authorization"
+  },
+  "sumble": {
+    "method": "POST",
+    "url": "https://api.sumble.com/v9/technologies/find",
+    "in": "header",
+    "name": "Authorization"
+  }
+}

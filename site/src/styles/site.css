@@ -37,7 +37,7 @@
 /* QUO-374: the h1 takes the page's heading face and clearly outranks the 32px h2s. */
 .desk-copy h1{font-size:clamp(44px,4.6vw,68px);line-height:1.02;letter-spacing:-.04em;font-weight:800;text-wrap:balance}
 .hero-support{margin-top:16px;font-size:17px;line-height:1.65;color:#1a1a1acc;font-weight:500;max-width:45ch}
-.desk-copy .download-facts,.desk-copy .download-notarized{color:#1a1a1ab8}
+.desk-copy .download-facts,.desk-copy .download-notarized{color:#1a1a1ae6}
 /* Ink, not gold: a gold button vanishes on the sand (Noam's pick, 2026-11-02). The header and closing buttons stay gold. */
 .desk-copy .download-button.primary{background:var(--ink);border-color:var(--ink);color:var(--cream);box-shadow:0 1px 0 #ffffff2e inset,0 14px 30px -10px #3a1a0099}
 .desk-copy a.download-button.primary:hover{background:#000;border-color:#000}
@@ -47,8 +47,8 @@
 .desk-panel:not(.open){opacity:0;transform:translateY(-8px) scale(.96);visibility:hidden}
 .dp-head{display:flex;align-items:center;justify-content:space-between;padding:2px 4px 8px}
 .dp-head strong{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600}
-.dp-head span{font-size:11.5px;color:#00000080}
-.dp-sec{font-size:11px;font-weight:600;color:#00000080;padding:6px 4px 2px}
+.dp-head span{font-size:11.5px;color:#00000094}
+.dp-sec{font-size:11px;font-weight:600;color:#00000094;padding:6px 4px 2px}
 .dp-row{display:flex;align-items:center;gap:9px;padding:7px 4px;border-radius:8px;transition:background .12s}
 .dp-row:hover{background:#0000000d}
 .dp-row.muted .dp-name,.dp-row.muted .dp-num{opacity:.45}
@@ -56,9 +56,9 @@
 .dp-logo{width:26px;height:26px;border-radius:7px;flex:none;object-fit:cover;background:#fff}
 .dp-name{flex:1;min-width:0;line-height:1.25}
 .dp-name b{display:block;font-weight:600}
-.dp-name small{display:block;font-size:12px;color:#00000080}
+.dp-name small{display:block;font-size:12px;color:#00000094}
 .dp-num{font:500 12.5px "JetBrains Mono",monospace;text-align:right;white-space:nowrap}
-.dp-num small{display:block;font:500 11px Inter,sans-serif;color:#00000080}
+.dp-num small{display:block;font:500 11px Inter,sans-serif;color:#00000094}
 .dp-pill{font-size:12px;font-weight:500;padding:4px 9px;border-radius:7px;background:#00000012}
 .dp-bell{width:28px;height:24px;border:0;border-radius:7px;background:#0000000f;color:inherit;display:grid;place-items:center;cursor:pointer;transition:background .12s}
 .dp-bell:hover,.dp-bell[aria-pressed="true"]{background:#00000024}
@@ -66,7 +66,7 @@
 .dp-sep{height:1px;background:#0000001a;margin:5px 4px}
 .dp-item{display:flex;justify-content:space-between;padding:6px;border-radius:6px;transition:background .12s}
 .dp-item:hover{background:var(--gold)}
-.dp-item kbd{font:inherit;color:#00000066}
+.dp-item kbd{font:inherit;color:#00000094}
 .desk-copy>*{animation:desk-rise .7s cubic-bezier(.2,.8,.2,1) both}
 .desk-copy>:nth-child(2){animation-delay:.08s}
 .desk-copy>:nth-child(3){animation-delay:.16s}
@@ -80,13 +80,21 @@
   .desk-panel:not(.open){display:none}
   .desk-bar-left span{display:none}
 }
-/* QUO-411: under 560px the panel keeps its numbers and drops the ETA labels and Low badges. */
+/* QUO-411: under 560px the panel keeps its numbers and drops the Low badges and the healthy rows' ETA labels.
+   QUO-415: the Needs attention rows (the ones with a Low badge) keep their run-out deadline. */
 @media(max-width:560px){
   .desk-panel{padding:10px 6px 6px}
   .dp-row{gap:7px}
   .dp-badge,.dp-num small{display:none}
+  .dp-badge:not(:empty)~.dp-num small{display:block}
   .dp-name b,.dp-name small{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .dp-pill{padding:4px 7px}
+}
+/* QUO-415: at 320px the Needs attention rows are about 25px short, so the panel trims its own insets. */
+@media(max-width:360px){
+  .desk-panel{margin-inline:4px;padding-inline:4px}
+  .dp-row{gap:5px;padding-inline:2px}
+  .dp-pill{padding:4px 6px}
 }
 @media(prefers-reduced-motion:reduce){.desk-copy>*,.desk-panel,.dp-row,.dp-item,.desk-bird,.dp-bell{animation:none;transition:none}}
 .download{display:flex;flex-direction:column;align-items:flex-start;gap:12px;margin-top:30px}
@@ -96,6 +104,8 @@ a.download-button{cursor:pointer}
 .download-facts{font-size:13px;color:var(--muted);line-height:1.5}
 .download-notarized{font-size:12px;color:var(--muted);line-height:1.5;margin-top:-4px}
 .download-facts a,.download-notarized a{color:var(--ink);text-underline-offset:3px}
+/* QUO-416: the open mobile menu (z-index 3) must paint over the hero's menu bar (also 3, later in the page), or its Mac app item cannot be tapped. */
+.site-header{z-index:4}
 /* QUO-406: the phone hand-off. Hidden until 720px and below. */
 .handoff-button,.handoff-status:empty{display:none}
 .handoff-button{cursor:pointer;font:inherit;font-size:14px;font-weight:550;color:var(--ink)}
@@ -111,10 +121,15 @@ a.download-button{cursor:pointer}
 .feature-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.35fr);gap:48px 96px;align-items:center;padding-block:24px}
 .feature-row+.feature-row{border-top:1px solid var(--line)}
 .feature-row p{margin-top:16px;font-size:16px;line-height:1.65;color:var(--muted);max-width:52ch}
-/* Screenshots sit inside a warm card as UI fragments: the menu renders are
+/* QUO-418: the four notification triggers as small chips under the run-out copy. */
+.feature-row p.feature-triggers{display:flex;flex-wrap:wrap;align-items:center;gap:8px;font-size:14px;line-height:1.4}
+.feature-triggers span{padding:4px 10px;border:1px solid var(--line);border-radius:999px;color:var(--ink);font-size:13px;font-weight:550;background:#fffdf5}
+/* QUO-418: FAQ joins the desktop nav where it fits; between 721 and 800px "Supported tools" would wrap. */
+@media(max-width:800px){.nav-faq{display:none}}
+/* Screenshots sit on the hero wallpaper (QUO-411) as UI fragments: the menu renders are
    centred and run off the bottom edge, the window renders are anchored top
    left and run off the right and bottom edges. */
-.feature-media{min-width:0;width:100%;max-width:600px;justify-self:end;position:relative;overflow:hidden;aspect-ratio:16/10;background:linear-gradient(160deg,#fbf6e4,var(--warm));border:1px solid var(--line);border-radius:16px}
+.feature-media{min-width:0;width:100%;max-width:600px;justify-self:end;position:relative;overflow:hidden;aspect-ratio:16/10;background:#f4cf89 url("/img/mac-wallpaper.webp") center/cover;box-shadow:0 0 0 1px #00000014,0 30px 60px -36px #5a300a80;border-radius:22px}
 .feature-media img{position:absolute;display:block;height:auto;border-radius:12px;box-shadow:0 24px 50px -24px #332a1a66}
 .feature-row:not([data-wide]) .feature-media img{left:50%;top:36px;width:min(380px,76%);transform:translateX(-50%)}
 .feature-row[data-wide] .feature-media img{left:32px;top:32px;width:130%;max-width:none;border-radius:10px 0 0 0;box-shadow:0 24px 50px -24px #332a1a80}
@@ -123,6 +138,7 @@ a.download-button{cursor:pointer}
 .feature-row .feature-media img.feature-notification{left:auto;right:4px;top:4px;width:min(396px,80%);max-width:none;border-radius:0;box-shadow:none;transform:none;z-index:1}
 @media(max-width:720px){.feature-row .feature-media img.feature-notification{top:auto;bottom:4px;right:50%;transform:translateX(50%);width:min(396px,96%)}}
 .feature-link{margin-top:8px;font-size:13px}
+.feature-link:not(:last-child){margin-right:24px}
 .directory-head .directory-submit{margin-top:12px}
 
 /* Self-hosting is a secondary option near the footer, below the FAQ. */
@@ -207,6 +223,10 @@ a.download-button{cursor:pointer}
 .tool-section{margin-top:28px}
 .tool-section .eyebrow{margin-bottom:8px}
 .tool-key-where{margin-top:8px;font-size:14px;color:var(--muted)}
+/* QUO-417: the request line; long URLs break anywhere rather than overflow a phone. */
+.tool-request code{font:500 13px/1.5 "JetBrains Mono",monospace;overflow-wrap:anywhere}
+.tool-request+.tool-request{margin-top:4px}
+.tool-key-url{margin-top:8px;font-size:14px;color:var(--muted)}
 .pool-chips{display:flex;flex-wrap:wrap;gap:8px}
 .pool-chips span{padding:6px 12px;border:1px solid var(--line);border-radius:8px;font-size:13px;background:#fffef9}
 .tool-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:32px}

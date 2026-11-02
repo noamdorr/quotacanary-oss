@@ -302,7 +302,7 @@
     "description": "GTM data enrichment workbench, billed from data credits and actions.",
     "website_url": "https://www.clay.com",
     "api_docs_url": "https://developers.clay.com/api-reference/credits/get-workspace-credit-balances",
-    "key_instructions": "",
+    "key_instructions": "In Clay, go to Settings → Account and create an API key. It is a personal key tied to your Clay user, and Clay documents no narrower scope for it.",
     "topup_url": "https://www.clay.com/pricing",
     "pools": [
       {
@@ -1493,7 +1493,7 @@
     "description": "One API for many LLMs, drawn from a prepaid credit balance.",
     "website_url": null,
     "api_docs_url": "https://openrouter.ai/docs/api-reference",
-    "key_instructions": "Go to openrouter.ai → Settings → API Keys → Create a management key",
+    "key_instructions": "Go to openrouter.ai → Settings → Management Keys → Create New Key. A management key can also create and delete your other keys, so make it read-only if you can.",
     "topup_url": "https://openrouter.ai/credits",
     "pools": null
   },

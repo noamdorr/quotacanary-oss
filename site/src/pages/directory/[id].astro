@@ -1,8 +1,9 @@
 ---
 import Layout from "../../layouts/Layout.astro"
 import Arrow from "../../components/Arrow.astro"
-import { TOOLS, bucketLabel, bucketOf, toolSubheading, toolWebsiteUrl, withUtm } from "../../lib/tools"
+import { TOOLS, bucketLabel, bucketOf, keyInUrl, toolSubheading, toolWebsiteUrl, withUtm } from "../../lib/tools"
 import type { Tool } from "../../lib/tools"
+import { requestsFor } from "../../lib/requests.mjs"
 
 export function getStaticPaths() {
   return TOOLS.map((tool) => ({ params: { id: tool.id }, props: { tool } }))
@@ -20,6 +21,9 @@ const description =
 // kept here rather than in the catalog so its shape stays shared with the Mac app (QUO-378);
 // the Keychain line stays on every page.
 const keyInstructions = tool.key_instructions?.trim() || `Your ${tool.name} API key.`
+
+// QUO-417: the request the Mac app makes, from the catalog snapshot or the hand-written list.
+const sent = requestsFor(tool.id)
 
 const topupUrl = withUtm(tool.topup_url, { medium: "tool-page" })
 const websiteUrl = toolWebsiteUrl(tool)
@@ -67,7 +71,30 @@ const jsonLd = JSON.stringify({
       <p class="eyebrow">Key you’ll need</p>
       <p>{keyInstructions}</p>
       <p class="tool-key-where">Stored in your Mac’s Keychain. Sent only to {tool.name}.</p>
+      {
+        keyInUrl(tool) && (
+          <p class="tool-key-url">
+            {tool.name} only accepts its key in the request URL, so its logs can record it. Use a scoped key if it offers one. <a href="/security">More on this</a>.
+          </p>
+        )
+      }
     </section>
+
+    {
+      sent && (
+        <section class="tool-section">
+          <p class="eyebrow">What it sends</p>
+          {sent.requests.map(([method, url]) => (
+            <p class="tool-request">
+              <code>{`${method} ${url}`}</code>
+            </p>
+          ))}
+          <p class="tool-key-where">
+            Your key goes in {sent.where}.{sent.requests.some(([, url]) => url.includes("{")) && " Braces mark values filled in at request time."}
+          </p>
+        </section>
+      )
+    }
 
     <div class="tool-actions">
       <a class="button primary" href="/#download">Get the bird</a>
