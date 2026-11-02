@@ -69,25 +69,38 @@ extension StackScenario {
     )
   }
 
-  /// Website hero (QUO-213): three recognisable tools from three categories,
-  /// Apollo critical, OpenRouter and Apify low, nothing failing.
-  /// `StackTransport` scripts Apify's two bodies too.
+  /// Website hero (QUO-213, QUO-401): eight recognisable tools, mostly GTM
+  /// with two for AI builders. Clay, Apollo and OpenRouter low, the rest
+  /// healthy; nothing red, nothing failing, so the bird is gold.
+  /// `StackTransport` scripts Apify's two bodies too. QUO-406: Apollo's low
+  /// pool is AI Credits out of 2,000, the combination that fits the
+  /// 380-point panel untruncated ("Lead Credits" beside "in ~2 days" and
+  /// "900 / 10,000" read "Le...dits").
+  /// Render the site export with `-AppleLocale en_US`: "US$" on a non-US Mac
+  /// truncates Apify's label too.
   public static var showcaseSite: StackScenario {
-    // (provider, first-pool balance, first-pool cap); other pools stay healthy.
-    let specs: [(ProviderID, Double, Double?)] = [(.apollo, 250, 10_000), (.openrouter, 12.5, nil), (.apify, 12.5, 49)]
+    // (provider, low pool, its balance, its cap); other pools stay healthy.
+    let specs: [(ProviderID, String?, Double, Double?)] = [
+      (ProviderID("clay"), nil, 1_200, nil), (.apollo, "ai_credit", 900, 2_000), (.openrouter, nil, 12.5, nil),
+      (ProviderID("instantly"), nil, 4_200, 5_000), (.lemlist, nil, 2_400, nil), (.prospeo, nil, 1_850, 2_000),
+      (.apify, nil, 38, 49), (ProviderID("elevenlabs"), nil, 84_000, 100_000),
+    ]
     let connections = specs.enumerated().map { index, spec in
-      let (provider, balance, cap) = spec
-      let balances = provider.pools.enumerated().map { offset, template in
+      let (provider, focusType, balance, cap) = spec
+      let focus = provider.pools.firstIndex { $0.creditType == focusType } ?? 0
+      var balances = provider.pools.enumerated().map { offset, template in
         var pool = template
-        pool.cap = offset == 0 ? cap : 10_000
-        return PoolBalance(pool: pool, balance: offset == 0 ? balance : provider.defaultSettings.low * 3 + Double(offset * 13))
+        pool.cap = offset == focus ? cap : 10_000
+        return PoolBalance(pool: pool, balance: offset == focus ? balance : provider.defaultSettings.low * 3 + Double(offset * 13))
       }
+      // The local history follows the first balance, so the low one leads.
+      balances.insert(balances.remove(at: focus), at: 0)
       return Connection(
         id: "site-\(index)", provider: provider, name: provider.displayName, credentialRef: "site-\(index)",
         lastReading: Reading(balances: balances, checkedAt: Scenarios.checkedAt)
       )
     }
-    return StackScenario(connections: connections, burn: [3.5, 1.4, 1.4])
+    return StackScenario(connections: connections, burn: [7, 7, 1.4, 0.2, 0.2, 0.2, 0.2, 0.2])
   }
 
   /// QUO-160: Hunter balances that raise no alert yet are not all healthy.
@@ -125,11 +138,20 @@ extension StackScenario {
     return StackScenario(connections: connections, history: false)
   }
 
-  /// QUO-351: a free-plan Hunter muted at empty sits dimmed in the quiet
-  /// group while a low one still fills Needs attention. No history.
+  /// QUO-351, QUO-393: a free-plan Hunter muted until top-up at empty and a
+  /// trial muted for a few days sit dimmed in the quiet group; a team plan
+  /// whose mute ran out is back in Needs attention beside an unmuted low one.
+  /// Mute ends are relative to the wall clock, because rows are. No history.
   public static var muted: StackScenario {
-    let connections = [("Free plan", 0.0, true), ("Paid plan", 1000.0, false)].enumerated().map { index, item in
-      let (name, verifications, muted) = item
+    let now = Date()
+    let items: [(String, Double, Mute?)] = [
+      ("Free plan", 0, Mute(until: nil, balance: 0, severity: .empty)),
+      ("Trial", 800, Mute(until: now.addingTimeInterval(3 * 86_400), balance: 800, severity: .low)),
+      ("Team plan", 900, Mute(until: now.addingTimeInterval(-3600), balance: 900, severity: .low)),
+      ("Paid plan", 1000, nil),
+    ]
+    let connections = items.enumerated().map { index, item in
+      let (name, verifications, mute) = item
       let id = "muted-\(index)"
       var searches = ProviderID.hunter.pools[0]
       searches.cap = 10_000
@@ -141,7 +163,7 @@ extension StackScenario {
           balances: [PoolBalance(pool: searches, balance: 4000), PoolBalance(pool: pool, balance: verifications)],
           checkedAt: Scenarios.checkedAt
         ),
-        mutedAt: muted ? [pool.creditType: verifications] : [:]
+        mutes: mute.map { [pool.creditType: $0] } ?? [:]
       )
     }
     return StackScenario(connections: connections, history: false)
@@ -252,7 +274,8 @@ final class StackTransport: ProviderTransport {
   }
 
   private func response(_ url: URL, headers: [String: String]) throws -> HTTPResponse {
-    let key = headers["x-api-key"] ?? headers["X-KEY"]
+    let key = headers["x-api-key"] ?? headers["X-KEY"] ?? headers["clay-api-key"] ?? headers["xi-api-key"]
+      ?? basicPassword(headers["Authorization"])
       ?? headers["Authorization"]?.replacingOccurrences(of: "Bearer ", with: "")
     guard let connection = connections.first(where: { $0.id == key }) else {
       return HTTPResponse(status: 401, body: Data())
@@ -285,9 +308,32 @@ final class StackTransport: ProviderTransport {
       body = url == Apify.meURL
         ? ["data": ["plan": ["monthlyUsageCreditsUsd": balances[0].pool.cap!]]]
         : ["data": ["current": ["monthlyUsageUsd": balances[0].pool.cap! - balances[0].balance]]]
+    case ProviderID("clay"):
+      body = Dictionary(uniqueKeysWithValues: balances.map {
+        ($0.pool.creditType == "credits" ? "balance" : "action_execution_balance", $0.balance)
+      })
+    case ProviderID("instantly"):
+      let credits = balances.first { $0.pool.creditType == "credits" }!
+      let leads = balances.first { $0.pool.creditType == "leads" }!
+      body = ["subscriptions": [
+        "credits": ["available_credits": credits.balance, "total_credits": credits.pool.cap!],
+        "outreach": ["total_lead_limit": leads.pool.cap!, "current_lead_count": leads.pool.cap! - leads.balance],
+      ]]
+    case .lemlist:
+      body = ["credits": balances[0].balance]
+    case ProviderID("elevenlabs"):
+      body = ["character_limit": balances[0].pool.cap!, "character_count": balances[0].pool.cap! - balances[0].balance]
     default:
       return HTTPResponse(status: 404, body: Data())
     }
     return HTTPResponse(status: 200, body: try JSONSerialization.data(withJSONObject: body, options: [.sortedKeys]))
+  }
+
+  /// lemlist sends HTTP Basic with an empty username and the key as the password.
+  private func basicPassword(_ header: String?) -> String? {
+    guard let encoded = header?.split(separator: " ").last, header?.hasPrefix("Basic ") == true,
+          let decoded = Data(base64Encoded: String(encoded)).flatMap({ String(data: $0, encoding: .utf8) })
+    else { return nil }
+    return String(decoded.drop(while: { $0 != ":" }).dropFirst())
   }
 }

@@ -6,10 +6,11 @@ import type { AdapterResult, BalanceReading, ToolAdapter } from "./types"
 // direction of the counters needs a guard. The catalog reads one JSON path per
 // pool and can neither subtract nor reduce an array.
 //
-// HYPOTHESIS (not yet confirmed by a live response, QUO-229): the top-level
+// HYPOTHESIS (QUO-229, supported by the QUO-252 live probe): the top-level
 // counters (`monthlyExecutionTime`, `monthlyAiCredit`, `monthlyMail`) are
 // USAGE this cycle, so remaining = plan limit - counter. The schema documents
-// an explicit "remaining" only on top-up lots, which is the evidence for it.
+// an explicit "remaining" only on top-up lots, and the probe read a counter
+// of 0 against a full plan limit on an account that had run nothing.
 // A counter above its plan limit means the guess is wrong (or the plan changed
 // mid-cycle), so the read fails instead of reporting a negative balance.
 const PHANTOMBUSTER_URL =
@@ -23,10 +24,12 @@ type PoolSpec = {
   planField: string
   counterField: string
   topUpField: string | null
+  // Raw units per reported unit; both the plan limit and the counter divide.
+  divisor: number
 }
 
-// The schema states no unit for execution time; minutes is assumed (flagged
-// in the wiki note, with the probe that settles it).
+// Execution time is in milliseconds (QUO-252 probe: 7,200,000 on a plan the
+// dashboard shows as 02h00m), reported in minutes.
 const POOLS: PoolSpec[] = [
   {
     creditType: "execution_time",
@@ -35,6 +38,7 @@ const POOLS: PoolSpec[] = [
     planField: "monthlyExecutionTime",
     counterField: "monthlyExecutionTime",
     topUpField: null,
+    divisor: 60_000,
   },
   {
     creditType: "ai_credits",
@@ -43,6 +47,7 @@ const POOLS: PoolSpec[] = [
     planField: "monthlyAiCredits",
     counterField: "monthlyAiCredit",
     topUpField: "aiCredits",
+    divisor: 1,
   },
   {
     creditType: "emails",
@@ -51,6 +56,7 @@ const POOLS: PoolSpec[] = [
     planField: "monthlyMails",
     counterField: "monthlyMail",
     topUpField: "emailCredits",
+    divisor: 1,
   },
 ]
 
@@ -126,8 +132,8 @@ export const phantombusterAdapter: ToolAdapter = {
       balances.push({
         creditType: spec.creditType,
         label: spec.label,
-        balance: planLimit - used + (lots?.remaining ?? 0),
-        balanceLimit: planLimit + (lots?.amount ?? 0),
+        balance: (planLimit - used) / spec.divisor + (lots?.remaining ?? 0),
+        balanceLimit: planLimit / spec.divisor + (lots?.amount ?? 0),
         unit: spec.unit,
       })
     }

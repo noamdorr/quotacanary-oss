@@ -45,18 +45,18 @@ public final class AlertEvaluator {
   ) {
     self.service = service
     self.center = center
-    active = Self.activeKeys(service.connections)
+    active = Self.activeKeys(service.connections, now: service.currentDate)
     connectionChanges = service.connectionsChanged.sink { [weak self] connections in
       self?.observe(connections)
     }
   }
 
-  private static func activeKeys(_ connections: [Connection]) -> Set<PoolKey> {
-    Set(connections.flatMap(\.poolRows).filter(\.alerts).map(\.key))
+  private static func activeKeys(_ connections: [Connection], now: Date) -> Set<PoolKey> {
+    Set(connections.flatMap { $0.poolRows(at: now) }.filter(\.alerts).map(\.key))
   }
 
   private func observe(_ connections: [Connection]) {
-    let next = Self.activeKeys(connections)
+    let next = Self.activeKeys(connections, now: service.currentDate)
     for key in active.subtracting(next) { generations[key, default: 0] += 1 }
     active = next
   }
@@ -125,7 +125,7 @@ public final class AlertEvaluator {
     var rearmed: [PoolKey: AlertSeverity] = [:]
     var due: [Due] = []
     for connection in service.connections where ids?.contains(connection.id) ?? true {
-      for row in connection.poolRows {
+      for row in connection.poolRows(at: service.currentDate) {
         let mark = connection.alertMark(for: row.key.creditType)
         let content = { AlertContent.make(connection: connection, row: row, severity: $0) }
         if let item = decide(row, mark: mark, content: content, rearmed: &rearmed) {
@@ -159,7 +159,7 @@ public final class AlertEvaluator {
   private func isCurrent(_ item: Due) -> Bool {
     guard generations[item.key, default: 0] == item.generation,
           let connection = service.connections.first(where: { $0.id == item.key.connectionID }),
-          let row = connection.poolRows.first(where: { $0.key == item.key }) else { return false }
+          let row = connection.poolRows(at: service.currentDate).first(where: { $0.key == item.key }) else { return false }
     return row.alerts
   }
 

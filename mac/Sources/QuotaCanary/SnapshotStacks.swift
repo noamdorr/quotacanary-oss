@@ -22,6 +22,17 @@ enum SnapshotStacks {
     return unsettled(demo)
   }
 
+  /// QUO-405: the alerts a stack's launch check hands to macOS, in order.
+  static func notifications(_ stack: StackScenario) async -> [AlertNotification] {
+    let center = FakeNotificationCenter(permission: .allowed)
+    var hooks = SystemHooks.preview(notifier: center)
+    hooks.clock = ManualClock(now: Scenarios.checkedAt)
+    let model = AppModel(service: stack.service(), system: hooks)
+    await model.scheduler.settle()
+    await model.alerts.settle()
+    return center.delivered
+  }
+
   private static func unsettled(_ stack: StackScenario) -> AppModel {
     let service = stack.service()
     var hooks = SystemHooks.preview()

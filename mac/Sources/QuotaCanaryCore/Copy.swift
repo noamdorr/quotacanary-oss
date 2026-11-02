@@ -479,7 +479,6 @@ public extension Copy {
   static func moreConnectionsAccessibility(_ count: Int) -> String {
     "Open the full window: \(count) more \(count == 1 ? "connection" : "connections") in your stack"
   }
-  static func menuBarCount(_ count: Int) -> String { "\(count)" }
   static func menuBarCountAccessibility(_ count: Int, severity: AlertSeverity) -> String {
     let worst: String
     switch severity {
@@ -616,7 +615,16 @@ public extension Copy {
 public extension Copy {
   static let topUpButton = "Top up"
   // QUO-351: approved 2026-10-29.
-  static let muteButton = "Mute until it changes"
-  static let muted = "muted"
   static let unmuteButton = "Unmute"
+  // QUO-393: menu set A, marker and "Back from mute" picked 2026-10-31.
+  static let muteButton = "Mute"
+  static let muteForDay = "For 1 day"
+  static let muteForWeek = "For 1 week"
+  static let muteUntilTopUp = "Until I top up"
+  static let stopMonitoringButton = "Stop monitoring…"
+  static func mutedUntil(_ when: String) -> String { "Muted until \(when)" }
+  static let mutedUntilTopUp = "Muted until top-up"
+  static let backFromMute = "Back from mute"
+  // QUO-398: staged default, pairs with "Stop monitoring…".
+  static let resumeMonitoringButton = "Resume monitoring"
 }

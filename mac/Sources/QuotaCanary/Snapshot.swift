@@ -159,6 +159,12 @@ enum Snapshot {
       ("connect-form-picker-\(query)", panel(firstRun { $0.providerSearch = query }))
     }
 
+    // QUO-405: the showcase stack's Apollo alert, exactly as handed to macOS.
+    // The site lays it over showcase-window, whose Apollo row it matches.
+    let siteNotificationStates: [Scene] = await SnapshotStacks.notifications(.showcase)
+      .filter { $0.title == "Apollo" }.prefix(1).map {
+        ("notification-site", AnyView(NotificationBanner(notification: $0)))
+      }
     let states: [Scene] = [
       ("connect-form", panel(firstRun())),
       ("connect-form-hunter", panel(firstRun { $0.provider = .hunter })),
@@ -166,6 +172,9 @@ enum Snapshot {
       ("refresh-failed", panel(failing)),
       ("pools-mixed", panel(mixed)),
       ("pools-edge", panel(edge)),
+      // QUO-398/399: the unmonitored row selected, its inspector offering "Resume monitoring".
+      ("pools-edge-window", window(edge, StackWindowState(selection: edge.connections
+        .first { $0.provider == .openrouter }.map { PoolKey(connectionID: $0.id, creditType: "credits") }))),
       ("settings", AnyView(SettingsView(model: mixed))),
       ("settings-invalid", AnyView(SettingsView(model: mixed, drafts: invalidDrafts))),
       ("settings-invalid-hidden", AnyView(SettingsView(model: mixed, drafts: hiddenInvalid, query: "Hunter"))),
@@ -193,7 +202,7 @@ enum Snapshot {
       ("showcase-window", window(showcase, StackWindowState(selection: firstBalance(showcase)), height: 560)),
       ("showcase-window-warn", window(showcase, warnState, height: 560)),
       ("demo-window", window(demo, StackWindowState(selection: demo.connections.first?.poolRows.first?.key), height: 560)),
-    ] + birdCountStates + platedPickerStates
+    ] + birdCountStates + platedPickerStates + siteNotificationStates
     // NSAppearance(named:) returns plain Aqua for the high-contrast names, so a
     // `-increased-contrast` scene is real only under the system switch (QUO-181).
     let realContrast = NSWorkspace.shared.accessibilityDisplayShouldIncreaseContrast
@@ -208,7 +217,9 @@ enum Snapshot {
         // Preview seam: seeds the "saved" result line; see DiagnosticsExportModel.init.
         if name == "diagnostics-saved" { setenv("QUOTACANARY_DIAGNOSTICS_PREVIEW", "saved", 1) }
         defer { if name == "diagnostics-saved" { unsetenv("QUOTACANARY_DIAGNOSTICS_PREVIEW") } }
-        guard let png = await render(view, appearance: appearance, windowChrome: name.contains("-window")) else {
+        guard let png = await render(
+          view, appearance: appearance, windowChrome: name.contains("-window"), opaque: !name.hasPrefix("notification-")
+        ) else {
           FileHandle.standardError.write(Data("snapshot: render failed for \(file.lastPathComponent)\n".utf8))
           return 1
         }
@@ -246,10 +257,14 @@ enum Snapshot {
     return AnyView(view.environment(\.referenceDate, reference).frame(width: width, height: height))
   }
 
-  private static func render<V: View>(_ view: V, appearance: NSAppearance.Name, windowChrome: Bool = false) async -> Data? {
+  private static func render<V: View>(
+    _ view: V, appearance: NSAppearance.Name, windowChrome: Bool = false, opaque: Bool = true
+  ) async -> Data? {
     // The real panel gets its background from the menu bar window; offscreen
-    // the view is transparent, so paint the same window color behind it.
-    let controller = NSHostingController(rootView: view.background(Color(nsColor: .windowBackgroundColor)))
+    // the view is transparent, so paint the same window color behind it. A
+    // notification banner keeps its transparent corners and shadow.
+    let backdrop = opaque ? Color(nsColor: .windowBackgroundColor) : .clear
+    let controller = NSHostingController(rootView: view.background(backdrop))
     let host = controller.view
     host.appearance = NSAppearance(named: appearance)
     host.frame = NSRect(origin: .zero, size: host.fittingSize)
@@ -260,7 +275,8 @@ enum Snapshot {
       backing: .buffered, defer: false
     )
     window.appearance = host.appearance
-    window.backgroundColor = .windowBackgroundColor
+    window.backgroundColor = opaque ? .windowBackgroundColor : .clear
+    window.isOpaque = opaque
     window.contentViewController = controller
     window.title = "QuotaCanary"
     // SwiftUI's native List and split-view columns settle on the next run loop.
@@ -437,5 +453,45 @@ enum Snapshot {
     ))
     NSGraphicsContext.restoreGraphicsState()
     return rep.representation(using: .png, properties: [:])
+  }
+}
+
+/// QUO-405: a delivered alert drawn as a macOS notification banner, for the
+/// website. The title and body are the `AlertNotification` the app handed to
+/// the notification center; only the banner around them is drawn here, since
+/// an offscreen render cannot capture Notification Center itself.
+private struct NotificationBanner: View {
+  let notification: AlertNotification
+  @Environment(\.colorScheme) private var scheme
+
+  /// The bundle's icon; this view only runs from a checkout (`--snapshot`).
+  private static let icon = NSImage(contentsOf: URL(fileURLWithPath: #filePath)
+    .deletingLastPathComponent().appendingPathComponent("../../Resources/AppIcon.icns").standardized)
+    ?? NSApplication.shared.applicationIconImage!
+
+  var body: some View {
+    HStack(alignment: .center, spacing: 10) {
+      Image(nsImage: Self.icon).resizable().frame(width: 36, height: 36)
+      VStack(alignment: .leading, spacing: 1) {
+        HStack(alignment: .firstTextBaseline) {
+          Text(notification.title).font(.system(size: 13, weight: .semibold))
+          Spacer(minLength: 8)
+          Text("now").font(.system(size: 12)).foregroundStyle(.secondary)
+        }
+        Text(notification.body).font(.system(size: 13)).lineLimit(2)
+      }
+    }
+    .padding(.horizontal, 14).padding(.vertical, 12)
+    .frame(width: 356)
+    .background(
+      RoundedRectangle(cornerRadius: 22, style: .continuous)
+        .fill(scheme == .dark ? Color(white: 0.2) : Color(white: 0.975))
+        .shadow(color: .black.opacity(0.18), radius: 14, y: 6)
+    )
+    .overlay(
+      RoundedRectangle(cornerRadius: 22, style: .continuous)
+        .strokeBorder(.black.opacity(scheme == .dark ? 0.4 : 0.06), lineWidth: 0.5)
+    )
+    .padding(20)
   }
 }

@@ -2,6 +2,8 @@
 // from prior QUO-191, QUO-212 and QUO-213 picks. MAC security copy is also
 // approved; Privacy and Terms approved on 2026-10-24. Public-document review,
 // publication and merge remain pending.
+import macFeed from "../../public/mac/updates.json"
+
 export const SITE_URL = "https://quotacanary.com"
 export const GITHUB_URL = "https://github.com/noamdorr/quotacanary-oss"
 export const SELF_HOST_URL = `${GITHUB_URL}/blob/main/docs/SELF_HOSTING.md`
@@ -14,6 +16,11 @@ export const TOOL_SUBMIT_URL = `${GITHUB_URL}/issues/new?template=tool-submissio
 // signed DMG on the mirror's mac-v<version> release. Set to null to fall back
 // to the disabled span, which fires no download event (QUO-55).
 export const MAC_DOWNLOAD_URL: string | null = "/download/mac"
+// QUO-402: the version the download serves. server.mjs names the DMG from this
+// same feed file (latestMacVersion), so the page and the file cannot disagree;
+// test/mac-version.test.mjs checks the built page against it.
+export const MAC_VERSION: string = macFeed.version
+export const MAC_RELEASE_URL = `${GITHUB_URL}/releases/tag/mac-v${MAC_VERSION}`
 // QUO-380: the Keychain store behind "Local, always." on the public mirror.
 export const KEYCHAIN_CODE_URL = `${GITHUB_URL}/blob/main/mac/Sources/QuotaCanaryCore/CredentialStore.swift`
 // PollScheduler.nominalInterval in the Mac app, in minutes; test/poll-interval.test.mjs
@@ -39,16 +46,41 @@ export const HOME = {
   facts: ["Free and open source", "macOS 26+", "Apple silicon"],
   // 3B
   navCta: "Download",
+  // QUO-374: shown under the Download button while MAC_DOWNLOAD_URL is set. Picked
+  // by Noam on 2026-10-30 (round 2) instead of a hero fact.
+  notarized: "Signed and notarized by Apple.",
+  // QUO-402: after the notarized line, "v0.1.1, early release." and a link to
+  // the GitHub release. Picked by Noam on 2026-11-02 (option A).
+  maturity: "early release.",
+  releaseNotes: "Release notes",
+  // QUO-406: phones only, beside the DMG button. Picked by Noam on 2026-11-02
+  // (option A). The page link is shared or copied, never the DMG.
+  handoff: "Send it to your Mac",
+  handoffCopied: "Link copied. Open it on your Mac.",
   // Alert and key copy approved by Noam on 2026-10-23; alert limits stay in the FAQ.
   features: [
     {
       id: "eta",
       title: "Run-out estimates",
-      body: "After a few readings it works out how fast each balance is going down and roughly when it hits zero: 2 days, 3 weeks. The one that runs out first is at the top of the list.",
+      // QUO-405: the last sentence bridges the estimate to the awake-Mac limit.
+      // Picked by Noam on 2026-11-02 (option A).
+      body: "After a few readings it works out how fast each balance is going down and roughly when it hits zero: 2 days, 3 weeks. The one that runs out first is at the top of the list. You see it coming days out, so a Mac asleep at 3am doesn’t cost you the campaign.",
       image: "/mac/window.webp",
       width: 1000,
       height: 592,
+      // QUO-377: a phone export instead of a CSS crop of the desktop shot.
+      phoneImage: "/mac/window-phone.webp",
+      phoneWidth: 350,
+      phoneHeight: 197,
       alt: "The QuotaCanary window listing balances with their remaining credits and estimated time until empty.",
+      // QUO-405: the showcase stack's Apollo low alert, matching the window behind it,, as the app hands it to macOS
+      // (Snapshot.swift "notification-site"). One 2x file; CSS sizes it.
+      notification: {
+        image: "/mac/notification.webp",
+        width: 396,
+        height: 100,
+        alt: "A QuotaCanary notification. Apollo: Lead Credits low: 1,000 of 10,000 left.",
+      },
     },
     {
       id: "keys",
@@ -56,7 +88,10 @@ export const HOME = {
       body: "Keys live in your Mac’s login Keychain, never synced, and only ever travel to the tool they belong to.",
       image: "/mac/connect.webp",
       width: 380,
-      height: 368,
+      height: 325,
+      phoneImage: "/mac/connect-phone.webp",
+      phoneWidth: 380,
+      phoneHeight: 122,
       alt: "Connecting Hunter in QuotaCanary, with the note that the key is stored in the Mac's Keychain and sent only to Hunter.",
       // QUO-380: label option A, approved by Noam on 2026-10-30.
       link: { label: "Read the Keychain code", href: KEYCHAIN_CODE_URL },

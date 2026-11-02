@@ -108,7 +108,8 @@ signed local test archives and the 0.1.0 release feed (2026-10-29, QUO-350).
 
 ### Cutting one
 
-On the release Mac, from a clean checkout of `master`:
+On the release Mac, from a clean checkout of `master`, after the public mirror
+has been synced from that commit (`release.sh` checks it):
 
 ```sh
 cd mac
@@ -126,6 +127,14 @@ the release `mac-v<version>` on `noamdorr/quotacanary-oss` (not marked Latest,
 so the mirror's source release keeps that), then downloads the assets back and
 checks the zip's SHA-256 against the feed and the image's against `dist/`. Then ship `site/public/mac/updates.json`
 in a pull request to `master`; Railway deploys the site from it.
+
+Provenance (QUO-404): before notarizing, `release.sh` requires a committed
+`mac/` whose git tree hash equals the `mac/` tree on the mirror's `main`, so the
+tag it creates (`--target` that mirror commit) holds the exact source of the
+build. The notes it writes, `dist/release-notes-<version>.md`, carry the
+SHA-256 of the disk image and zip and the tree hash. To check a download:
+`git rev-parse mac-v<version>:mac` in a mirror clone, and
+`shasum -a 256 QuotaCanary-<version>.dmg`.
 
 Publish first, merge the feed second. A feed that reaches quotacanary.com
 before its asset exists tells every older install there is an update it then
@@ -228,6 +237,10 @@ cd mac
 swift build
 .build/debug/QuotaCanary --snapshot /tmp/quotacanary-snapshots
 ```
+
+Amounts follow the Mac's locale. For website exports add
+`-AppleLocale en_US -AppleLanguages '(en-US)'`, or a non-US Mac prints
+"US$" and long pool labels truncate (QUO-406).
 
 The renderer uses in-memory credentials, connection stores, notification hooks,
 and scripted provider responses. It never reads user keys or sends provider

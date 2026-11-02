@@ -2,8 +2,9 @@ import Foundation
 
 /// Port of src/lib/adapters/phantombuster.ts. Read-only: one GET per check.
 /// Each pool is a plan limit minus a counter, plus the sum of its top-up lots.
-/// HYPOTHESIS (unconfirmed live, QUO-229): the top-level counters are USAGE
-/// this cycle, since the schema documents "remaining" only on top-up lots. A
+/// HYPOTHESIS (QUO-229, supported by the QUO-252 live probe): the top-level
+/// counters are USAGE this cycle, since the schema documents "remaining" only
+/// on top-up lots and the probe read 0 against a full plan limit. A
 /// counter above its plan limit means the guess is wrong (or the plan changed
 /// mid-cycle), so the read fails instead of reporting a negative balance.
 public enum PhantomBuster: HandWrittenProvider {
@@ -20,13 +21,17 @@ public enum PhantomBuster: HandWrittenProvider {
     let planField: String
     let counterField: String
     let topUpField: String?
+    /// Raw units per reported unit; both the plan limit and the counter divide.
+    var divisor: Double = 1
   }
 
-  /// The schema states no unit for execution time; minutes is assumed.
+  /// Execution time is in milliseconds (QUO-252 probe: 7,200,000 on a plan the
+  /// dashboard shows as 02h00m), reported in minutes.
   static let specs = [
     Spec(
       pool: Pool(creditType: "execution_time", label: Copy.phantomBusterExecutionTimePoolLabel, unit: .minutes, cap: nil),
-      planField: "monthlyExecutionTime", counterField: "monthlyExecutionTime", topUpField: nil
+      planField: "monthlyExecutionTime", counterField: "monthlyExecutionTime", topUpField: nil,
+      divisor: 60000
     ),
     Spec(
       pool: Pool(creditType: "ai_credits", label: Copy.phantomBusterAICreditsPoolLabel, unit: .credits, cap: nil),
@@ -76,8 +81,8 @@ public enum PhantomBuster: HandWrittenProvider {
       }
       let lots = spec.topUpField.map { sumTopUps(topUps?[$0]) } ?? (remaining: 0, amount: 0)
       var pool = spec.pool
-      pool.cap = planLimit + lots.amount
-      balances.append(PoolBalance(pool: pool, balance: planLimit - used + lots.remaining))
+      pool.cap = planLimit / spec.divisor + lots.amount
+      balances.append(PoolBalance(pool: pool, balance: (planLimit - used) / spec.divisor + lots.remaining))
     }
     guard !balances.isEmpty else { throw ProviderReadError.missingField("plan") }
     return balances

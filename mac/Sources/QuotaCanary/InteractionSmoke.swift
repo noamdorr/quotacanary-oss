@@ -83,7 +83,9 @@ enum InteractionSmoke {
     }
     await addConnection(stack, model, search, size: size)
     await settings(stack, model)
+    await revealInvalid(model)
     await saveSettingsOnClose(stack, model)
+    await panelDismissal(stack, model)
     // Last before reopen: it closes and remounts the stack, staling `search`.
     await unsavedDrafts(stack, model, balances(model, .all))
     await reopen(stack, model)
@@ -149,6 +151,74 @@ enum InteractionSmoke {
     await expect("reopening shows the saved Warn below, not the discarded draft") {
       stack.isVisible && inspectorWarnField(stack).map { $0.stringValue != "777" } == true
     }
+  }
+
+  /// QUO-392: the footer's "needs attention" summary brings an invalid Warn
+  /// below scrolled out of view, or hidden by a search, back into view with the
+  /// cursor in it.
+  private static func revealInvalid(_ model: AppModel) async {
+    guard !model.connections.isEmpty else { return }
+    SettingsWindow.show(model: model)
+    guard await until({ settingsWindow()?.isVisible == true }), let settings = settingsWindow()
+    else { return check(false, "Settings opens for the reveal check") }
+    segment(settings, Copy.settingsBalances)?.press()
+    func warnFields() -> [NSTextField] {
+      textFields(settings).filter { $0.enclosingScrollView != nil && !($0 is NSSecureTextField) }
+    }
+    await expect("Balance warnings shows a Warn below field to break") { !warnFields().isEmpty }
+    guard let field = warnFields().first, let scroll = field.enclosingScrollView,
+      let query = textFields(settings).first(where: { $0.enclosingScrollView == nil }) else { return }
+    type("abc", into: field)
+    func invalidShown() -> Bool {
+      warnFields().contains { candidate in
+        candidate.stringValue == "abc"
+          && scroll.contentView.bounds.contains(candidate.convert(candidate.bounds, to: scroll.contentView))
+          && editing(settings) === candidate
+      }
+    }
+    for hiding in [false, true] {
+      settings.makeFirstResponder(nil)
+      if hiding { type("no such balance", into: query) }
+      // To the bottom: the invalid editor is the first one.
+      if let document = scroll.documentView {
+        document.scroll(NSPoint(x: 0, y: document.isFlipped ? document.bounds.height : 0))
+      }
+      // The summary leads the save row, one divider below the editors' scroll view.
+      let list = scroll.convert(scroll.bounds, to: nil)
+      click(settings, NSPoint(x: list.minX + 40, y: list.minY - 36))
+      await expect("the needs attention summary with the invalid Warn below \(hiding ? "hidden by a search" : "scrolled away") brings it into view, focused") {
+        settings.isVisible && invalidShown()
+      }
+    }
+    key(settings, "\u{1b}", code: 53)
+    await expect("asks again before discarding the invalid draft") { settings.attachedSheet != nil }
+    press(Copy.discardButton, in: settings.attachedSheet)
+    await expect("Don't Save closes Settings") { !settings.isVisible }
+  }
+
+  /// QUO-390: the full window and Settings put the menu bar panel away. A
+  /// stand-in window carries the panel's reader, since a MenuBarExtra cannot be
+  /// clicked open in-process.
+  private static func panelDismissal(_ stack: NSWindow, _ model: AppModel) async {
+    let panel = NSWindow(
+      contentRect: NSRect(x: 0, y: 0, width: 200, height: 100), styleMask: [.titled], backing: .buffered, defer: false
+    )
+    panel.isReleasedWhenClosed = false
+    panel.contentViewController = NSHostingController(rootView: Color.clear.background(MenuBarPanel.Reader()))
+    for (name, open) in [
+      ("Open window", { StackWindow.show(model: model) }),
+      ("Settings...", { SettingsWindow.show(model: model) }),
+    ] {
+      panel.orderFront(nil)
+      await expect("the panel stand-in registers its window") { MenuBarPanel.window === panel && panel.isVisible }
+      open()
+      await expect("\(name) puts the panel away") { !panel.isVisible }
+    }
+    if let settings = settingsWindow() {
+      key(settings, "w", code: 13, flags: .command)
+      await expect("closing Settings after the panel check") { !settings.isVisible }
+    }
+    check(stack.isVisible, "the stack stays open after the panel check")
   }
 
   /// QUO-263: Save in the close prompt writes the Settings draft, then closes.

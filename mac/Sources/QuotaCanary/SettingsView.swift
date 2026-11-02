@@ -14,6 +14,7 @@ enum SettingsWindow {
   static let identifier = NSUserInterfaceItemIdentifier("QuotaCanarySettings")
 
   static func show(model: AppModel) {
+    MenuBarPanel.dismiss()
     if let window, window.isVisible {
       NSApp.activate()
       window.makeKeyAndOrderFront(nil)
@@ -182,7 +183,9 @@ struct PoolThresholdSettings: View {
           TextField(Copy.settingsSearch, text: $query)
             .textFieldStyle(.roundedBorder)
           ScrollView {
-            LazyVStack(alignment: .leading, spacing: 16) { editors }
+            // Not lazy: scrollTo cannot find a row's id inside an unrealised
+            // connection group, so the "needs attention" jump missed (QUO-392).
+            VStack(alignment: .leading, spacing: 16) { editors }
               .padding(.vertical, 4)
           }
           Divider()
@@ -368,7 +371,12 @@ struct PoolSettingsEditor: View {
         .opacity(draft.error == nil ? 0 : 1)
         .accessibilityHidden(draft.error == nil)
     }
-    .task(id: focusToken) { if focusToken != nil { focused = true } }
+    .task(id: focusToken) {
+      guard focusToken != nil else { return }
+      // A cleared search recreates this editor; its field is not installed yet (QUO-392).
+      await Task.yield()
+      focused = true
+    }
     .padding(compact ? 0 : 12)
     .overlay {
       if !compact { RoundedRectangle(cornerRadius: 8).strokeBorder(Color(nsColor: .separatorColor)) }

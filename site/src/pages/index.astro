@@ -2,7 +2,7 @@
 import Layout from "../layouts/Layout.astro"
 import Arrow from "../components/Arrow.astro"
 import DownloadBlock from "../components/DownloadBlock.astro"
-import MacScreen from "../components/MacScreen.astro"
+import MacDesktop from "../components/MacDesktop.astro"
 import VideoDialog from "../components/VideoDialog.astro"
 import {
   GITHUB_URL,
@@ -12,6 +12,7 @@ import {
   SELF_HOST_URL,
   SITE_URL,
   TOOL_REQUEST_MAILTO,
+  UPDATE_DISCLOSURE,
 } from "../lib/copy"
 import { TOOLS, getTool } from "../lib/tools"
 
@@ -58,13 +59,12 @@ const jsonLd = JSON.stringify({
   ogDescription="The bird that sings before the credits die. Credit monitoring for the API tools you connect."
   jsonLd={jsonLd}
 >
-  <section class="mac-section hero-mac wrap" id="download" aria-labelledby="hero-title">
-    <div class="mac-copy">
+  <section class="hero-desk wrap" id="download" aria-labelledby="hero-title">
+    <MacDesktop>
       <h1 id="hero-title">{HOME.oneLiner}</h1>
       <p class="hero-support">{HOME.heroSupport}</p>
       <DownloadBlock />
-    </div>
-    <MacScreen />
+    </MacDesktop>
   </section>
 
   <section class="features-section section wrap" id="features" aria-labelledby="features-title">
@@ -82,7 +82,13 @@ const jsonLd = JSON.stringify({
             )}
           </div>
           <div class="feature-media">
-            <div class="feature-shot">
+            <picture class="feature-shot">
+              <source
+                media="(max-width: 720px)"
+                srcset={feature.phoneImage}
+                width={feature.phoneWidth}
+                height={feature.phoneHeight}
+              />
               <img
                 src={feature.image}
                 alt={feature.alt}
@@ -91,7 +97,18 @@ const jsonLd = JSON.stringify({
                 loading="lazy"
                 decoding="async"
               />
-            </div>
+            </picture>
+            {"notification" in feature && (
+              <img
+                class="feature-notification"
+                src={feature.notification.image}
+                alt={feature.notification.alt}
+                width={feature.notification.width}
+                height={feature.notification.height}
+                loading="lazy"
+                decoding="async"
+              />
+            )}
           </div>
         </div>
       ))
@@ -122,7 +139,18 @@ const jsonLd = JSON.stringify({
     <div class="pricing-lead"><h2 id="pricing-title">{HOME.pricingHeadline}</h2></div>
     <div class="pricing-actions">
       <p>{HOME.pricingFootnote}</p>
-      <a class="button primary" href="/#download">{HOME.pricingCta} <Arrow /></a>
+      {/* QUO-406: a real download, tagged like DownloadBlock, not a scroll to the hero. */}
+      {
+        MAC_DOWNLOAD_URL ? (
+          <a class="button primary plausible-event-name=Mac+Download+Click" href={MAC_DOWNLOAD_URL}>
+            {HOME.pricingCta} <Arrow />
+          </a>
+        ) : (
+          <a class="button primary" href="/#download">
+            {HOME.pricingCta} <Arrow />
+          </a>
+        )
+      }
     </div>
   </section>
 
@@ -154,18 +182,18 @@ const jsonLd = JSON.stringify({
   <section class="faq-section section wrap" id="faq" aria-labelledby="faq-title">
     <h2 id="faq-title">Questions. <br />Reasonable ones, mostly.</h2>
     <div class="faq-list">
-      <details><summary>What can you do that the tool’s own dashboard can’t?<span aria-hidden="true"></span></summary><p>Three things. We translate balances into deadlines (“burns out in ~3 days,” not “120 left”), watch all your connected tools at once instead of making you check seven tabs, and warn you before the credits hit zero. That’s the whole product.</p></details>
+      <details><summary>What can you do that the tool’s own dashboard can’t?<span aria-hidden="true"></span></summary><p>Three things. It translates balances into deadlines (“burns out in ~3 days,” not “120 left”), watches all your connected tools at once instead of making you check ten tabs, and warns you before the credits hit zero. That’s the whole product.</p></details>
       <details><summary>Will it send me notifications I don’t want?<span aria-hidden="true"></span></summary><p>Notifications are optional. They warn when balances are low, critical or empty, and when a tool can’t be checked. The app needs to be running, and your Mac awake and online.</p></details>
-      <details><summary>Does it touch my data, sends, or campaigns?<span aria-hidden="true"></span></summary><p>No. We only read the usage endpoint. We don’t ingest contacts, see message bodies, or touch outbound. Use a scoped key where your tool offers one; plenty only issue an all-or-nothing key, and we won’t pretend otherwise. <a href="/security">The whole security model</a> is public.</p></details>
+      {/* QUO-374: merges "Does it touch my data, sends, or campaigns?" and "What does the Mac app send you?", picked by Noam on 2026-10-30; wording approved at PR review. */}
+      {/* QUO-403: the URL-parameter sentence, option A picked by Noam on 2026-11-02. */}
+      <details><summary>What leaves my Mac?<span aria-hidden="true"></span></summary><p>Balance requests, each sent directly to the vendor with that vendor’s key. Keys never go to QuotaCanary servers. A few vendors only accept the key in the URL, which their logs or a proxy’s can record even over HTTPS. It only reads the usage endpoint: no contacts, no message bodies, nothing outbound. Use a scoped key where your tool offers one; plenty only issue an all-or-nothing key, and I won’t pretend otherwise.</p><p>{UPDATE_DISCLOSURE} <a href="/security">The whole security model</a> is public.</p></details>
       {/* QUO-382: option A of both entries, approved by Noam on 2026-10-30. Vendor sources are in PR #239. */}
       <details><summary>What does a balance check cost me?<span aria-hidden="true"></span></summary><p>While it’s running, the app asks each tool for its balance about every {MAC_POLL_MINUTES} minutes: one read-only account call. Hunter, Apollo, Prospeo and DataForSEO document that call as free. OpenRouter, Tavily, NeverBounce and Firecrawl don’t say either way, so check your vendor’s docs if it matters. Each tool’s page in <a href="/directory">the directory</a> says which key to use.</p></details>
       <details><summary>How does the run-out estimate work?<span aria-hidden="true"></span></summary><p>After two readings it adds up what you actually burned between checks, divides by the time that passed, and divides your balance by that. A top-up doesn’t erase the burn before it. Under a day it says hours; after that days, weeks, then months. With fewer than two readings, or a balance that hasn’t moved for a full day yet, it says it’s still collecting.</p></details>
-      <details><summary>Which tools don’t you track?<span aria-hidden="true"></span></summary><p>QuotaCanary tracks tools that expose quota through a simple read-only API call. Platforms like RapidAPI that only expose usage through dashboards or traffic headers are out today, because chasing those turns a free tool into a science project. Ship a clean quota endpoint and we’ll add you. <a href="/directory">The directory</a> lists what the app checks today; if yours is missing, <a href={TOOL_REQUEST_MAILTO}>ask</a> and we’ll take a look.</p></details>
-      <details><summary>Do you watch OpenAI or Anthropic?<span aria-hidden="true"></span></summary><p>No. Both tell an API key what you spent this month, never what’s left, and only to an org admin key. We watch balances, not receipts. Buying LLM credit through OpenRouter, DeepSeek or Hyperbolic? Those we watch.</p></details>
-      <details><summary>What Mac does it need?<span aria-hidden="true"></span></summary><p>macOS 26 or newer on Apple silicon. There’s an Intel build, but we haven’t tested it on Intel hardware, so we don’t list it as supported.</p></details>
-      <details><summary>What does the Mac app send you?<span aria-hidden="true"></span></summary><p>Balance requests go directly to each vendor with that vendor’s key; keys never go to QuotaCanary servers.</p><p>If you opt in to update checks, the app sends its app version, macOS version and chip to the signed update feed.</p></details>
-      <details><summary>Why is it free?<span aria-hidden="true"></span></summary><p>Not everything needs three pricing tiers and a suspiciously popular middle option.</p></details>
-      <details><summary>Why a canary?<span aria-hidden="true"></span></summary><p>Birds in coal mines noticed bad air before the miners did, which gave everyone time to leave. Ours does the same job for credit balances. We added singing because it was cuter than the alternative.</p></details>
+      <details><summary>Which tools don’t you track?<span aria-hidden="true"></span></summary><p>QuotaCanary tracks tools that expose quota through a simple read-only API call. Platforms like RapidAPI that only expose usage through dashboards or traffic headers are out today, because chasing those turns a free tool into a science project. Ship a clean quota endpoint and I’ll add you. <a href="/directory">The directory</a> lists what the app checks today; if yours is missing, <a href={TOOL_REQUEST_MAILTO}>ask</a> and I’ll take a look.</p></details>
+      <details><summary>Do you watch OpenAI or Anthropic?<span aria-hidden="true"></span></summary><p>No. Both only report what you spent this month, never what’s left, and only to an org admin key. The app watches balances, not receipts. Buying LLM credit through OpenRouter, DeepSeek or Hyperbolic? Those it does watch.</p></details>
+      <details><summary>What Mac does it need?<span aria-hidden="true"></span></summary><p>macOS 26 or newer on Apple silicon. There’s an Intel build, but I haven’t tested it on Intel hardware, so I don’t list it as supported.</p></details>
+      <details><summary>Why a canary?<span aria-hidden="true"></span></summary><p>Birds in coal mines noticed bad air before the miners did, which gave everyone time to leave. Ours does the same job for credit balances. I added singing because it was cuter than the alternative.</p></details>
     </div>
   </section>
 

@@ -22,16 +22,85 @@
 .desktop-nav .pricing-gag:hover{text-decoration:none}
 @media(prefers-reduced-motion:reduce){.desktop-nav .pricing-gag span{transition:none}}
 
-/* Hero: the design pass's Mac section, promoted. */
-.hero-mac{padding-top:44px}
-.hero-mac .mac-copy :is(h1,h2){font-size:clamp(34px,3.2vw,46px);line-height:1.1}
-.hero-support{margin-top:16px;font-size:17px;line-height:1.65;color:var(--muted);max-width:45ch}
+/* Hero (QUO-411): the page copy sits on a Mac desktop card. The wallpaper is
+   the only non-cream surface; the bird opens a live copy of the panel. */
+.hero-desk{padding-top:20px;padding-bottom:90px}
+.desk{position:relative;min-height:min(760px,max(650px,calc(100svh - 120px)));border-radius:22px;overflow:hidden;background:#f4cf89 url("/img/mac-wallpaper.webp") center/cover;box-shadow:0 0 0 1px #00000014,0 30px 60px -36px #5a300a80}
+.desk-bar{position:relative;z-index:3;height:28px;display:flex;align-items:center;justify-content:space-between;padding:0 14px;font-size:12.5px;font-weight:500;color:#000000d9;background:#fff4d660;backdrop-filter:blur(24px) saturate(1.6);-webkit-backdrop-filter:blur(24px) saturate(1.6);box-shadow:0 .5px 0 #0000001f}
+.desk-bar-left,.desk-bar-right{display:flex;align-items:center;gap:16px}
+.desk-bar svg{width:15px;height:12px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round}
+.desk-bird{width:30px;height:20px;border:0;border-radius:5px;padding:0;background:transparent;display:grid;place-items:center;cursor:pointer;transition:background .15s}
+.desk-bird:hover{background:#0000001a}
+.desk-bird[aria-expanded="true"]{background:#00000026}
+.desk-bird:focus-visible,.dp-bell:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.desk-copy{position:relative;z-index:2;max-width:620px;padding:72px 56px 120px}
+/* QUO-374: the h1 takes the page's heading face and clearly outranks the 32px h2s. */
+.desk-copy h1{font-size:clamp(44px,4.6vw,68px);line-height:1.02;letter-spacing:-.04em;font-weight:800;text-wrap:balance}
+.hero-support{margin-top:16px;font-size:17px;line-height:1.65;color:#1a1a1acc;font-weight:500;max-width:45ch}
+.desk-copy .download-facts,.desk-copy .download-notarized{color:#1a1a1ab8}
+/* Ink, not gold: a gold button vanishes on the sand (Noam's pick, 2026-11-02). The header and closing buttons stay gold. */
+.desk-copy .download-button.primary{background:var(--ink);border-color:var(--ink);color:var(--cream);box-shadow:0 1px 0 #ffffff2e inset,0 14px 30px -10px #3a1a0099}
+.desk-copy a.download-button.primary:hover{background:#000;border-color:#000}
+.desk-copy .download-button.primary .apple-icon{filter:invert(1)}
+.desk-copy .handoff-button{background:#fffdf5d9;border-color:#0000002e}
+.desk-panel{position:absolute;z-index:3;right:18px;top:36px;width:390px;padding:12px 12px 8px;border-radius:14px;background:#fffdf5d9;backdrop-filter:blur(40px) saturate(1.8);-webkit-backdrop-filter:blur(40px) saturate(1.8);box-shadow:0 0 0 .5px #0000002e,0 30px 60px -12px #501e0073,0 8px 18px #501e002e;font-size:13.5px;transform-origin:88% -6px;transition:opacity .22s ease,transform .28s cubic-bezier(.2,.9,.3,1.2),visibility .22s}
+.desk-panel:not(.open){opacity:0;transform:translateY(-8px) scale(.96);visibility:hidden}
+.dp-head{display:flex;align-items:center;justify-content:space-between;padding:2px 4px 8px}
+.dp-head strong{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600}
+.dp-head span{font-size:11.5px;color:#00000080}
+.dp-sec{font-size:11px;font-weight:600;color:#00000080;padding:6px 4px 2px}
+.dp-row{display:flex;align-items:center;gap:9px;padding:7px 4px;border-radius:8px;transition:background .12s}
+.dp-row:hover{background:#0000000d}
+.dp-row.muted .dp-name,.dp-row.muted .dp-num{opacity:.45}
+.dp-badge{width:28px;font-size:11px;font-weight:600;color:#8a5a00}
+.dp-logo{width:26px;height:26px;border-radius:7px;flex:none;object-fit:cover;background:#fff}
+.dp-name{flex:1;min-width:0;line-height:1.25}
+.dp-name b{display:block;font-weight:600}
+.dp-name small{display:block;font-size:12px;color:#00000080}
+.dp-num{font:500 12.5px "JetBrains Mono",monospace;text-align:right;white-space:nowrap}
+.dp-num small{display:block;font:500 11px Inter,sans-serif;color:#00000080}
+.dp-pill{font-size:12px;font-weight:500;padding:4px 9px;border-radius:7px;background:#00000012}
+.dp-bell{width:28px;height:24px;border:0;border-radius:7px;background:#0000000f;color:inherit;display:grid;place-items:center;cursor:pointer;transition:background .12s}
+.dp-bell:hover,.dp-bell[aria-pressed="true"]{background:#00000024}
+.dp-bell svg{width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.dp-sep{height:1px;background:#0000001a;margin:5px 4px}
+.dp-item{display:flex;justify-content:space-between;padding:6px;border-radius:6px;transition:background .12s}
+.dp-item:hover{background:var(--gold)}
+.dp-item kbd{font:inherit;color:#00000066}
+.desk-copy>*{animation:desk-rise .7s cubic-bezier(.2,.8,.2,1) both}
+.desk-copy>:nth-child(2){animation-delay:.08s}
+.desk-copy>:nth-child(3){animation-delay:.16s}
+@keyframes desk-rise{from{opacity:0;transform:translateY(14px)}}
+@media(max-width:1100px){.desk-copy{padding:56px 40px 120px;max-width:min(520px,calc(100% - 420px))}.desk-copy h1{font-size:44px}}
+@media(max-width:980px){
+  .desk{min-height:0;padding-bottom:22px}
+  .desk-copy{max-width:none;padding:36px 22px 8px}
+  .desk-copy h1{font-size:38px}
+  .desk-panel{position:relative;right:auto;top:auto;width:auto;margin:14px 10px 0}
+  .desk-panel:not(.open){display:none}
+  .desk-bar-left span{display:none}
+}
+/* QUO-411: under 560px the panel keeps its numbers and drops the ETA labels and Low badges. */
+@media(max-width:560px){
+  .desk-panel{padding:10px 6px 6px}
+  .dp-row{gap:7px}
+  .dp-badge,.dp-num small{display:none}
+  .dp-name b,.dp-name small{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .dp-pill{padding:4px 7px}
+}
+@media(prefers-reduced-motion:reduce){.desk-copy>*,.desk-panel,.dp-row,.dp-item,.desk-bird,.dp-bell{animation:none;transition:none}}
 .download{display:flex;flex-direction:column;align-items:flex-start;gap:12px;margin-top:30px}
 .download-button{gap:12px;cursor:default}
 a.download-button{cursor:pointer}
 .download-button .apple-icon{width:15px;height:18px}
 .download-facts{font-size:13px;color:var(--muted);line-height:1.5}
-.download-facts a{color:var(--ink);text-underline-offset:3px}
+.download-notarized{font-size:12px;color:var(--muted);line-height:1.5;margin-top:-4px}
+.download-facts a,.download-notarized a{color:var(--ink);text-underline-offset:3px}
+/* QUO-406: the phone hand-off. Hidden until 720px and below. */
+.handoff-button,.handoff-status:empty{display:none}
+.handoff-button{cursor:pointer;font:inherit;font-size:14px;font-weight:550;color:var(--ink)}
+.handoff-status{font-size:13px;color:var(--muted);overflow-wrap:anywhere}
+@media(max-width:720px){.download-button{justify-content:center}.handoff-button{display:inline-flex;width:100%}.download .download-button{width:100%}.closing .handoff-button{margin-top:0}}
 
 /* Pricing is a short permanent-free promise, without a feature list. */
 .pricing-section{grid-template-areas:"lead action";grid-template-rows:auto}
@@ -50,6 +119,9 @@ a.download-button{cursor:pointer}
 .feature-row:not([data-wide]) .feature-media img{left:50%;top:36px;width:min(380px,76%);transform:translateX(-50%)}
 .feature-row[data-wide] .feature-media img{left:32px;top:32px;width:130%;max-width:none;border-radius:10px 0 0 0;box-shadow:0 24px 50px -24px #332a1a80}
 .feature-shot{display:contents}
+/* QUO-405: the low-balance notification lands over the run-out card's top right, as macOS shows it. The PNG carries its own shadow and transparent margin. */
+.feature-row .feature-media img.feature-notification{left:auto;right:4px;top:4px;width:min(396px,80%);max-width:none;border-radius:0;box-shadow:none;transform:none;z-index:1}
+@media(max-width:720px){.feature-row .feature-media img.feature-notification{top:auto;bottom:4px;right:50%;transform:translateX(50%);width:min(396px,96%)}}
 .feature-link{margin-top:8px;font-size:13px}
 .directory-head .directory-submit{margin-top:12px}
 
@@ -119,6 +191,9 @@ a.download-button{cursor:pointer}
 .directory-count{margin-top:24px;font-family:"JetBrains Mono",monospace;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
 .directory .tool-directory{margin-top:12px}
 .directory .tool-directory>a[hidden]{display:none}
+.directory-group{margin-top:40px}
+.directory-group[hidden]{display:none}
+.directory-group-title{font-size:20px;font-weight:650;letter-spacing:-.02em;line-height:1.2}
 .directory-empty{padding:40px 0;font-size:16px;color:var(--muted)}
 .directory-empty[hidden]{display:none}
 .tool-back{display:inline-flex;align-items:center;gap:12px;min-height:44px;font-size:14px;font-weight:550;text-decoration:none}
@@ -148,20 +223,15 @@ a.download-button{cursor:pointer}
   .feature-row,.web-intro{gap:32px 48px}
 }
 @media(max-width:720px){
-  .hero-mac{padding-top:28px}
-  .hero-mac .mac-copy :is(h1,h2){font-size:34px}
   .hero-support{font-size:16px}
   .download{margin-top:22px;width:100%}
   .download-button{width:100%;justify-content:center}
   .features-section{padding-block:54px}
   .feature-row{display:block;padding-block:32px}
   .feature-media{margin-top:20px;border-radius:12px}
-  .feature-row:not([data-wide]) .feature-media img{top:24px;width:82%}
-  .feature-row[data-wide] .feature-media img{left:20px;top:20px;width:150%}
-  /* Phone crops keep the whole Balance column and the whole connect form in view. */
-  #eta .feature-media img{left:-8px;top:-46px;width:600px;border-radius:0}
-  #keys .feature-media{aspect-ratio:auto;height:130px}
-  #keys .feature-media img{left:12px;top:-104px;width:calc(100% - 24px);max-width:none;transform:none}
+  /* Phones get their own exports (QUO-377) at full frame width, never a crop of the desktop shot. */
+  #eta .feature-media,#keys .feature-media{aspect-ratio:auto}
+  #eta .feature-media img,#keys .feature-media img{position:static;width:100%;max-width:none;transform:none;border-radius:0;box-shadow:none}
   .web-section{padding-block:32px}
   .web-intro{display:block;margin-bottom:0}
   .web-intro p{margin-top:16px;font-size:16px}
@@ -174,8 +244,6 @@ a.download-button{cursor:pointer}
 }
 @media(prefers-reduced-motion:reduce){.chip{transition:none}}
 
-/* The hero download button keeps the brand gold (the design pass styled the Mac section button white for a secondary link; this one is the primary call). */
-.mac-copy .download-button.primary{background:var(--gold);border-color:var(--gold);color:var(--ink)}
 
 /* Feature titles are h3 under the features section; these keep the size and weight they had as h2. */
 .feature-row h3{margin:0;font-size:30px;line-height:1.15;font-weight:650;letter-spacing:-.035em;text-wrap:balance}

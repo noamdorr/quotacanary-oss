@@ -59,6 +59,9 @@ struct RefreshProgressLabel: View {
 struct AdaptiveRowLine<Leading: View, Trailing: View>: View {
   let name: String
   let detail: String
+  /// A short caption after the name ("Back from mute", QUO-393), where it
+  /// does not crowd the detail and amount.
+  var nameNote: String?
   @ViewBuilder let leading: Leading
   @ViewBuilder let trailing: Trailing
 
@@ -67,6 +70,7 @@ struct AdaptiveRowLine<Leading: View, Trailing: View>: View {
       HStack(spacing: 6) {
         leading
         Text(name).fontWeight(.medium).lineLimit(1)
+        note
         Text(detail).foregroundStyle(.secondary).lineLimit(1)
         Spacer(minLength: 0)
         trailing
@@ -76,7 +80,8 @@ struct AdaptiveRowLine<Leading: View, Trailing: View>: View {
         VStack(alignment: .leading, spacing: 1) {
           HStack(spacing: 6) {
             Text(name).fontWeight(.medium).lineLimit(1).truncationMode(.middle)
-              }
+            note
+          }
           HStack(spacing: 6) {
             Text(detail).foregroundStyle(.secondary).lineLimit(1).truncationMode(.middle)
             Spacer(minLength: 4)
@@ -85,6 +90,12 @@ struct AdaptiveRowLine<Leading: View, Trailing: View>: View {
         }
         .padding(.vertical, 2)
       }
+    }
+  }
+
+  @ViewBuilder private var note: some View {
+    if let nameNote {
+      Text(nameNote).font(.caption).foregroundStyle(.secondary).lineLimit(1).fixedSize()
     }
   }
 }

@@ -37,7 +37,8 @@ struct QuotaCanaryApp: App {
 
   var body: some Scene {
     MenuBarExtra {
-      PanelView(model: model)
+      // Only the live panel registers its window; snapshots render PanelView offscreen.
+      PanelView(model: model).background(MenuBarPanel.Reader())
     } label: {
       BirdLabel(active: model.hasAnyConnection, severity: model.shown.severity, poolsAtRisk: model.shown.poolsAtRisk)
     }

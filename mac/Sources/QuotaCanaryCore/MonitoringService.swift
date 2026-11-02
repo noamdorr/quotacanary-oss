@@ -157,7 +157,7 @@ public final class MonitoringService {
     }
     var updated = connections
     updated[index].lastReading = Reading(balances: balances, checkedAt: startedAt)
-    updated[index].dropEndedMutes()
+    updated[index].dropEndedMutes(now: now())
     do {
       try store.save(updated)
     } catch {
@@ -264,7 +264,7 @@ public final class MonitoringService {
     }
     var updated = connections
     updated[index].lastReading = Reading(balances: balances, checkedAt: now())
-    updated[index].dropEndedMutes()
+    updated[index].dropEndedMutes(now: now())
     // A working new key ends any failure incident and re-arms its alerts.
     updated[index].monitoring = MonitoringState()
     do {
@@ -337,15 +337,23 @@ public final class MonitoringService {
     connections = updated
   }
 
-  // MARK: Mute until it changes (QUO-351)
+  // MARK: Mute (QUO-351, QUO-393)
 
-  /// Mutes a balance at its current reading, or unmutes it. A balance with
-  /// no reading has nothing to mute at, and a removed connection is skipped.
-  public func setMuted(_ key: PoolKey, _ muted: Bool) throws {
+  /// What alert rules read as now: decides whether a timed mute is over.
+  public var currentDate: Date { now() }
+
+  /// Mutes a balance for `choice` at its current reading and status, or
+  /// unmutes it (nil). A balance with no reading or no warning has nothing to
+  /// mute, and a removed connection is skipped.
+  public func setMute(_ key: PoolKey, _ choice: MuteChoice?) throws {
     var updated = connections
     guard let index = updated.firstIndex(where: { $0.id == key.connectionID }) else { return }
-    let balance = updated[index].lastReading?.balances.first { $0.pool.creditType == key.creditType }?.balance
-    updated[index].mutedAt[key.creditType] = muted ? balance : nil
+    let row = updated[index].allPoolRows(at: now()).first { $0.key == key }
+    if let choice, let row, let balance = row.balance, let severity = AlertSeverity(status: row.status) {
+      updated[index].mutes[key.creditType] = choice.mute(balance: balance, severity: severity, now: now())
+    } else {
+      updated[index].mutes[key.creditType] = nil
+    }
     guard updated != connections else { return }
     do {
       try store.save(updated)

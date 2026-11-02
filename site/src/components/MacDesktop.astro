@@ -1,0 +1,131 @@
+---
+// The hero as a Mac desktop (QUO-411): the page copy sits on the wallpaper
+// (the slot) and the bird in the menu bar opens a live HTML copy of the
+// panel. Sample data mirrors the `showcaseSite` snapshot scene;
+// the labels are the Mac app's own strings (mac/Sources/QuotaCanaryCore/Copy.swift).
+import AppleIcon from "./AppleIcon.astro"
+
+const rows = [
+  { name: "Apollo", pool: "AI Credits", logo: "/logos/apollo.webp", eta: "tomorrow", balance: "900 / 2,000", low: true },
+  { name: "Clay", pool: "Data credits", logo: "/logos/clay.webp", eta: "tomorrow", balance: "1,200", low: true },
+  { name: "OpenRouter", pool: "Credits", logo: "/logos/openrouter.webp", eta: "in ~5 days", balance: "$12.50", low: true },
+  { name: "Apify", pool: "Monthly Usage Left", logo: "/logos/apify.webp", eta: "in ~1 month", balance: "$38 / $49", low: false },
+  { name: "ElevenLabs", pool: "Characters", logo: "/logos/elevenlabs.webp", eta: "in ~1 month", balance: "84,000 / 100,000", low: false },
+  { name: "Instantly", pool: "Credits", logo: "/logos/instantly.webp", eta: "in ~1 month", balance: "4,200 / 5,000", low: false },
+  { name: "lemlist", pool: "Credits", logo: "/logos/lemlist.webp", eta: "in ~1 month", balance: "2,400", low: false },
+  { name: "Prospeo", pool: "Credits", logo: "/logos/prospeo.webp", eta: "in ~1 month", balance: "1,850 / 2,000", low: false },
+]
+const attention = rows.filter((row) => row.low)
+const healthy = rows.filter((row) => !row.low)
+---
+
+<div class="desk">
+  <div class="desk-bar">
+    <span class="desk-bar-left" aria-hidden="true">
+      <AppleIcon width={11} height={14} /><b>Finder</b><span>File</span><span>Edit</span><span>View</span>
+    </span>
+    <span class="desk-bar-right">
+      <button class="desk-bird" type="button" aria-expanded="true" aria-controls="desk-panel" aria-label="QuotaCanary menu (sample)" data-desk-bird>
+        <img src="/mark.svg" alt="" width="15" height="14" />
+      </button>
+      <svg aria-hidden="true" viewBox="0 0 17 13"><path d="M1.5 4.5a10 10 0 0 1 14 0M4 7.3a6.4 6.4 0 0 1 9 0M6.6 10a2.7 2.7 0 0 1 3.8 0"></path></svg>
+      <span aria-hidden="true" data-menu-bar-clock>Mon 9:41 AM</span>
+    </span>
+  </div>
+
+  <div class="desk-copy"><slot /></div>
+
+  <div class="desk-panel open" id="desk-panel" role="group" aria-label="Sample QuotaCanary menu with demo balances" data-desk-panel>
+    <div class="dp-head"><strong><img src="/mark.svg" alt="" width="16" height="15" />QuotaCanary</strong><span>Checked just now</span></div>
+    <p class="dp-sec">Needs attention</p>
+    {
+      attention.map((row) => (
+        <div class="dp-row">
+          <span class="dp-badge">Low</span>
+          <img class="dp-logo" src={row.logo} alt="" width="26" height="26" />
+          <span class="dp-name"><b>{row.name}</b><small>{row.pool}</small></span>
+          <span class="dp-num"><small>{row.eta}</small>{row.balance}</span>
+          <span class="dp-pill">Top up</span>
+          <button class="dp-bell" type="button" aria-pressed="false" aria-label={`Mute ${row.name}`}>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.9 1.9 0 0 0 3.4 0M3 3l18 18"></path></svg>
+          </button>
+        </div>
+      ))
+    }
+    <p class="dp-sec">Healthy</p>
+    {
+      healthy.map((row) => (
+        <div class="dp-row">
+          <span class="dp-badge"></span>
+          <img class="dp-logo" src={row.logo} alt="" width="26" height="26" />
+          <span class="dp-name"><b>{row.name}</b><small>{row.pool}</small></span>
+          <span class="dp-num"><small>{row.eta}</small>{row.balance}</span>
+        </div>
+      ))
+    }
+    <div class="dp-sep"></div>
+    <div class="dp-item"><span>Add connection...</span></div>
+    <div class="dp-item"><span>Settings...</span><kbd>⌘,</kbd></div>
+    <div class="dp-item"><span>Open window</span></div>
+    <div class="dp-sep"></div>
+    <div class="dp-item"><span>Quit QuotaCanary</span><kbd>⌘Q</kbd></div>
+  </div>
+</div>
+
+<script>
+  // The menu bar clock shows the visitor's own day and time, like the real
+  // one. "Mon 9:41 AM" stays in the HTML as the no-JS fallback.
+  const clock = document.querySelector<HTMLElement>("[data-menu-bar-clock]")
+  if (clock) {
+    const format = (now: Date) => {
+      const day = now.toLocaleDateString("en-US", { weekday: "short" })
+      const time = now.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })
+      return `${day} ${time}`
+    }
+    const tick = () => {
+      const now = new Date()
+      clock.textContent = format(now)
+      setTimeout(tick, 60_000 - (now.getSeconds() * 1000 + now.getMilliseconds()))
+    }
+    tick()
+  }
+
+  // The bird toggles the panel, Escape closes it. The panel is open in the
+  // HTML (no-JS, reduced motion and stacked layouts keep it that way); on wide
+  // screens with motion allowed it drops open once the headline has landed.
+  const bird = document.querySelector<HTMLButtonElement>("[data-desk-bird]")
+  const panel = document.querySelector<HTMLElement>("[data-desk-panel]")
+  if (bird && panel) {
+    let drop: ReturnType<typeof setTimeout> | undefined
+    const setOpen = (open: boolean) => {
+      clearTimeout(drop)
+      panel.classList.toggle("open", open)
+      bird.setAttribute("aria-expanded", String(open))
+    }
+    bird.addEventListener("click", () => setOpen(!panel.classList.contains("open")))
+    // Only while open, and focus goes back to the bird so it never lands on a hidden bell.
+    panel.addEventListener("keydown", (event) => {
+      if (event.key !== "Escape") return
+      setOpen(false)
+      bird.focus()
+    })
+    bird.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && panel.classList.contains("open")) setOpen(false)
+    })
+    // The drop-in only where the panel floats; stacked, a closed panel takes no room.
+    const motion = !matchMedia("(prefers-reduced-motion: reduce)").matches
+    if (motion && matchMedia("(min-width: 981px)").matches) {
+      setOpen(false)
+      drop = setTimeout(() => setOpen(true), 900)
+    }
+  }
+
+  // Each bell mutes its sample row, the way the real one silences a balance.
+  for (const bell of document.querySelectorAll<HTMLButtonElement>(".dp-bell")) {
+    bell.addEventListener("click", () => {
+      const muted = bell.getAttribute("aria-pressed") !== "true"
+      bell.setAttribute("aria-pressed", String(muted))
+      bell.closest(".dp-row")?.classList.toggle("muted", muted)
+    })
+  }
+</script>

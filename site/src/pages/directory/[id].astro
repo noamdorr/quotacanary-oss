@@ -1,7 +1,7 @@
 ---
 import Layout from "../../layouts/Layout.astro"
 import Arrow from "../../components/Arrow.astro"
-import { TOOLS, categoryLabel, toolSubheading, toolWebsiteUrl, withUtm } from "../../lib/tools"
+import { TOOLS, bucketLabel, bucketOf, toolSubheading, toolWebsiteUrl, withUtm } from "../../lib/tools"
 import type { Tool } from "../../lib/tools"
 
 export function getStaticPaths() {
@@ -29,7 +29,7 @@ const jsonLd = JSON.stringify({
   "@context": "https://schema.org",
   "@type": "SoftwareApplication",
   name: tool.name,
-  applicationCategory: categoryLabel(tool.category),
+  applicationCategory: bucketLabel(bucketOf(tool)),
   ...(tool.description ? { description: tool.description } : {}),
   ...(websiteUrl ? { url: websiteUrl } : {}),
 }).replace(/</g, "\\u003c")
@@ -43,7 +43,7 @@ const jsonLd = JSON.stringify({
       {tool.logo_url && <img src={tool.logo_url} alt="" width="48" height="48" />}
       <div>
         <h1>{tool.name}</h1>
-        <p class="eyebrow">{categoryLabel(tool.category)}</p>
+        <p class="eyebrow">{bucketLabel(bucketOf(tool))}</p>
       </div>
     </header>
 

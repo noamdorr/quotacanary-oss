@@ -257,18 +257,37 @@ final class AppModel {
     return nil
   }
 
-  /// Mutes a balance until its reading changes, or unmutes it (QUO-351).
-  /// Evaluating right away clears its alert mark while muted and lets an
-  /// unmuted balance alert on its current reading. Returns an error message, or nil.
+  /// Mutes a balance for a day, a week or until a top-up, or unmutes it (nil)
+  /// (QUO-393). Evaluating right away clears its alert mark while muted and
+  /// lets an unmuted balance alert on its current reading. Returns an error
+  /// message, or nil.
   @discardableResult
-  func setMuted(_ key: PoolKey, _ muted: Bool) -> String? {
+  func setMute(_ key: PoolKey, _ choice: MuteChoice?) -> String? {
     do {
-      try service.setMuted(key, muted)
+      try service.setMute(key, choice)
       alerts.schedule([key.connectionID])
       return nil
     } catch {
       return (error as? MonitorError)?.message ?? Copy.saveFailed
     }
+  }
+
+  /// "Stop monitoring…" in the mute menu: the one "always", which unticks the
+  /// balance's existing monitor setting. Returns an error message, or nil.
+  @discardableResult
+  func stopMonitoring(_ row: PoolRow) -> String? { setMonitored(row, false) }
+
+  /// "Resume monitoring" in the context menu of an unmonitored balance
+  /// (QUO-398): the way back from "Stop monitoring…". Returns an error message, or nil.
+  @discardableResult
+  func resumeMonitoring(_ row: PoolRow) -> String? { setMonitored(row, true) }
+
+  private func setMonitored(_ row: PoolRow, _ monitored: Bool) -> String? {
+    var settings = row.settings
+    settings.monitored = monitored
+    let error = saveSettings([row.key: settings])
+    if error == nil { alerts.schedule([row.key.connectionID]) }
+    return error
   }
 
   /// Validates and saves settings. Returns an error message, or nil on success.

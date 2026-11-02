@@ -9,7 +9,7 @@ import { describe, it } from "node:test"
 
 const dist = new URL("../dist/", import.meta.url).pathname
 const glued =
-  /.{0,30}(?:[A-Za-z0-9,.;:)]<(?:code|a|strong|em)[ >]|<\/(?:code|a|strong|em)>[A-Za-z0-9(]).{0,30}/g
+  /.{0,30}(?:[A-Za-z0-9,.;:!?)]<(?:code|a|strong|em)[ >]|<\/(?:code|a|strong|em)>[A-Za-z0-9(]).{0,30}/g
 
 const pages = readdirSync(dist, { recursive: true }).filter((f) => f.endsWith(".html"))
 

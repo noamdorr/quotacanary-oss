@@ -51,7 +51,7 @@ public struct BalanceMeterScale: Equatable, Sendable {
 /// every column; the inspector folds away by default when the window cannot
 /// give it that plus the inspector, and the toolbar toggle overrides that.
 public enum StackLayout {
-  public static let tableMinWidth: Double = 720
+  public static let tableMinWidth: Double = 739 // QUO-393: +19 for the status word column
   public static let inspectorWidth: Double = 260
   /// Table, divider and inspector side by side.
   public static let inspectorAutoMinWidth = tableMinWidth + inspectorWidth + 1

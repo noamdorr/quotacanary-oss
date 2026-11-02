@@ -92,8 +92,12 @@ public enum StatusStyle {
     }
   }
 
-  /// SF Symbol beside the "Not monitored" cue.
-  public static let notMonitoredSymbol = "bell.slash"
+  /// SF Symbol beside the "Not monitored" cue. Not a bell: the bell means
+  /// muted (QUO-399).
+  public static let notMonitoredSymbol = "eye.slash"
+
+  /// SF Symbol beside "Muted until …" and on the Mute button.
+  public static let mutedSymbol = "bell.slash"
 
   /// The worded cue an unmonitored row carries instead of being dimmed.
   public static func monitoringCue(_ row: PoolRow) -> String? {

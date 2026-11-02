@@ -155,15 +155,16 @@ public struct Connection: Codable, Equatable, Identifiable, Sendable {
   /// The balances shown, in panel, stack and alerts, by `creditType` (QUO-283).
   /// Nil watches every balance, including one a later read adds.
   public var watchedCreditTypes: [String]?
-  /// "Mute until it changes" (QUO-351): the balance each muted pool was
-  /// muted at, by `creditType`. Muted only while the reading still equals it.
-  public var mutedAt: [String: Double]
+  /// Muted balances by `creditType` (QUO-393). An entry can outlive its mute:
+  /// a timed mute that ran out while still alerting stays as the "Back from
+  /// mute" marker until the balance is healthy (`dropEndedMutes`).
+  public var mutes: [String: Mute]
 
   public init(
     id: String, provider: ProviderID, name: String, credentialRef: String, lastReading: Reading?,
     poolSettings: [String: PoolSettings] = [:], alertMarks: [String: AlertSeverity] = [:],
     monitoring: MonitoringState = MonitoringState(), watchedCreditTypes: [String]? = nil,
-    mutedAt: [String: Double] = [:]
+    mutes: [String: Mute] = [:]
   ) {
     self.id = id
     self.provider = provider
@@ -174,7 +175,7 @@ public struct Connection: Codable, Equatable, Identifiable, Sendable {
     self.alertMarks = alertMarks
     self.monitoring = monitoring
     self.watchedCreditTypes = watchedCreditTypes
-    self.mutedAt = mutedAt
+    self.mutes = mutes
   }
 
   // State files written before pool settings existed have no `poolSettings`.
@@ -192,16 +193,29 @@ public struct Connection: Codable, Equatable, Identifiable, Sendable {
     monitoring = try c.decodeIfPresent(MonitoringState.self, forKey: .monitoring) ?? MonitoringState()
     // State files written before QUO-283 have no `watchedCreditTypes`: everything watched.
     watchedCreditTypes = try c.decodeIfPresent([String].self, forKey: .watchedCreditTypes)
-    // State files written before QUO-351 have no `mutedAt`: nothing muted.
-    mutedAt = try c.decodeIfPresent([String: Double].self, forKey: .mutedAt) ?? [:]
+    // State files written before QUO-351 have neither key: nothing muted.
+    // A QUO-351 `mutedAt` (the balance at mute time) becomes "until I top up"
+    // at the status that balance has now.
+    if let saved = try c.decodeIfPresent([String: Mute].self, forKey: .mutes) {
+      mutes = saved
+    } else {
+      let legacy = try c.decodeIfPresent([String: Double].self, forKey: .mutedAt) ?? [:]
+      mutes = [:]
+      for (creditType, balance) in legacy {
+        let pool = lastReading?.balances.first { $0.pool.creditType == creditType }?.pool
+        let status = pool.map { PoolStatus.of(PoolBalance(pool: $0, balance: balance), settings: settings(for: creditType)) }
+        mutes[creditType] = Mute(until: nil, balance: balance, severity: status.flatMap(AlertSeverity.init(status:)) ?? .none)
+      }
+    }
   }
 
   private enum CodingKeys: String, CodingKey {
     case id, provider, name, credentialRef, lastReading, poolSettings, alertMarks, monitoring
-    case watchedCreditTypes, mutedAt
+    case watchedCreditTypes, mutes, mutedAt
   }
 
-  // Nothing muted writes no `mutedAt`, so older state files re-encode unchanged.
+  // Nothing muted writes no `mutes`, so older state files re-encode unchanged.
+  // `mutedAt` is read once and never written again.
   public func encode(to encoder: Encoder) throws {
     var c = encoder.container(keyedBy: CodingKeys.self)
     try c.encode(id, forKey: .id)
@@ -213,7 +227,7 @@ public struct Connection: Codable, Equatable, Identifiable, Sendable {
     try c.encode(alertMarks, forKey: .alertMarks)
     try c.encode(monitoring, forKey: .monitoring)
     try c.encodeIfPresent(watchedCreditTypes, forKey: .watchedCreditTypes)
-    if !mutedAt.isEmpty { try c.encode(mutedAt, forKey: .mutedAt) }
+    if !mutes.isEmpty { try c.encode(mutes, forKey: .mutes) }
   }
 }
 

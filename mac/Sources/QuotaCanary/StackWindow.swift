@@ -74,6 +74,7 @@ enum StackWindow {
       window.contentMinSize = NSSize(width: 760, height: 480)
       window.setContentSize(contentSize)
     }
+    MenuBarPanel.dismiss()
     NSApp.activate()
     window?.makeKeyAndOrderFront(nil)
   }
@@ -308,7 +309,7 @@ private struct BalanceTableHeader: View {
 
   var body: some View {
     HStack(spacing: 12) {
-      Color.clear.frame(width: 14, height: 1)
+      Color.clear.frame(width: StatusCue.columnWidth, height: 1).padding(.trailing, -6)
       Text(Copy.connectionColumn).frame(maxWidth: .infinity, alignment: .leading)
       Text(Copy.balanceColumn).frame(width: BalanceTableHeader.balanceWidth, alignment: .leading)
       Text(Copy.remainingColumn).frame(width: 154, alignment: .trailing)
@@ -329,7 +330,7 @@ private struct BalanceTableRow: View {
 
   var body: some View {
     HStack(spacing: 12) {
-      StatusIndicator(status: item.row.status)
+      StatusCue(row: item.row, width: StatusCue.columnWidth)
       HStack(spacing: 6) {
         ProviderLogo(provider: item.connection.provider)
         VStack(alignment: .leading, spacing: 1) {
@@ -337,7 +338,7 @@ private struct BalanceTableRow: View {
           // Beside the name, so it shows without scrolling to Checked (QUO-262).
           CheckCue(health: .local(item.connection, failing: failing))
           NotMonitoredCue(row: item.row)
-          MutedCue(row: item.row)
+          MutedCue(row: item.row, symbol: false)
         }
       }
       .frame(maxWidth: .infinity, alignment: .leading).help(item.connection.name)
@@ -352,7 +353,7 @@ private struct BalanceTableRow: View {
       .frame(width: BalanceTableHeader.balanceWidth, alignment: .leading)
       VStack(alignment: .trailing, spacing: 5) {
         Text(PoolRowView.amount(item.row).replacingOccurrences(of: " of ", with: " / "))
-          .monospacedDigit().fixedSize()
+          .monospacedDigit().fixedSize().foregroundStyle(PoolRowView.amountColor(item.row))
         BalanceMeter(row: item.row)
       }.frame(width: 154)
       Text(item.row.status == .unavailable ? "" : Format.balance(item.row.settings.low, unit: item.row.pool.unit))
@@ -379,7 +380,9 @@ struct BalanceMeter: View {
   let row: PoolRow
   @Environment(\.colorSchemeContrast) private var contrast
 
+  /// Colored on alerting rows only (QUO-393): healthy and muted bars stay neutral.
   private var fill: Color {
+    if row.muted { return .secondary }
     switch row.status {
     case .low: return Brand.gold
     case .critical, .empty: return .red
@@ -444,7 +447,10 @@ private struct BalanceInspector: View {
               EmptyView()
             }
           }
-          TopUpButton(url: item.connection.provider.topupURL)
+          HStack(spacing: 8) {
+            TopUpButton(url: item.connection.provider.topupURL)
+            MuteMenuButton(model: model, row: item.row, unmute: true)
+          }
         }
         VStack(alignment: .leading, spacing: 12) {
           Text(Copy.stackThresholds).font(.headline)

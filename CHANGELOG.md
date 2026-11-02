@@ -9,6 +9,60 @@ migration under **Upgrade notes**. Always run the migration step after updating.
 
 ## [Unreleased]
 
+## [1.2.2] - 2026-11-02
+
+Mac app 0.1.2. The public mirror carries the exact `mac/` source the download
+was built from.
+
+### Added
+- Mac: a visible Mute button with durations (1 day, 1 week, until top-up), and
+  right-click Resume monitoring. The bell means muted.
+- Mac: each menu panel row shows its short run-out time.
+- Site: the directory filters on seven job buckets (Email finding, People and
+  company data, Verification, Scraping and proxies, Search and SEO, Sending and
+  messaging, AI and media).
+
+### Changed
+- Mac: status words (Low, Critical, Empty) replace the colored dot, and the
+  menu bar mark is color only.
+- Mac: the panel closes when you open the window or Settings, and the Settings
+  "needs attention" link scrolls to the field.
+- Site: homepage hero as a Mac desktop with the live panel, re-shot Mac
+  screenshots with phone exports, and trust fixes (version line, release
+  provenance, a real notification capture).
+
+### Fixed
+- PhantomBuster execution time is reported in minutes. The API sends
+  milliseconds, so it showed 60,000 times too much.
+
+## [1.2.1] - 2026-10-30
+
+A Mac download and the site that goes with it. The public mirror was synced
+from this release; it carries everything since 1.2.0.
+
+### Added
+- **Signed, notarized Mac download.** [quotacanary.com/download/mac](https://quotacanary.com/download/mac)
+  serves a Developer ID signed DMG (Mac app 0.1.1). The README now leads with
+  it instead of "build from source".
+- Mac: mute a balance until it changes, VoiceOver announcements for status
+  changes, opt-in update checks against a feed hosted on the site, and a
+  tool-submission issue form linked from the directory.
+- Catalog: treg's own balance plus thirteen treg balance reads, with Mac twins
+  for HLR Lookup, Icypeas and The Companies API (148 tools in the directory).
+
+### Changed
+- Site: Mac-first homepage pass (hero support line, feature rows, FAQ, SEO
+  basics, legal pages), every external link opens in a new tab, and the
+  self-host section sits below the download call to action.
+- Mac: strict locale parsing for balances, pinned English relative dates, one
+  shape for run-out estimates ("in ~2 weeks", "tomorrow", "empty now"), and
+  shorter settings copy.
+
+### Upgrade notes
+- Self-hosters: three migrations (096 to 098, treg catalog and balance
+  endpoint). Run the migration step after updating. No new environment
+  variables.
+
 ## [1.2.0] - 2026-10-25
 
 QuotaCanary is now a Mac menu bar app first. Your vendor keys stay in your

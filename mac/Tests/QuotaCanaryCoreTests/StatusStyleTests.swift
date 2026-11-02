@@ -51,6 +51,11 @@ private func row(monitored: Bool, status: PoolStatus = .low) -> PoolRow {
     #expect(StatusStyle.monitoringCue(row(monitored: true)) == nil)
   }
 
+  @Test func theBellMeansMutedNotUnmonitored() {
+    #expect(StatusStyle.mutedSymbol == "bell.slash")
+    #expect(!StatusStyle.notMonitoredSymbol.hasPrefix("bell"))
+  }
+
   @Test func criticalHintNamesTheInclusiveThreshold() {
     #expect(Copy.criticalHint("500 credits", afterSave: nil) == "Critical at or below 500 credits.")
     #expect(Copy.criticalHint("500 credits", afterSave: "600 credits")

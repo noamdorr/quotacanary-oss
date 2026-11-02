@@ -1,5 +1,5 @@
 ---
-import { GITHUB_URL, HOME, MAC_DOWNLOAD_URL } from "../lib/copy"
+import { GITHUB_URL, HOME, MAC_DOWNLOAD_URL, MAC_RELEASE_URL, MAC_VERSION, SITE_URL } from "../lib/copy"
 import AppleIcon from "./AppleIcon.astro"
 
 // The Mac download call to action, shared by the hero and the closing
@@ -11,6 +11,13 @@ import AppleIcon from "./AppleIcon.astro"
 // because the link is tagged, skips its automatic "File Download" and
 // "Outbound Link: Click" events for it. Only real download links carry the
 // class (this one and the header button), so the disabled span never counts.
+//
+// QUO-402: the notarized line names the version the button serves and links
+// to its release on the public mirror.
+//
+// QUO-406: below 720px a hand-off button sits beside the DMG, which a phone
+// cannot open. It shares the page link (navigator.share) or copies it, so the
+// visitor can pick it up on their Mac. CSS hides it on wider screens.
 ---
 
 <div class="download">
@@ -27,6 +34,22 @@ import AppleIcon from "./AppleIcon.astro"
       </span>
     )
   }
+  {
+    MAC_DOWNLOAD_URL && (
+      <button type="button" class="button handoff-button" data-handoff-url={`${SITE_URL}/#download`}>
+        {HOME.handoff}
+      </button>
+      <span class="handoff-status" role="status" aria-live="polite" data-copied={HOME.handoffCopied}></span>
+    )
+  }
+  {
+    MAC_DOWNLOAD_URL && (
+      <p class="download-notarized">
+        {HOME.notarized} v{MAC_VERSION}, {HOME.maturity}{" "}
+        <a href={MAC_RELEASE_URL} target="_blank" rel="noopener">{HOME.releaseNotes}</a>
+      </p>
+    )
+  }
   <p class="download-facts">
     {
       HOME.facts.map((fact, index) => (
@@ -38,3 +61,27 @@ import AppleIcon from "./AppleIcon.astro"
     }
   </p>
 </div>
+
+<script>
+  for (const button of document.querySelectorAll<HTMLButtonElement>("[data-handoff-url]")) {
+    const status = button.nextElementSibling as HTMLElement | null
+    button.addEventListener("click", async () => {
+      const url = button.dataset.handoffUrl ?? location.href
+      if (navigator.share) {
+        try {
+          await navigator.share({ title: "QuotaCanary for Mac", url })
+          return
+        } catch (error) {
+          // The visitor closed the share sheet: nothing to do.
+          if (error instanceof DOMException && error.name === "AbortError") return
+        }
+      }
+      try {
+        await navigator.clipboard.writeText(url)
+        if (status) status.textContent = status.dataset.copied ?? ""
+      } catch {
+        if (status) status.textContent = url
+      }
+    })
+  }
+</script>

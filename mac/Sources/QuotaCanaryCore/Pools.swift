@@ -44,7 +44,7 @@ public enum PoolStatus: String, Equatable, CaseIterable, Sendable {
     return .healthy
   }
 
-  var isWarning: Bool { self == .low || self == .critical || self == .empty }
+  public var isWarning: Bool { self == .low || self == .critical || self == .empty }
 }
 
 /// One panel row: a pool of one connection, with its reading (if any), its
@@ -55,8 +55,12 @@ public struct PoolRow: Equatable, Identifiable, Sendable {
   public var balance: Double?
   public var settings: PoolSettings
   public var status: PoolStatus
-  /// Muted until its reading changes (QUO-351).
-  public var muted = false
+  /// Muted right now (QUO-393): out of the bird, the count and alerts.
+  public var muted: Bool { mute != nil }
+  /// The mute in force, for its "Muted until" marker.
+  public var mute: Mute?
+  /// A timed mute ran out while this balance was still alerting.
+  public var backFromMute = false
 
   public var id: PoolKey { key }
 
@@ -70,20 +74,25 @@ public extension Connection {
     poolSettings[creditType] ?? provider.defaultSettings
   }
 
-  /// A new reading ends every mute whose balance moved (QUO-351), so the
-  /// old value coming back later alerts again.
-  mutating func dropEndedMutes() {
-    let current = Dictionary((lastReading?.balances ?? []).map { ($0.pool.creditType, $0.balance) }) { first, _ in first }
-    mutedAt = mutedAt.filter { current[$0.key] == $0.value }
+  /// Forgets every mute that is over and leaves no "Back from mute" marker,
+  /// so a later low reading alerts as a new incident. Runs on each reading.
+  mutating func dropEndedMutes(now: Date) {
+    let rows = Dictionary(allPoolRows(at: now).map { ($0.key.creditType, $0) }) { first, _ in first }
+    mutes = mutes.filter { rows[$0.key].map { $0.muted || $0.backFromMute } ?? false }
   }
 
   /// The watched balances (QUO-283): what the panel, stack and alerts use.
-  var poolRows: [PoolRow] { allPoolRows.filter { isWatched($0.key.creditType) } }
+  var poolRows: [PoolRow] { poolRows(at: Date()) }
+
+  /// The watched balances as of `now`, which decides whether a timed mute is over.
+  func poolRows(at now: Date) -> [PoolRow] { allPoolRows(at: now).filter { isWatched($0.key.creditType) } }
 
   /// The provider's catalog pools in catalog order (so a pool missing from a
   /// reading still shows, as unknown), then any other reported pools. Watched
   /// or not.
-  var allPoolRows: [PoolRow] {
+  var allPoolRows: [PoolRow] { allPoolRows(at: Date()) }
+
+  func allPoolRows(at now: Date) -> [PoolRow] {
     let reported = lastReading?.balances ?? []
     var pools = provider.pools
     for item in reported where !pools.contains(where: { $0.creditType == item.pool.creditType }) {
@@ -92,15 +101,78 @@ public extension Connection {
     return pools.map { catalogPool in
       let reading = reported.first { $0.pool.creditType == catalogPool.creditType }
       let settings = settings(for: catalogPool.creditType)
+      let status = PoolStatus.of(reading, settings: settings)
+      let (mute, back) = Mute.state(mutes[catalogPool.creditType], balance: reading?.balance, status: status, now: now)
       return PoolRow(
         key: PoolKey(connectionID: id, creditType: catalogPool.creditType),
         pool: reading?.pool ?? catalogPool,
         balance: reading?.balance,
         settings: settings,
-        status: PoolStatus.of(reading, settings: settings),
-        muted: reading.map { mutedAt[catalogPool.creditType] == $0.balance } ?? false
+        status: status,
+        mute: mute,
+        backFromMute: back
       )
     }
+  }
+}
+
+/// A balance's mute (QUO-393): until a date, or until the balance goes up.
+public struct Mute: Codable, Equatable, Sendable {
+  /// When a timed mute ends; nil means "until I top up".
+  public var until: Date?
+  /// The balance when muted: a top-up mute ends on a reading above it.
+  public var balance: Double
+  /// The severity when muted: a worse one breaks any mute.
+  public var severity: AlertSeverity
+
+  public init(until: Date?, balance: Double, severity: AlertSeverity) {
+    self.until = until
+    self.balance = balance
+    self.severity = severity
+  }
+
+  /// Whether the mute is in force, or ran out while still alerting ("Back
+  /// from mute"). An unread or healthy balance, a worse status and a top-up
+  /// end it outright.
+  static func state(_ mute: Mute?, balance: Double?, status: PoolStatus, now: Date) -> (Mute?, Bool) {
+    guard let mute, let balance, let severity = AlertSeverity(status: status), severity <= mute.severity else {
+      return (nil, false)
+    }
+    if let until = mute.until { return now < until ? (mute, false) : (nil, true) }
+    return balance > mute.balance ? (nil, false) : (mute, false)
+  }
+}
+
+/// The mute menu's durations. "Always" is the existing monitor setting.
+public enum MuteChoice: CaseIterable, Sendable {
+  case oneDay, oneWeek, untilTopUp
+
+  public var title: String {
+    switch self {
+    case .oneDay: return Copy.muteForDay
+    case .oneWeek: return Copy.muteForWeek
+    case .untilTopUp: return Copy.muteUntilTopUp
+    }
+  }
+
+  public func mute(balance: Double, severity: AlertSeverity, now: Date, calendar: Calendar = .current) -> Mute {
+    switch self {
+    case .oneDay: return Mute(until: calendar.date(byAdding: .day, value: 1, to: now), balance: balance, severity: severity)
+    case .oneWeek: return Mute(until: calendar.date(byAdding: .day, value: 7, to: now), balance: balance, severity: severity)
+    case .untilTopUp: return Mute(until: nil, balance: balance, severity: severity)
+    }
+  }
+}
+
+/// The marker on a muted row: "Muted until Fri" within a week, else a short
+/// date, or "Muted until top-up". English, like the rest of the copy.
+public enum MuteMarker {
+  public static func text(_ mute: Mute, now: Date, calendar: Calendar = .current) -> String {
+    guard let until = mute.until else { return Copy.mutedUntilTopUp }
+    var style = Date.FormatStyle(locale: Locale(identifier: "en_US"), calendar: calendar, timeZone: calendar.timeZone)
+    let withinWeek = until.timeIntervalSince(now) <= 7 * 86_400
+    style = withinWeek ? style.weekday(.abbreviated) : style.month(.abbreviated).day()
+    return Copy.mutedUntil(until.formatted(style))
   }
 }
 

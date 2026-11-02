@@ -8,23 +8,19 @@ enum Brand {
 }
 
 /// The menu bar mark: native monochrome unless a monitored balance is at risk.
+/// Color only, no count or badge (QUO-391); VoiceOver still hears both.
 struct BirdLabel: View {
   let active: Bool
-  /// Worst monitored warning (QUO-131): changes the mark's color and badge.
+  /// Worst monitored warning (QUO-131): changes the mark's color.
   var severity: AlertSeverity = .none
   var poolsAtRisk: Int = 0
 
   var body: some View {
-    HStack(spacing: 4) {
-      Image(nsImage: Self.image(active: active, severity: severity))
-      if poolsAtRisk > 0 {
-        Text(Copy.menuBarCount(poolsAtRisk)).monospacedDigit()
-      }
-    }
-    .accessibilityElement(children: .ignore)
-    .accessibilityLabel(poolsAtRisk > 0
-      ? Copy.menuBarCountAccessibility(poolsAtRisk, severity: severity)
-      : Self.accessibility(severity))
+    Image(nsImage: Self.image(active: active, severity: severity))
+      .accessibilityElement(children: .ignore)
+      .accessibilityLabel(poolsAtRisk > 0
+        ? Copy.menuBarCountAccessibility(poolsAtRisk, severity: severity)
+        : Self.accessibility(severity))
   }
 
   /// Point height of the mark in the menu bar (QUO-171).
@@ -35,6 +31,33 @@ struct BirdLabel: View {
     let base = LogoMark.image(height: menuBarHeight)
     base.accessibilityDescription = Copy.birdAccessibility
     return base
+  }
+}
+
+/// The menu bar panel's own window. A `.window` style MenuBarExtra stays open
+/// until it loses key status, so the full window and Settings put it away before
+/// they come forward (QUO-390); otherwise it covers the window just opened.
+@MainActor
+enum MenuBarPanel {
+  private(set) static weak var window: NSWindow?
+
+  /// orderOut, not close: SwiftUI owns this window, and closing a window
+  /// someone else retains can over-release it.
+  static func dismiss() {
+    if let window, window.isVisible { window.orderOut(nil) }
+  }
+
+  /// Records the window hosting the panel, once SwiftUI has placed it.
+  struct Reader: NSViewRepresentable {
+    func makeNSView(context _: Context) -> NSView { ReaderView() }
+    func updateNSView(_: NSView, context _: Context) {}
+  }
+
+  private final class ReaderView: NSView {
+    override func viewDidMoveToWindow() {
+      super.viewDidMoveToWindow()
+      if let window { MenuBarPanel.window = window }
+    }
   }
 }
 
@@ -124,7 +147,10 @@ struct PanelView: View {
   ) -> some View {
     HStack(spacing: 4) {
       balanceRowButton(connection, row: row, extra: extra)
-      if topUp { TopUpButton(url: connection.provider.topupURL).buttonStyle(.bordered).controlSize(.small) }
+      if topUp {
+        TopUpButton(url: connection.provider.topupURL).buttonStyle(.bordered).controlSize(.small)
+        MuteMenuButton(model: model, row: row).buttonStyle(.bordered).controlSize(.small)
+      }
     }
     .contextMenu {
       TopUpButton(url: connection.provider.topupURL)
@@ -133,22 +159,28 @@ struct PanelView: View {
   }
 
   private func balanceRowButton(_ connection: Connection, row: PoolRow, extra: Int) -> some View {
+    // Sorts the pool's history: once per row, shared with its label.
+    let eta = model.eta(for: row)
     return Button { StackWindow.show(model: model, selecting: row.key) } label: {
-      AdaptiveRowLine(name: connection.name, detail: row.pool.label) {
-        StatusIndicator(status: row.status)
+      AdaptiveRowLine(name: connection.name, detail: row.pool.label, nameNote: row.backFromMute ? Copy.backFromMute : nil) {
+        StatusCue(row: row)
         ProviderLogo(provider: connection.provider)
       } trailing: {
         NotMonitoredCue(row: row, compact: true)
-        MutedCue(row: row)
-        Text(Self.compactAmount(row)).monospacedDigit().fixedSize()
+        if row.muted { MutedCue(row: row) }
+        // The short run-out time beside the amount (QUO-401); a muted row dims it with the rest.
+        if let caption = PoolRowView.etaCaption(row, eta: eta) {
+          Text(caption).font(.caption).monospacedDigit().foregroundStyle(.secondary).lineLimit(1).fixedSize()
+        }
+        Text(Self.compactAmount(row)).monospacedDigit().fixedSize().foregroundStyle(PoolRowView.amountColor(row))
         if extra > 0 { Text("+\(extra)").foregroundStyle(.secondary).fixedSize() }
       }
       .opacity(row.muted ? MutedCue.dimming : 1)
     }
     .buttonStyle(QuietMenuStyle())
-    .help(connection.name + ", " + PoolRowView.summary(row))
+    .help(connection.name + ", " + PoolRowView.summary(row, eta: eta))
     .accessibilityElement(children: .ignore)
-    .accessibilityLabel(connection.name + ", " + PoolRowView.summary(row)
+    .accessibilityLabel(connection.name + ", " + PoolRowView.summary(row, eta: eta)
       + (extra > 0 ? ", " + Copy.additionalBalances(extra) : ""))
   }
 
@@ -638,42 +670,11 @@ extension BirdLabel {
     }
   }
 
-  /// Shape, not only color: low carries a gold dot badge, critical an
-  /// exclamation badge, empty a cross badge. Gold for low, red for critical/empty.
+  /// Color alone (QUO-391): gold for low, red for critical and empty. The
+  /// panel and the VoiceOver label carry the non-color channel.
   static func alertImage(_ severity: AlertSeverity) -> NSImage {
     let color: NSColor = severity == .low ? Brand.goldNS : .systemRed
-    let badgeName: String
-    switch severity {
-    case .low: badgeName = "circle.fill"
-    case .critical: badgeName = "exclamationmark.circle.fill"
-    case .empty, .none: badgeName = "xmark.circle.fill"
-    }
-    let palette = NSImage.SymbolConfiguration(paletteColors: [color])
-    let bird = LogoMark.image(height: menuBarHeight, color: color)
-    // Circle badges draw their glyph in white so the ! and the x stay visible.
-    let badgePalette = severity == .low ? palette : NSImage.SymbolConfiguration(paletteColors: [.white, color])
-    let badge = NSImage(systemSymbolName: badgeName, accessibilityDescription: nil)?
-      .withSymbolConfiguration(NSImage.SymbolConfiguration(pointSize: 9, weight: .bold).applying(badgePalette))
-      ?? NSImage()
-    // The badge overlaps the mark only slightly, so the ring and its opening stay readable.
-    let size = NSSize(width: ceil(bird.size.width + badge.size.width * 0.8), height: max(ceil(bird.size.height), 16))
-    let image = NSImage(size: size, flipped: false) { rect in
-      bird.draw(in: NSRect(
-        x: 0, y: (rect.height - bird.size.height) / 2, width: bird.size.width, height: bird.size.height
-      ))
-      // Top right: the mark's beak is bottom right, and the badge must not cover it.
-      let badgeRect = NSRect(
-        x: rect.width - badge.size.width, y: rect.height - badge.size.height,
-        width: badge.size.width, height: badge.size.height
-      )
-      // Clear a ring around the badge so it reads as its own shape.
-      NSGraphicsContext.current?.compositingOperation = .destinationOut
-      NSBezierPath(ovalIn: badgeRect.insetBy(dx: -1, dy: -1)).fill()
-      NSGraphicsContext.current?.compositingOperation = .sourceOver
-      badge.draw(in: badgeRect)
-      return true
-    }
-    image.isTemplate = false
+    let image = LogoMark.image(height: menuBarHeight, color: color)
     image.accessibilityDescription = accessibility(severity)
     return image
   }

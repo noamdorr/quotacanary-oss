@@ -1,4 +1,5 @@
 import raw from "../data/tools.json"
+import { BUCKETS, TOOL_BUCKET } from "./buckets.mjs"
 
 // The public tool catalog, snapshotted from the migrations' `tools` table by
 // scripts/pull-tools.mjs, one record per tool the Mac app supports. Mirrors
@@ -18,24 +19,15 @@ export type Tool = {
   pools: ToolPool[] | null
 }
 
-export const CATEGORY_ORDER = ["email_verification", "email_finding", "data", "ai"] as const
+// Directory buckets (site-only, see buckets.mjs), in chip order.
+export const BUCKET_ORDER = BUCKETS.map((bucket) => bucket.id)
 
-const CATEGORY_LABELS: Record<string, string> = {
-  email_verification: "Email verification",
-  email_finding: "Email finding",
-  data: "Web data",
-  ai: "LLMs",
+export function bucketOf(tool: Tool): string {
+  return TOOL_BUCKET[tool.id] ?? ""
 }
 
-export function categoryLabel(category: string | null): string {
-  if (!category) return "Other"
-  return (
-    CATEGORY_LABELS[category] ??
-    category
-      .split("_")
-      .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
-      .join(" ")
-  )
+export function bucketLabel(bucket: string): string {
+  return BUCKETS.find((b) => b.id === bucket)?.label ?? "Other"
 }
 
 export function toolSubheading(name: string): string {
@@ -101,14 +93,14 @@ export function withUtm(
   return parsed.toString()
 }
 
-function rank(category: string | null): number {
-  const i = CATEGORY_ORDER.indexOf((category ?? "") as (typeof CATEGORY_ORDER)[number])
-  return i === -1 ? CATEGORY_ORDER.length : i
+function rank(tool: Tool): number {
+  const i = BUCKET_ORDER.indexOf(bucketOf(tool))
+  return i === -1 ? BUCKET_ORDER.length : i
 }
 
-// Stable directory order: by category (CATEGORY_ORDER), then name.
+// Stable directory order: by bucket (BUCKET_ORDER), then name.
 export const TOOLS: Tool[] = [...(raw as Tool[])].sort(
-  (a, b) => rank(a.category) - rank(b.category) || a.name.localeCompare(b.name)
+  (a, b) => rank(a) - rank(b) || a.name.localeCompare(b.name)
 )
 
 export function getTool(id: string): Tool | undefined {

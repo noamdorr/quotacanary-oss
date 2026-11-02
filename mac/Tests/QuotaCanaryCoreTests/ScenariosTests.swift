@@ -50,7 +50,7 @@ private func launched(_ stack: StackScenario) async throws -> (MonitoringService
     "stack-50": "100 rows: 2 critical, 3 low, 95 healthy; 0 failing; top Dune Apollo 5 lead_credit critical",
     "historyStates": "5 rows: 5 healthy; 0 failing; top Hunter searches healthy",
     "showcase": "10 rows: 1 critical, 1 low, 8 healthy; 0 failing; top Hunter searches critical",
-    "showcaseSite": "6 rows: 1 critical, 2 low, 3 healthy; 0 failing; top Apollo lead_credit critical",
+    "showcaseSite": "13 rows: 10 healthy, 3 low; 0 failing; top Apollo ai_credit low",
     "quietTruth": "10 rows: 1 empty, 1 low, 1 unavailable, 1 unknown, 6 healthy; 0 failing; top Acorn Hunter searches healthy",
     "quietTruthAlerting": "12 rows: 1 empty, 1 unavailable, 1 unknown, 2 low, 7 healthy; 0 failing; top Fern Hunter verifications low",
   ]

@@ -9,7 +9,8 @@ afterEach(() => vi.restoreAllMocks())
 // the 200 schema embedded in
 // https://hub.phantombuster.com/reference/get_orgs-fetch-resources (every
 // required field present, values invented). The top-level counters are read
-// as USAGE (QUO-229 hypothesis, unconfirmed live).
+// as USAGE (QUO-229 hypothesis; the QUO-252 live probe supports it). Execution
+// time is in milliseconds (QUO-252 probe): 72,000,000 ms is 1200 minutes.
 function fixture(overrides: Record<string, unknown> = {}) {
   return {
     dailyExecutionTime: 12,
@@ -18,7 +19,7 @@ function fixture(overrides: Record<string, unknown> = {}) {
     dailyDiscoveredMail: 0,
     dailyAiCredit: 40,
     dailySerpCredits: 0,
-    monthlyExecutionTime: 300,
+    monthlyExecutionTime: 18_000_000,
     monthlyMail: 100,
     monthlyCaptcha: 0,
     monthlyDiscoveredMail: 0,
@@ -40,7 +41,7 @@ function fixture(overrides: Record<string, unknown> = {}) {
       dailyDiscoveredMails: 0,
       dailyAiCredits: 0,
       dailySerpCredits: 0,
-      monthlyExecutionTime: 1200,
+      monthlyExecutionTime: 72_000_000,
       monthlyMails: 500,
       monthlyCaptchas: 0,
       monthlyDiscoveredMails: 0,
@@ -132,6 +133,23 @@ describe("PhantomBuster adapter", () => {
     })
   })
 
+  it("converts execution time from milliseconds to minutes", async () => {
+    // The QUO-252 probe on a starterTrial_1 key: 7,200,000 ms is the 2h00m
+    // the dashboard shows, with nothing run yet.
+    const base = fixture()
+    stubFetch(
+      200,
+      fixture({
+        monthlyExecutionTime: 0,
+        plan: { ...base.plan, monthlyExecutionTime: 7_200_000 },
+      })
+    )
+    const result = await adapter.readBalance(KEY)
+    expect(result.ok && result.balances[0]).toEqual(
+      POOL("execution_time", "Execution time", 120, 120, "minutes")
+    )
+  })
+
   it("drops a pool whose plan limit is 0 or missing", async () => {
     const base = fixture()
     const { monthlyMails: _dropped, ...planWithoutMails } = base.plan
@@ -151,7 +169,7 @@ describe("PhantomBuster adapter", () => {
   })
 
   it("keeps a fully spent pool as a real zero", async () => {
-    stubFetch(200, fixture({ monthlyExecutionTime: 1200 }))
+    stubFetch(200, fixture({ monthlyExecutionTime: 72_000_000 }))
     const result = await adapter.readBalance(KEY)
     expect(result.ok && result.balances[0]).toEqual(
       POOL("execution_time", "Execution time", 0, 1200, "minutes")
