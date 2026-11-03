@@ -2,9 +2,16 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 import { tregAdapter as adapter } from "./treg"
 
 const TOKEN = "treg-token"
-const ORG_ID = "26314"
-const SECRET = JSON.stringify({ api_token: TOKEN, org_id: ORG_ID })
+const LEGACY = JSON.stringify({ api_token: TOKEN, org_id: "26314" })
+const ME_URL = "https://treg.to/auth/me"
 const ENDPOINT = "https://treg.to/orgs/26314/balance"
+// /auth/me as treg answered it on 2026-11-03, trimmed to the fields read.
+const ME = {
+  email: "someone@example.com",
+  org_id: 26314,
+  org: "reechee",
+  role: "owner",
+}
 
 afterEach(() => vi.restoreAllMocks())
 
@@ -26,14 +33,23 @@ const REAL_RESPONSE = {
   entries: { limit: 50, offset: 0, items: [] },
 }
 
-function stubFetch(status: number, body?: unknown) {
-  const fetchMock = vi.fn(
-    async () =>
-      ({
-        ok: status >= 200 && status < 300,
-        status,
-        json: async () => body,
-      }) as unknown as Response
+function reply(status: number, body?: unknown): Response {
+  return {
+    ok: status >= 200 && status < 300,
+    status,
+    json: async () => body,
+  } as unknown as Response
+}
+
+// /auth/me answers first, then the balance route.
+function stubFetch(
+  status: number,
+  body?: unknown,
+  meStatus = 200,
+  meBody: unknown = ME
+) {
+  const fetchMock = vi.fn(async (url: string, _init?: RequestInit) =>
+    url === ME_URL ? reply(meStatus, meBody) : reply(status, body)
   )
   vi.stubGlobal("fetch", fetchMock)
   return fetchMock
@@ -46,94 +62,110 @@ const READING = {
   balanceLimit: null,
   unit: "usd",
 }
+const HEADERS = { Accept: "application/json", "X-Treg-Token": TOKEN }
+const NOT_TIED = "This treg token isn't tied to a team."
 
 describe("treg adapter", () => {
-  it("reads the org's USD balance with the token in X-Treg-Token", async () => {
+  it("finds the org from the key, then reads its USD balance", async () => {
     const fetchMock = stubFetch(200, REAL_RESPONSE)
-    const result = await adapter.readBalance(SECRET)
-    expect(fetchMock).toHaveBeenCalledWith(
-      ENDPOINT,
-      expect.objectContaining({
-        headers: { Accept: "application/json", "X-Treg-Token": TOKEN },
-      })
-    )
-    expect(result).toEqual({ ok: true, balances: [READING] })
-  })
-
-  it("accepts the first:second compatibility form", async () => {
-    const fetchMock = stubFetch(200, REAL_RESPONSE)
-    expect(await adapter.readBalance(`${TOKEN}:${ORG_ID}`)).toEqual({
+    expect(await adapter.readBalance(TOKEN)).toEqual({
       ok: true,
       balances: [READING],
     })
-    expect(fetchMock).toHaveBeenCalledWith(ENDPOINT, expect.anything())
+    expect(fetchMock.mock.calls.map((call) => call[0])).toEqual([
+      ME_URL,
+      ENDPOINT,
+    ])
+    for (const call of fetchMock.mock.calls)
+      expect(call[1]).toEqual(expect.objectContaining({ headers: HEADERS }))
   })
 
-  it("refuses a team name or slug for the org id without sending", async () => {
-    const fetchMock = stubFetch(200, REAL_RESPONSE)
-    for (const orgId of ["Reechee", "reechee", "1/../me", "26314x"]) {
-      expect(
-        await adapter.readBalance(
-          JSON.stringify({ api_token: TOKEN, org_id: orgId })
-        )
-      ).toEqual({
-        ok: false,
-        error: "Org ID is the number from treg org ls, not the team name.",
+  it("still reads a saved two-field secret and ignores its org id", async () => {
+    for (const secret of [
+      LEGACY,
+      JSON.stringify({ api_token: TOKEN, org_id: "Reechee" }),
+    ]) {
+      const fetchMock = stubFetch(200, REAL_RESPONSE)
+      expect(await adapter.readBalance(secret)).toEqual({
+        ok: true,
+        balances: [READING],
       })
+      expect(fetchMock.mock.calls.map((call) => call[0])).toEqual([
+        ME_URL,
+        ENDPOINT,
+      ])
     }
-    expect(fetchMock).not.toHaveBeenCalled()
   })
 
-  it("asks for both values when one is missing or blank", async () => {
+  it("asks for the token when it is blank, without sending", async () => {
     const fetchMock = stubFetch(200, REAL_RESPONSE)
     for (const secret of [
-      JSON.stringify({ api_token: TOKEN }),
-      JSON.stringify({ api_token: " ", org_id: ORG_ID }),
-      TOKEN,
-      `:${ORG_ID}`,
+      "",
+      "  ",
+      JSON.stringify({ api_token: " ", org_id: "26314" }),
+      JSON.stringify({ org_id: "26314" }),
     ]) {
       expect(await adapter.readBalance(secret)).toEqual({
         ok: false,
-        error: "treg needs an API token and org ID.",
+        error: "treg needs an API token.",
       })
     }
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
-  it("rejects a bad token on 401", async () => {
-    // A Bearer header got this on 2026-10-29: treg reads only X-Treg-Token.
-    stubFetch(401, { detail: "not authenticated" })
-    expect(await adapter.readBalance(SECRET)).toEqual({
-      ok: false,
-      error: "treg rejected this token.",
-    })
-  })
-
-  it("names the org id on a 422", async () => {
-    // A slug instead of the integer id (seen 2026-10-29), normally caught
-    // before sending.
-    stubFetch(422, { detail: "int_parsing" })
-    expect(await adapter.readBalance(SECRET)).toEqual({
-      ok: false,
-      error: "Org ID is the number from treg org ls, not the team name.",
-    })
-  })
-
-  it("points at the org on 400, 403 and 404", async () => {
-    // 400 is an unpinned identity token asking for an org; 403 covers a token
-    // that may not read this org.
-    for (const status of [400, 403, 404]) {
-      stubFetch(status, { detail: "nope" })
-      expect(await adapter.readBalance(SECRET)).toEqual({
+  it("stops when /auth/me names no team", async () => {
+    for (const me of [
+      { email: "a@b.c" },
+      { org_id: null },
+      { org_id: "26314" },
+      { org_id: 0 },
+      { org_id: 1.5 },
+      null,
+    ]) {
+      const fetchMock = stubFetch(200, REAL_RESPONSE, 200, me)
+      expect(await adapter.readBalance(TOKEN)).toEqual({
         ok: false,
-        error: "This treg token can't read the balance of this org ID.",
+        error: NOT_TIED,
+      })
+      expect(fetchMock).toHaveBeenCalledTimes(1)
+    }
+  })
+
+  it("rejects a bad token on 401 from either call", async () => {
+    // A Bearer header got this on 2026-10-29: treg reads only X-Treg-Token.
+    for (const [status, meStatus] of [
+      [200, 401],
+      [401, 200],
+    ]) {
+      stubFetch(status, { detail: "not authenticated" }, meStatus, {
+        detail: "x",
+        ...ME,
+      })
+      expect(await adapter.readBalance(TOKEN)).toEqual({
+        ok: false,
+        error: "treg rejected this token.",
+      })
+    }
+  })
+
+  it("says the token has no team on 400, 403 and 404", async () => {
+    for (const status of [400, 403, 404]) {
+      stubFetch(200, REAL_RESPONSE, status, { detail: "nope" })
+      expect(await adapter.readBalance(TOKEN)).toEqual({
+        ok: false,
+        error: NOT_TIED,
+      })
+      stubFetch(status, { detail: "nope" })
+      expect(await adapter.readBalance(TOKEN)).toEqual({
+        ok: false,
+        error: NOT_TIED,
       })
     }
   })
 
   it("reports the status on 429", async () => {
     stubFetch(429)
-    expect(await adapter.readBalance(SECRET)).toEqual({
+    expect(await adapter.readBalance(TOKEN)).toEqual({
       ok: false,
       error: "treg returned 429.",
     })
@@ -141,7 +173,7 @@ describe("treg adapter", () => {
 
   it("keeps a spent balance as a real zero", async () => {
     stubFetch(200, { ...REAL_RESPONSE, balance_usd: 0 })
-    expect(await adapter.readBalance(SECRET)).toEqual({
+    expect(await adapter.readBalance(TOKEN)).toEqual({
       ok: true,
       balances: [{ ...READING, balance: 0 }],
     })
@@ -156,7 +188,7 @@ describe("treg adapter", () => {
       null,
     ]) {
       stubFetch(200, body)
-      expect(await adapter.readBalance(SECRET)).toEqual({
+      expect(await adapter.readBalance(TOKEN)).toEqual({
         ok: false,
         error: "treg returned an unexpected response.",
       })
@@ -177,7 +209,7 @@ describe("treg adapter", () => {
           }) as unknown as Response
       )
     )
-    expect(await adapter.readBalance(SECRET)).toEqual({
+    expect(await adapter.readBalance(TOKEN)).toEqual({
       ok: false,
       error: "treg returned an unexpected response.",
     })
@@ -191,7 +223,7 @@ describe("treg adapter", () => {
       })
     )
     vi.spyOn(console, "error").mockImplementation(() => {})
-    const result = await adapter.readBalance(SECRET)
+    const result = await adapter.readBalance(TOKEN)
     expect(result).toEqual({ ok: false, error: "Couldn't reach treg." })
     expect(JSON.stringify(result)).not.toContain(TOKEN)
   })

@@ -1,9 +1,10 @@
 import Foundation
 
-/// Port of src/lib/adapters/treg.ts. Read-only: one GET per check. The balance
-/// route takes the integer org id in the path (a slug answers 422), so the org
-/// ID is a second value beside the token; the stored secret is the two-field
-/// JSON (`CredentialFields`). The token goes in X-Treg-Token (Bearer is a 401).
+/// Port of src/lib/adapters/treg.ts. Read-only: two GETs per check. The
+/// balance route takes the integer org id in the path, and `/auth/me` names
+/// the org the key belongs to (QUO-423), so the key alone is the credential.
+/// A secret saved before that is the two-field JSON; its `api_token` is used
+/// and its `org_id` ignored. The token goes in X-Treg-Token (Bearer is a 401).
 /// Only `balance_usd` is read; the body also carries a ledger page.
 public enum Treg: HandWrittenProvider {
   public static let id: ProviderID = .treg
@@ -12,46 +13,67 @@ public enum Treg: HandWrittenProvider {
   // treg's seed row (migration 098): critical 5, low 15.
   public static let defaultSettings = PoolSettings(monitored: true, low: 15, critical: 5)
 
-  public static let fields = [
-    CredentialField(name: "api_token", label: Copy.apiTokenLabel, isSecret: true),
-    CredentialField(name: "org_id", label: Copy.tregOrgIDLabel, isSecret: false),
-  ]
-
   public static let balancePool = Pool(creditType: "balance", label: Copy.tregBalancePoolLabel, unit: .usd, cap: nil)
   public static let pools = [balancePool]
 
-  public static func balanceURL(orgID: String) -> URL {
-    URL(string: "https://treg.to/orgs/\(CredentialFields.pathSegment(orgID))/balance")!
+  static let meURL = URL(string: "https://treg.to/auth/me")!
+
+  public static func balanceURL(orgID: Int) -> URL {
+    URL(string: "https://treg.to/orgs/\(orgID)/balance")!
   }
 
   public static func read(key: String, transport: ProviderTransport) async throws -> [PoolBalance] {
-    // A secret without both values is never sent anywhere.
-    guard let (apiToken, orgID) = CredentialFields.pair(key, "api_token", "org_id") else {
-      throw ProviderReadError.keyRejected
+    // A blank key is never sent anywhere.
+    let apiToken = token(key)
+    guard !apiToken.isEmpty else { throw ProviderReadError.keyRejected }
+    let headers = ["Accept": "application/json", "X-Treg-Token": apiToken]
+    let orgID = try parseMe(try await get(meURL, headers, transport))
+    return try parse(try await get(balanceURL(orgID: orgID), headers, transport))
+  }
+
+  /// The org id `/auth/me` names for this key.
+  public static func parseMe(_ response: HTTPResponse) throws -> Int {
+    let me = try json(response)
+    // A JSON true bridges to 1, so booleans are refused by type, as in ProviderJSON.
+    guard let number = me["org_id"] as? NSNumber, CFGetTypeID(number) != CFBooleanGetTypeID(),
+          let orgID = Int(exactly: number.doubleValue), orgID > 0 else {
+      throw ProviderReadError.reportedError(Copy.tregNotTiedToATeam)
     }
-    // The route takes the integer id; a team name or slug is refused here, not sent.
-    guard orgID.allSatisfy({ $0.isASCII && $0.isNumber }) else {
-      throw ProviderReadError.reportedError(Copy.tregOrgIDNotANumber)
-    }
-    let response: HTTPResponse
-    do {
-      response = try await transport.get(
-        balanceURL(orgID: orgID), headers: ["Accept": "application/json", "X-Treg-Token": apiToken]
-      )
-    } catch {
-      throw ProviderReadError.unreachable
-    }
-    return try parse(response)
+    return orgID
   }
 
   public static func parse(_ response: HTTPResponse) throws -> [PoolBalance] {
+    guard let usd = ProviderJSON.finiteOrNil(try json(response)["balance_usd"]) else {
+      throw ProviderReadError.missingField("balance_usd")
+    }
+    return [PoolBalance(pool: balancePool, balance: usd)]
+  }
+
+  /// The key itself, or the `api_token` of a two-field secret saved before QUO-423.
+  static func token(_ key: String) -> String {
+    if let data = key.data(using: .utf8),
+       let record = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any] {
+      return (record["api_token"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+    }
+    return key.trimmingCharacters(in: .whitespacesAndNewlines)
+  }
+
+  private static func get(_ url: URL, _ headers: [String: String], _ transport: ProviderTransport) async throws
+    -> HTTPResponse
+  {
+    do {
+      return try await transport.get(url, headers: headers)
+    } catch {
+      throw ProviderReadError.unreachable
+    }
+  }
+
+  private static func json(_ response: HTTPResponse) throws -> [String: Any] {
     if response.status == 401 { throw ProviderReadError.keyRejected }
-    // A slug for the id (422, normally caught before sending).
-    if response.status == 422 { throw ProviderReadError.reportedError(Copy.tregOrgIDNotANumber) }
-    // An unknown org (404), an identity token with no pinned org (400), or a
-    // token that may not read this org (403).
+    // A token with no pinned team (400), one that may not read this org (403),
+    // or an org that is gone (404).
     if [400, 403, 404].contains(response.status) {
-      throw ProviderReadError.reportedError(Copy.tregOrgNotReadable)
+      throw ProviderReadError.reportedError(Copy.tregNotTiedToATeam)
     }
     if response.status == 429 { throw ProviderReadError.rateLimited }
     guard (200..<300).contains(response.status) else {
@@ -60,9 +82,6 @@ public enum Treg: HandWrittenProvider {
     guard let json = try? JSONSerialization.jsonObject(with: response.body) else {
       throw ProviderReadError.notJSON
     }
-    guard let balance = ProviderJSON.finiteOrNil((json as? [String: Any])?["balance_usd"]) else {
-      throw ProviderReadError.missingField("balance_usd")
-    }
-    return [PoolBalance(pool: balancePool, balance: balance)]
+    return json as? [String: Any] ?? [:]
   }
 }

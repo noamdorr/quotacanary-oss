@@ -9,6 +9,20 @@ migration under **Upgrade notes**. Always run the migration step after updating.
 
 ## [Unreleased]
 
+## [1.2.4] - 2026-11-03
+
+Mac app 0.1.4. The public mirror carries the exact `mac/` source the download
+was built from.
+
+### Changed
+- treg connects with one API token. The Org ID field is gone on the Mac and the
+  web: QuotaCanary asks treg which team the token belongs to, then reads that
+  team's balance. Saved treg connections keep working unchanged.
+
+### Upgrade notes
+- Self-hosters: one migration (099, treg's connect form drops the Org ID
+  field). Run the migration step after updating. No new environment variables.
+
 ## [1.2.3] - 2026-11-03
 
 Mac app 0.1.3. The public mirror carries the exact `mac/` source the download

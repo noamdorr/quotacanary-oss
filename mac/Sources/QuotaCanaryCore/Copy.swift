@@ -228,12 +228,9 @@ public enum Copy {
   // Vendor-error copy, verbatim from the web adapters (icypeas.ts, thecompaniesapi.ts).
   public static let icypeasEmailNotAccepted = "Icypeas did not accept this account email."
   public static let theCompaniesAPINoTeam = "The Companies API has no team with this ID for this token."
-  // treg (QUO-349): field label mirrors migration 098, copy verbatim from treg.ts.
-  public static let tregOrgIDLabel = "Org ID"
+  // treg (QUO-349), copy verbatim from treg.ts. QUO-423 dropped the Org ID field.
   public static let tregBalancePoolLabel = "Balance"
-  public static let tregOrgNotReadable = "This treg token can't read the balance of this org ID."
-  // QUO-420: the route wants the integer id; a team name or slug answers 422.
-  public static let tregOrgIDNotANumber = "Org ID is the number from treg org ls, not the team name."
+  public static let tregNotTiedToATeam = "This treg token isn't tied to a team."
   // Vendor-error copy, verbatim from the web adapters (enrichcrm.ts, majestic.ts).
   public static let enrichCRMCreditsUnreadable = "Enrich CRM couldn't read credits for this key."
   public static let enrichCRMError = "Enrich CRM returned an error."

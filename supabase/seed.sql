@@ -1642,7 +1642,7 @@ values
     'treg',
     '/logos/treg.png',
     'https://treg.to/integrate.md',
-    'In treg, copy an API token, then run treg org ls for your org ID: the number, not the slug. Checking the balance is free.',
+    'In treg, copy an API token. Checking the balance is free.',
     'data',
     'api',
     5,
@@ -2891,16 +2891,12 @@ update public.tools
   ]'::jsonb
   where id = 'sumble';
 
--- QUO-349: treg itself, a USD balance read per integer org id.
+-- QUO-349: treg itself, a USD balance. QUO-423: the key alone, its org comes
+-- from /auth/me, so no credential_fields.
 update public.tools
-  set
-    pools = '[
-      {"credit_type":"balance","label":"Balance","unit":"usd"}
-    ]'::jsonb,
-    credential_fields = '[
-      {"name":"api_token","label":"API token","type":"password"},
-      {"name":"org_id","label":"Org ID","type":"text"}
-    ]'::jsonb
+  set pools = '[
+    {"credit_type":"balance","label":"Balance","unit":"usd"}
+  ]'::jsonb
   where id = 'treg';
 
 -- ---------------------------------------------------------------------------
