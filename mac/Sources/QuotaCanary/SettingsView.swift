@@ -272,7 +272,8 @@ struct PoolThresholdSettings: View {
         Text(Copy.saved).font(.caption).foregroundStyle(.secondary)
       }
       Spacer()
-      Button(Copy.saveButton, action: save)
+      // The inspector's one Save for its checkbox and Warn below (QUO-437).
+      Button(selectedBalance == nil ? Copy.saveButton : Copy.saveWarningsButton, action: save)
         .disabled(!canSave)
     }
   }
@@ -352,7 +353,8 @@ struct PoolSettingsEditor: View {
             .foregroundStyle(.secondary)
         }
       }
-      Toggle(Copy.monitorToggle, isOn: $draft.monitored)
+      // `compact` is the window inspector, which has its approved label (QUO-437).
+      Toggle(compact ? Copy.warnWhenLowToggle : Copy.monitorToggle, isOn: $draft.monitored)
       Grid(alignment: .leading, horizontalSpacing: 8, verticalSpacing: 6) {
         ThresholdRow(
           title: Copy.warnBelowField, text: $draft.low, unit: row.pool.unit, compact: compact,

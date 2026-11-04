@@ -53,12 +53,15 @@ struct ManageConnectionView: View {
   @State private var removeError: String?
   private let onClose: () -> Void
   private let embedded: Bool
+  /// Changes each time the inspector's "Replace key…" asks for the key field (QUO-437).
+  private let keyFocusToken: Int?
+  @FocusState private var keyFocused: Bool
 
   struct Message: Error { let text: String }
 
   init(
     model: AppModel, connectionID: String, nameDraft: String? = nil, confirmingRemove: Bool = false,
-    embedded: Bool = false,
+    embedded: Bool = false, keyFocusToken: Int? = nil,
     onClose: @escaping () -> Void = {}
   ) {
     self.model = model
@@ -68,6 +71,7 @@ struct ManageConnectionView: View {
     _confirmingRemove = State(initialValue: confirmingRemove)
     self.onClose = onClose
     self.embedded = embedded
+    self.keyFocusToken = keyFocusToken
   }
 
   private var connection: Connection? { model.connections.first { $0.id == connectionID } }
@@ -78,7 +82,7 @@ struct ManageConnectionView: View {
         if !embedded { ConnectionTitle(connection: connection, font: .headline) }
         nameSection(connection)
         keySection(connection)
-        WatchedBalancesSection(model: model, connection: connection)
+        WatchedBalancesSection(model: model, connection: connection, inline: embedded)
 
         Divider()
         removeSection
@@ -145,12 +149,15 @@ struct ManageConnectionView: View {
             .textFieldStyle(.roundedBorder)
             .onSubmit { replace(connection) }
             .onChange(of: keyDraft) { keyResult = nil }
+            .focused($keyFocused)
             .disabled(model.isBusy)
           Button(Copy.updateKeyButton) { replace(connection) }
             .disabled(model.isBusy || newKey(connection).isEmpty)
         }
       } else {
-        CredentialInputs(fields: connection.provider.credentialFields, values: $credentialDrafts) { replace(connection) }
+        CredentialInputs(
+          fields: connection.provider.credentialFields, values: $credentialDrafts, firstFocused: $keyFocused
+        ) { replace(connection) }
           .onChange(of: credentialDrafts) { keyResult = nil }
           .disabled(model.isBusy)
         Button(Copy.updateKeyButton) { replace(connection) }
@@ -167,6 +174,12 @@ struct ManageConnectionView: View {
       } else if case .success = keyResult {
         Note(text: Copy.keyUpdated)
       }
+    }
+    .task(id: keyFocusToken) {
+      guard keyFocusToken != nil else { return }
+      // The disclosure that holds this field opens in the same update.
+      await Task.yield()
+      keyFocused = true
     }
   }
 

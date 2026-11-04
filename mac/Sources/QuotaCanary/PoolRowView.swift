@@ -208,17 +208,21 @@ struct MutedCue: View {
 }
 
 /// The mute choices (QUO-393). "Stop monitoring…" is the one "always": it
-/// unticks the balance's monitor setting.
+/// unticks the balance's monitor setting. The window inspector leaves it out
+/// (QUO-437): its warnings checkbox is the one permanent control there.
 struct MuteChoices: View {
   let model: AppModel
   let row: PoolRow
+  var stopMonitoring = true
 
   var body: some View {
     ForEach(MuteChoice.allCases, id: \.self) { choice in
       Button(choice.title) { model.setMute(row.key, choice) }
     }
-    Divider()
-    Button(Copy.stopMonitoringButton) { model.stopMonitoring(row) }
+    if stopMonitoring {
+      Divider()
+      Button(Copy.stopMonitoringButton) { model.stopMonitoring(row) }
+    }
   }
 }
 
@@ -248,20 +252,13 @@ struct MuteButton: View {
 }
 
 /// The visible bell-slash beside Top up (QUO-393): opens the mute choices on
-/// an alerting balance; "Unmute" on a muted one and "Resume monitoring" on an
-/// unmonitored one (QUO-398) where `unmute` is set (the window inspector).
-/// Callers style it like the Top up beside it.
+/// an alerting balance. Callers style it like the Top up beside it.
 struct MuteMenuButton: View {
   let model: AppModel
   let row: PoolRow
-  var unmute = false
 
   var body: some View {
-    if row.muted && unmute {
-      Button(Copy.unmuteButton) { model.setMute(row.key, nil) }
-    } else if !row.settings.monitored && unmute {
-      Button(Copy.resumeMonitoringButton) { model.resumeMonitoring(row) }
-    } else if row.alerts {
+    if row.alerts {
       Menu {
         MuteChoices(model: model, row: row)
       } label: {
@@ -272,6 +269,32 @@ struct MuteMenuButton: View {
       .fixedSize()
       .help(Copy.muteButton)
       .accessibilityLabel(Copy.muteButton)
+    }
+  }
+}
+
+/// The window inspector's mute control beside Top up (QUO-437): a labeled
+/// "Mute alerts" menu on an alerting balance, "Unmute" on a muted one, nothing
+/// otherwise. Temporary only: permanent warning participation is the
+/// inspector's warnings checkbox, so neither Stop nor Resume monitoring is here.
+struct InspectorMuteButton: View {
+  let model: AppModel
+  let row: PoolRow
+
+  enum Item: Equatable { case unmute, mute }
+
+  static func item(_ row: PoolRow) -> Item? {
+    if row.muted { return .unmute }
+    return row.alerts ? .mute : nil
+  }
+
+  var body: some View {
+    switch Self.item(row) {
+    case .unmute: Button(Copy.unmuteButton) { model.setMute(row.key, nil) }
+    case .mute:
+      Menu(Copy.muteAlertsButton) { MuteChoices(model: model, row: row, stopMonitoring: false) }
+        .fixedSize()
+    case nil: EmptyView()
     }
   }
 }

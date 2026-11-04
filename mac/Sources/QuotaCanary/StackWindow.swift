@@ -14,6 +14,8 @@ final class StackWindowState {
   var inspectorOverride: Bool?
   /// Threshold drafts per balance, kept while the selection moves (QUO-263).
   let drafts = DraftStore()
+  /// Opens each inspector's Connection settings at first; collapsed in the app (QUO-437).
+  var connectionSettingsExpanded = false
 
   init(selection: PoolKey? = nil) { self.selection = selection }
 
@@ -41,6 +43,10 @@ enum StackWindow {
 
   /// The balance the window has selected; read by the interaction smoke.
   static var selection: PoolKey? { state.selection }
+
+  /// The interaction smoke finds the selected balance by its name field, which
+  /// sits in the collapsed Connection settings (QUO-437); it opens them first.
+  static func expandConnectionSettings() { state.connectionSettingsExpanded = true }
 
   /// Selects one balance row by key, by its stable pool identity.
   static func show(model: AppModel, selecting key: PoolKey) {
@@ -294,7 +300,9 @@ struct StackView: View {
   @ViewBuilder private func inspector(_ presented: [StackItem]) -> some View {
     if let item = presented.first(where: { $0.id == state.selection }) {
       switch item {
-      case let .local(balance): BalanceInspector(model: model, item: balance, drafts: state.drafts).id(item.id)
+      case let .local(balance): BalanceInspector(
+        model: model, item: balance, drafts: state.drafts, connectionExpanded: state.connectionSettingsExpanded
+      ).id(item.id)
       }
     } else {
       Text(Copy.selectBalance).foregroundStyle(.secondary).frame(maxHeight: .infinity)
@@ -410,66 +418,147 @@ struct BalanceMeter: View {
   }
 }
 
+/// The selected balance first, then what to do about it now, its warning
+/// settings, and the shared connection's settings folded away (QUO-437).
 private struct BalanceInspector: View {
   var model: AppModel
   let item: PresentedBalance
   let drafts: DraftStore
+  @State private var connectionExpanded: Bool
+  /// Bumped by "Replace key…" to focus the key field.
+  @State private var keyFocusToken: Int?
+
+  init(model: AppModel, item: PresentedBalance, drafts: DraftStore, connectionExpanded: Bool = false) {
+    self.model = model
+    self.item = item
+    self.drafts = drafts
+    _connectionExpanded = State(initialValue: connectionExpanded)
+  }
 
   var body: some View {
-    ScrollView {
-      VStack(alignment: .leading, spacing: 20) {
-        VStack(alignment: .leading, spacing: 8) {
-          ConnectionTitle(connection: item.connection, font: .headline)
-          let record = model.monitor.record(for: item.connection.id)
-          HealthLine(connection: item.connection, health: record.health)
-          ErrorLine(message: record.message)
-          LastCheckNote(record: record.message == nil ? nil : record.lastCheck)
-          FailureStreakNote(connection: item.connection)
+    ScrollViewReader { scroll in
+      ScrollView {
+        VStack(alignment: .leading, spacing: 20) {
+          balance
+          respond
+          Divider()
+          warnings
+          Divider()
+          connectionSettings
         }
-        VStack(alignment: .leading, spacing: 8) {
-          Text(item.row.pool.label).foregroundStyle(.secondary)
-          Text(PoolRowView.amount(item.row)).font(.title2.monospacedDigit()).fixedSize(horizontal: false, vertical: true)
-          BalanceMeter(row: item.row)
-          BalanceSparkline(points: model.sparkline(for: item.id), status: item.row.status)
-          // One headline (QUO-271): the long ETA sentence, its measured rate and
-          // the history span it rests on. "Collecting history" and "No
-          // consumption observed" are different statements and stay distinct.
-          if let eta = model.eta(for: item.row) {
-            Text(eta.long).font(.callout.weight(.semibold).monospacedDigit())
-            switch model.assessment(for: item.id) {
-            case let .burning(burn, spanDays):
-              Text(Copy.burningPerDay(Format.balance(burn.perDay, unit: item.row.pool.unit))
-                + " · " + Copy.historyRange(days: spanDays))
-                .font(.caption).foregroundStyle(.secondary)
-            case let .noConsumption(spanDays):
-              Text(Copy.historyRange(days: spanDays)).font(.caption).foregroundStyle(.secondary)
-            case .collecting:
-              EmptyView()
-            }
-          }
-          HStack(spacing: 8) {
-            TopUpButton(url: item.connection.provider.topupURL)
-            MuteMenuButton(model: model, row: item.row, unmute: true)
-          }
+        .padding(16).frame(maxWidth: .infinity, alignment: .leading)
+      }
+      .onChange(of: keyFocusToken) { _, _ in
+        withAnimation { scroll.scrollTo(Self.connectionSettingsID, anchor: .top) }
+      }
+    }
+  }
+
+  private static let connectionSettingsID = "connection-settings"
+
+  // MARK: 1. The selected balance and its connection
+
+  private var balance: some View {
+    let record = model.monitor.record(for: item.connection.id)
+    return VStack(alignment: .leading, spacing: 8) {
+      HStack(alignment: .firstTextBaseline, spacing: 8) {
+        Text(item.row.pool.label).font(.headline).fixedSize(horizontal: false, vertical: true)
+        Spacer(minLength: 0)
+        StatusCue(row: item.row)
+      }
+      ConnectionTitle(connection: item.connection, font: .callout).foregroundStyle(.secondary)
+      HealthLine(connection: item.connection, health: record.health)
+      ErrorLine(message: record.message)
+      if record.error?.offersKeyReplacement == true {
+        Button(Copy.replaceKeyButton) {
+          connectionExpanded = true
+          keyFocusToken = (keyFocusToken ?? 0) + 1
         }
-        VStack(alignment: .leading, spacing: 12) {
-          Text(Copy.stackThresholds).font(.headline)
-          if item.row.status == .unavailable {
-            Text(Copy.unavailableHint).font(.caption).foregroundStyle(.secondary)
-          } else {
-            PoolThresholdSettings(model: model, store: drafts, selectedBalance: item.id)
-          }
+      }
+      LastCheckNote(record: record.message == nil ? nil : record.lastCheck)
+      FailureStreakNote(connection: item.connection)
+      Text(PoolRowView.amount(item.row)).font(.title2.monospacedDigit()).fixedSize(horizontal: false, vertical: true)
+      BalanceMeter(row: item.row)
+      BalanceSparkline(points: model.sparkline(for: item.id), status: item.row.status)
+      // One headline (QUO-271): the long ETA sentence, its measured rate and
+      // the history span it rests on. "Collecting history" and "No
+      // consumption observed" are different statements and stay distinct.
+      if let eta = model.eta(for: item.row) {
+        Text(eta.long).font(.callout.weight(.semibold).monospacedDigit())
+        switch model.assessment(for: item.id) {
+        case let .burning(burn, spanDays):
+          Text(Copy.burningPerDay(Format.balance(burn.perDay, unit: item.row.pool.unit))
+            + " · " + Copy.historyRange(days: spanDays))
+            .font(.caption).foregroundStyle(.secondary)
+        case let .noConsumption(spanDays):
+          Text(Copy.historyRange(days: spanDays)).font(.caption).foregroundStyle(.secondary)
+        case .collecting:
+          EmptyView()
         }
-        Divider()
-        VStack(alignment: .leading, spacing: 12) {
-          Text(Copy.connectionColumn).font(.headline)
-          ManageConnectionView(model: model, connectionID: item.connection.id, embedded: true)
+      }
+    }
+  }
+
+  // MARK: 2. Respond to the current state: immediate, never a draft
+
+  private var respond: some View {
+    VStack(alignment: .leading, spacing: 6) {
+      HStack(spacing: 8) {
+        TopUpButton(url: item.connection.provider.topupURL)
+        InspectorMuteButton(model: model, row: item.row)
+      }
+      // The mute's end, or "Back from mute", on its own line.
+      MutedCue(row: item.row)
+      if item.row.muted {
+        Text(Copy.mutedNote).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+      }
+    }
+  }
+
+  // MARK: 3. Low-balance warnings: one drafted checkbox and Warn below, one Save
+
+  private var warnings: some View {
+    VStack(alignment: .leading, spacing: 12) {
+      Text(Copy.lowBalanceWarnings).font(.headline)
+      if item.row.status == .unavailable {
+        Text(Copy.unavailableHint).font(.caption).foregroundStyle(.secondary)
+      } else {
+        // Saved state, not the draft: says what is in effect now.
+        if !item.row.settings.monitored {
+          Text(Copy.warningsOff).font(.caption).foregroundStyle(.secondary)
         }
-        if let note = ConnectedView.note(item.connection.provider) {
+        PoolThresholdSettings(model: model, store: drafts, selectedBalance: item.id)
+        if item.row.settings.monitored && model.notifications.permission == .denied {
+          Text(Copy.notificationsOffNote).font(.caption).foregroundStyle(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
+        }
+      }
+    }
+  }
+
+  // MARK: 4. Connection settings, shared by every balance on the connection
+
+  private var connectionSettings: some View {
+    let connection = item.connection
+    return DisclosureGroup(isExpanded: $connectionExpanded) {
+      VStack(alignment: .leading, spacing: 12) {
+        Text(Copy.connectionSettingsShared(connection.provider.displayName))
+          .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
+        ManageConnectionView(model: model, connectionID: connection.id, embedded: true, keyFocusToken: keyFocusToken)
+        if let note = ConnectedView.note(connection.provider) {
           Text(note).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
         }
       }
-      .padding(16).frame(maxWidth: .infinity, alignment: .leading)
+      .padding(.top, 8)
+    } label: {
+      VStack(alignment: .leading, spacing: 2) {
+        Text(Copy.connectionSettings).font(.headline)
+        if WatchedBalances.offersChoice(connection) {
+          Text(Copy.balancesShownSummary(shown: connection.poolRows.count, hidden: connection.hiddenPoolRows.count))
+            .font(.caption).foregroundStyle(.secondary)
+        }
+      }
     }
+    .id(Self.connectionSettingsID)
   }
 }

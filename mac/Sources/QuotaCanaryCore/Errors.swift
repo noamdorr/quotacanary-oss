@@ -64,4 +64,13 @@ public enum MonitorError: Error, Equatable, Sendable {
     case .keyReplacedReadingNotSaved: return Copy.keyReplacedReadingNotSaved
     }
   }
+
+  /// A new key is the fix (QUO-437): the inspector offers "Replace key…"
+  /// beside the error. Other failures keep their own recovery.
+  public var offersKeyReplacement: Bool {
+    switch self {
+    case .credentialMissing, .provider(_, .keyRejected), .provider(_, .keyLacksScope): return true
+    default: return false
+    }
+  }
 }

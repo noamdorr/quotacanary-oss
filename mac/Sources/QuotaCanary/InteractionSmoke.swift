@@ -44,6 +44,7 @@ enum InteractionSmoke {
       exit(2)
     }
     NSApp.appearance = NSAppearance(named: look == "dark" ? .darkAqua : .aqua)
+    StackWindow.expandConnectionSettings()
     StackWindow.show(model: model)
     guard await until({ window(Copy.appName)?.isVisible == true }), let stack = window(Copy.appName) else {
       print("FAIL: the stack window did not open")

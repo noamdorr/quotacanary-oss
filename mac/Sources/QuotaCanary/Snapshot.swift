@@ -139,6 +139,10 @@ enum Snapshot {
     // QUO-351: a balance muted until it changes, dimmed with its marker.
     let muted = await SnapshotStacks.model(.muted)
     quietTruthStates += [("muted-balance", panel(muted, reference: reference)), ("muted-balance-window", window(muted))]
+    // QUO-437: the muted balance selected: Unmute, its end, and what still shows.
+    quietTruthStates.append(("muted-balance-inspector-window", window(muted, StackWindowState(
+      selection: muted.connections.flatMap(\.poolRows).first { $0.muted }?.key
+    ))))
     // QUO-212, QUO-213: the website heroes and launch gallery.
     let showcase = await SnapshotStacks.model(.showcase)
     // QUO-51: the local --demo fixture.
@@ -172,7 +176,8 @@ enum Snapshot {
       ("refresh-failed", panel(failing)),
       ("pools-mixed", panel(mixed)),
       ("pools-edge", panel(edge)),
-      // QUO-398/399: the unmonitored row selected, its inspector offering "Resume monitoring".
+      // QUO-398/399: the unmonitored row selected; since QUO-437 its inspector says
+      // "Warnings are off" and the checkbox is the way back.
       ("pools-edge-window", window(edge, StackWindowState(selection: edge.connections
         .first { $0.provider == .openrouter }.map { PoolKey(connectionID: $0.id, creditType: "credits") }))),
       ("settings", AnyView(SettingsView(model: mixed))),
@@ -190,6 +195,12 @@ enum Snapshot {
       ("pools-tavily", panel(await model(.tavily))),
       ("pools-apollo", panel(apollo)),
       ("settings-apollo", AnyView(SettingsView(model: apollo, showBalances: true))),
+      // QUO-437: the inspector's Connection settings opened.
+      ("inspector-connection-settings-window", window(apollo, {
+        let state = StackWindowState(selection: apollo.connections.first?.poolRows.first?.key)
+        state.connectionSettingsExpanded = true
+        return state
+      }(), height: 1000)),
       ("balance-unavailable-window", window(apollo, StackWindowState(
         selection: apollo.connections.flatMap(\.poolRows).first { $0.status == .unavailable }?.key
       ), dated: false)),
@@ -374,6 +385,10 @@ enum Snapshot {
       ("alerts-prompt", panel(prompt)),
       ("pools-critical", panel(critical)),
       ("pools-critical-denied", panel(denied)),
+      // QUO-437: the inspector's notifications-off note under its warnings.
+      ("pools-critical-denied-window", window(denied, StackWindowState(
+        selection: denied.connections.flatMap(\.poolRows).first { $0.alerts }?.key
+      ))),
       ("settings-alerts-denied", AnyView(SettingsView(model: denied))),
       ("settings-alerts-test-failed", AnyView(SettingsView(model: testFailed))),
     ]
@@ -411,6 +426,8 @@ enum Snapshot {
     return [
       ("health-three-failures", panel(threeFailed)),
       ("health-key-rejected", panel(rejected)),
+      // QUO-437: "Replace key…" beside the inspector's error.
+      ("health-key-rejected-window", window(rejected)),
       ("health-rate-limited", panel(rateLimited)),
       ("health-three-failures-denied", panel(denied)),
     ]

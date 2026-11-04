@@ -9,6 +9,24 @@ migration under **Upgrade notes**. Always run the migration step after updating.
 
 ## [Unreleased]
 
+## [1.2.6] - 2026-11-04
+
+Mac app 0.1.6. The public mirror carries the exact `mac/` source the download
+was built from.
+
+### Changed
+- The Mac window's details panel is regrouped: the selected balance first, then
+  Top up and Mute alerts, then its low-balance warnings with one Save warnings
+  button, then the connection's settings, collapsed by default.
+- A rejected API key offers Replace key… beside the error, which opens the
+  connection's settings at the key field.
+- Stop monitoring and Resume monitoring left the details panel. The warnings
+  checkbox turns a balance's warnings off and back on; the right-click menus
+  still offer both.
+
+### Upgrade notes
+- Self-hosters: no migration and no new environment variables.
+
 ## [1.2.5] - 2026-11-04
 
 Mac app 0.1.5. The public mirror carries the exact `mac/` source the download

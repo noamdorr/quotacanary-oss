@@ -67,12 +67,6 @@ export const HOME = {
   // the GitHub release. Picked by Noam on 2026-11-02 (option A).
   maturity: "early release.",
   releaseNotes: "Release notes",
-  // QUO-429: variant B, picked by Noam on 2026-11-04 (hash and tag in the closed
-  // summary, full hash and the shasum line when opened).
-  verifySummary: "SHA-256",
-  verifyTag: "tag",
-  verifyHash: "Disk image SHA-256:",
-  verifyCheck: "Check yours:",
   // QUO-406: phones only, beside the DMG button. Picked by Noam on 2026-11-02
   // (option A). The page link is shared or copied, never the DMG.
   handoff: "Send it to your Mac",

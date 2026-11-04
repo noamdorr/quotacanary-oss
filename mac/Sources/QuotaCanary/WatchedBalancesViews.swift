@@ -54,16 +54,24 @@ struct WatchedBalancesChecklist: View {
   }
 }
 
-/// The connection inspector's "Show N hidden balances": the same ticks,
-/// saved as soon as one changes.
+/// The connection's "Show N hidden balances": the same ticks, saved as soon
+/// as one changes. `inline` (the window inspector, QUO-437) lists them under
+/// "Balances shown", already inside its collapsed Connection settings.
 struct WatchedBalancesSection: View {
   var model: AppModel
   let connection: Connection
+  var inline = false
   @State private var expanded = false
   @State private var error: String?
 
   var body: some View {
-    if WatchedBalances.offersChoice(connection) {
+    if WatchedBalances.offersChoice(connection) && inline {
+      VStack(alignment: .leading, spacing: 6) {
+        Text(Copy.balancesShown).font(.subheadline.weight(.semibold))
+        WatchedBalanceToggles(rows: connection.allPoolRows, chosen: binding)
+        ErrorLine(message: error)
+      }
+    } else if WatchedBalances.offersChoice(connection) {
       let hidden = connection.hiddenPoolRows.count
       DisclosureGroup(isExpanded: $expanded) {
         VStack(alignment: .leading, spacing: 6) {

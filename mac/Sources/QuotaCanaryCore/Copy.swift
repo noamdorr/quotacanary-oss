@@ -631,3 +631,24 @@ public extension Copy {
   // QUO-398: staged default, pairs with "Stop monitoring…".
   static let resumeMonitoringButton = "Resume monitoring"
 }
+
+// The window inspector's labels (QUO-437), from the mockup Noam approved on
+// 2026-11-04. Inspector only: Settings and the menus keep their own wording.
+public extension Copy {
+  static let muteAlertsButton = "Mute alerts"
+  static let mutedNote = "Menu bar warnings stay on. Alerts resume sooner if risk increases."
+  static let lowBalanceWarnings = "Low-balance warnings"
+  static let warnWhenLowToggle = "Warn when balance is low"
+  static let saveWarningsButton = "Save warnings"
+  static let warningsOff = "Warnings are off for this balance."
+  static let notificationsOffNote = "macOS notifications are off. Menu bar warnings still appear."
+  static let connectionSettings = "Connection settings"
+  static func connectionSettingsShared(_ provider: String) -> String {
+    "Shared by all balances on this \(provider) connection."
+  }
+  static func balancesShownSummary(shown: Int, hidden: Int) -> String {
+    "\(shown) balance\(shown == 1 ? "" : "s") shown · \(hidden) hidden"
+  }
+  static let balancesShown = "Balances shown"
+  static let replaceKeyButton = "Replace key…"
+}
