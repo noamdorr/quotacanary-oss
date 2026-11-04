@@ -26,10 +26,21 @@
    the only non-cream surface; the bird opens a live copy of the panel. */
 .hero-desk{padding-top:20px;padding-bottom:90px}
 .desk{position:relative;min-height:min(760px,max(650px,calc(100svh - 120px)));border-radius:22px;overflow:hidden;background:#f4cf89 url("/img/mac-wallpaper.webp") center/cover;box-shadow:0 0 0 1px #00000014,0 30px 60px -36px #5a300a80}
-.desk-bar{position:relative;z-index:3;height:28px;display:flex;align-items:center;justify-content:space-between;padding:0 14px;font-size:12.5px;font-weight:500;color:#000000d9;background:#fff4d660;backdrop-filter:blur(24px) saturate(1.6);-webkit-backdrop-filter:blur(24px) saturate(1.6);box-shadow:0 .5px 0 #0000001f}
+.desk-bar{position:relative;z-index:3;height:28px;font-family:-apple-system,BlinkMacSystemFont,system-ui,"Segoe UI",sans-serif;display:flex;align-items:center;justify-content:space-between;padding:0 14px;font-size:12.5px;font-weight:500;color:#000000d9;background:#fff4d660;backdrop-filter:blur(24px) saturate(1.6);-webkit-backdrop-filter:blur(24px) saturate(1.6);box-shadow:0 .5px 0 #0000001f}
 .desk-bar-left,.desk-bar-right{display:flex;align-items:center;gap:16px}
 .desk-bar svg{width:15px;height:12px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round}
+/* QUO-428: the Apple gets eaten on hover (one bite group per frame) and drops a fake menu on click. */
+.desk-bar-left .desk-apple{display:grid;place-items:center;padding:4px 7px;margin:-4px -7px;border-radius:5px;cursor:default}
+.desk-bar-left .desk-apple.open{background:#00000026}
+.desk-bar .desk-apple svg{width:11px;height:14px;fill:#000;stroke:none}
+.desk-apple g[class^="bite-"]{display:none}
+.desk-apple svg[data-frame="1"] .bite-1,.desk-apple svg[data-frame="2"] .bite-2,.desk-apple svg[data-frame="3"] .bite-3{display:inline}
+.desk-apple-menu{position:absolute;z-index:4;left:6px;top:30px;width:250px;padding:5px;border-radius:10px;background:#fffdf5;box-shadow:0 0 0 .5px #0000002e,0 18px 40px -10px #501e0059;font-size:13.5px;font-weight:400;color:var(--ink);cursor:default}
+.desk-apple-menu:not(.open){display:none}
 .desk-bird{width:30px;height:20px;border:0;border-radius:5px;padding:0;background:transparent;display:grid;place-items:center;cursor:pointer;transition:background .15s}
+/* QUO-432: the bird is Canary Gold in the menu bar and the panel header, as the app draws it; the hairline keeps it off the sand. */
+.dp-mark{width:16px;height:15px;fill:#FFC400;stroke:#00000026;stroke-width:3;paint-order:stroke}
+.desk-bar .dp-mark{width:15px;height:14px;fill:#FFC400;stroke:#00000026;stroke-width:3}
 .desk-bird:hover{background:#0000001a}
 .desk-bird[aria-expanded="true"]{background:#00000026}
 .desk-bird:focus-visible,.dp-bell:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
@@ -38,12 +49,13 @@
 .desk-copy h1{font-size:clamp(44px,4.6vw,68px);line-height:1.02;letter-spacing:-.04em;font-weight:800;text-wrap:balance}
 .hero-support{margin-top:16px;font-size:17px;line-height:1.65;color:#1a1a1acc;font-weight:500;max-width:45ch}
 .desk-copy .download-facts,.desk-copy .download-notarized{color:#1a1a1ae6}
-/* Ink, not gold: a gold button vanishes on the sand (Noam's pick, 2026-11-02). The header and closing buttons stay gold. */
-.desk-copy .download-button.primary{background:var(--ink);border-color:var(--ink);color:var(--cream);box-shadow:0 1px 0 #ffffff2e inset,0 14px 30px -10px #3a1a0099}
-.desk-copy a.download-button.primary:hover{background:#000;border-color:#000}
-.desk-copy .download-button.primary .apple-icon{filter:invert(1)}
+/* QUO-433: one Download treatment everywhere. Gold, with an ink hairline so it holds on the hero's sand (gold on sand is about 1.1:1, the ink edge about 11.7:1). Gold over ink picked by Noam on 2026-11-04, replacing the 2026-11-02 ink hero. */
+.button.primary,.button.primary:hover,.mobile-menu a.mac-nav{border:1px solid var(--ink)}
+.mobile-menu a.mac-nav{justify-content:center;margin-bottom:6px;padding:12px 16px;border-radius:7px;background:var(--gold);font-weight:550}
+.pricing-actions .button{gap:12px}
+@media(max-width:720px){.pricing-actions .button{justify-content:center}}
 .desk-copy .handoff-button{background:#fffdf5d9;border-color:#0000002e}
-.desk-panel{position:absolute;z-index:3;right:18px;top:36px;width:390px;padding:12px 12px 8px;border-radius:14px;background:#fffdf5d9;backdrop-filter:blur(40px) saturate(1.8);-webkit-backdrop-filter:blur(40px) saturate(1.8);box-shadow:0 0 0 .5px #0000002e,0 30px 60px -12px #501e0073,0 8px 18px #501e002e;font-size:13.5px;transform-origin:88% -6px;transition:opacity .22s ease,transform .28s cubic-bezier(.2,.9,.3,1.2),visibility .22s}
+.desk-panel{position:absolute;z-index:3;right:18px;top:36px;width:390px;padding:12px 12px 8px;border-radius:14px;background:#fffdf5d9;backdrop-filter:blur(40px) saturate(1.8);-webkit-backdrop-filter:blur(40px) saturate(1.8);box-shadow:0 0 0 .5px #0000002e,0 30px 60px -12px #501e0073,0 8px 18px #501e002e;font-family:-apple-system,BlinkMacSystemFont,system-ui,"Segoe UI",sans-serif;font-size:13.5px;transform-origin:88% -6px;transition:opacity .22s ease,transform .28s cubic-bezier(.2,.9,.3,1.2),visibility .22s}
 .desk-panel:not(.open){opacity:0;transform:translateY(-8px) scale(.96);visibility:hidden}
 .dp-head{display:flex;align-items:center;justify-content:space-between;padding:2px 4px 8px}
 .dp-head strong{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600}
@@ -55,10 +67,11 @@
 .dp-badge{width:28px;font-size:11px;font-weight:600;color:#8a5a00}
 .dp-logo{width:26px;height:26px;border-radius:7px;flex:none;object-fit:cover;background:#fff}
 .dp-name{flex:1;min-width:0;line-height:1.25}
-.dp-name b{display:block;font-weight:600}
+.dp-name b{display:block;font-weight:500}
 .dp-name small{display:block;font-size:12px;color:#00000094}
-.dp-num{font:500 12.5px "JetBrains Mono",monospace;text-align:right;white-space:nowrap}
-.dp-num small{display:block;font:500 11px Inter,sans-serif;color:#00000094}
+/* QUO-432: the real panel's amount is the body face with tabular digits; a Low row tints it (StatusStyle.warningText). */
+.dp-num{font-variant-numeric:tabular-nums;text-align:right;white-space:nowrap}
+.dp-num.low{color:#7a5600}
 .dp-pill{font-size:12px;font-weight:500;padding:4px 9px;border-radius:7px;background:#00000012}
 .dp-bell{width:28px;height:24px;border:0;border-radius:7px;background:#0000000f;color:inherit;display:grid;place-items:center;cursor:pointer;transition:background .12s}
 .dp-bell:hover,.dp-bell[aria-pressed="true"]{background:#00000024}
@@ -67,6 +80,8 @@
 .dp-item{display:flex;justify-content:space-between;padding:6px;border-radius:6px;transition:background .12s}
 .dp-item:hover{background:var(--gold)}
 .dp-item kbd{font:inherit;color:#00000094}
+/* QUO-431: on short desktop viewports (1280x720) the floating panel tightens so it ends above the fold. */
+@media(min-width:981px) and (max-height:780px){.dp-row{padding-block:4px}.dp-item{padding-block:4px}.dp-sep{margin-block:3px}}
 .desk-copy>*{animation:desk-rise .7s cubic-bezier(.2,.8,.2,1) both}
 .desk-copy>:nth-child(2){animation-delay:.08s}
 .desk-copy>:nth-child(3){animation-delay:.16s}
@@ -80,13 +95,11 @@
   .desk-panel:not(.open){display:none}
   .desk-bar-left span{display:none}
 }
-/* QUO-411: under 560px the panel keeps its numbers and drops the Low badges and the healthy rows' ETA labels.
-   QUO-415: the Needs attention rows (the ones with a Low badge) keep their run-out deadline. */
+/* QUO-411: under 560px the panel keeps its numbers and drops the Low badges. */
 @media(max-width:560px){
   .desk-panel{padding:10px 6px 6px}
   .dp-row{gap:7px}
-  .dp-badge,.dp-num small{display:none}
-  .dp-badge:not(:empty)~.dp-num small{display:block}
+  .dp-badge{display:none}
   .dp-name b,.dp-name small{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .dp-pill{padding:4px 7px}
 }
@@ -103,6 +116,12 @@ a.download-button{cursor:pointer}
 .download-button .apple-icon{width:15px;height:18px}
 .download-facts{font-size:13px;color:var(--muted);line-height:1.5}
 .download-notarized{font-size:12px;color:var(--muted);line-height:1.5;margin-top:-4px}
+.download-verify{font-size:12px;color:var(--muted);line-height:1.5;margin-top:-4px;max-width:100%}
+.download-verify summary{cursor:pointer;text-underline-offset:3px}
+.download-verify p{margin:8px 0 2px}
+.download-verify code{font-family:"JetBrains Mono",ui-monospace,monospace;font-size:11.5px;color:var(--ink)}
+.download-verify .verify-block{display:block;padding:6px 8px;border-radius:6px;background:#0000000d;overflow-wrap:anywhere;user-select:all}
+.desk-copy .download-verify{color:#1a1a1ae6}
 .download-facts a,.download-notarized a{color:var(--ink);text-underline-offset:3px}
 /* QUO-416: the open mobile menu (z-index 3) must paint over the hero's menu bar (also 3, later in the page), or its Mac app item cannot be tapped. */
 .site-header{z-index:4}
@@ -136,6 +155,15 @@ a.download-button{cursor:pointer}
 .feature-shot{display:contents}
 /* QUO-405: the low-balance notification lands over the run-out card's top right, as macOS shows it. The PNG carries its own shadow and transparent margin. */
 .feature-row .feature-media img.feature-notification{left:auto;right:4px;top:4px;width:min(396px,80%);max-width:none;border-radius:0;box-shadow:none;transform:none;z-index:1}
+/* QUO-431: the wide window shot gets the full row on desktop, so its table text renders near 12px
+   (the 2x export at about 0.56x) instead of ~8px in a 600px card. Its notification sits over the
+   toolbar, top right where macOS puts one, clear of the column headers. */
+@media(min-width:721px){
+  .feature-row[data-wide]{grid-template-columns:minmax(0,1fr)}
+  .feature-row[data-wide] .feature-media{max-width:none;justify-self:stretch;aspect-ratio:16/9}
+  .feature-row[data-wide] .feature-media img{width:calc(100% - 32px)}
+  .feature-row[data-wide] .feature-media img.feature-notification{width:min(396px,40%)}
+}
 @media(max-width:720px){.feature-row .feature-media img.feature-notification{top:auto;bottom:4px;right:50%;transform:translateX(50%);width:min(396px,96%)}}
 .feature-link{margin-top:8px;font-size:13px}
 .feature-link:not(:last-child){margin-right:24px}

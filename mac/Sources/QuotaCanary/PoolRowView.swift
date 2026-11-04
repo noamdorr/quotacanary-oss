@@ -42,8 +42,9 @@ struct PoolRowView: View {
   /// it: its "Not monitored" cue already says nobody is watching. So does a
   /// fresh install's "collecting history", which at panel width would push
   /// out the pool label; the window keeps it in its own column.
-  static func etaCaption(_ row: PoolRow, eta: BurnEta?) -> String? {
-    guard row.settings.monitored, let eta, eta.short != Copy.etaCollectingShort else { return nil }
+  /// Off unless the user turned on "Show run-out times in the menu" (QUO-425).
+  static func etaCaption(_ row: PoolRow, eta: BurnEta?, enabled: Bool = true) -> String? {
+    guard enabled, row.settings.monitored, let eta, eta.short != Copy.etaCollectingShort else { return nil }
     return eta.short
   }
 

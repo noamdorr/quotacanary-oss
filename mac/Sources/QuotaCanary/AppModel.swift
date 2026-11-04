@@ -64,6 +64,14 @@ final class AppModel {
   let monitor: ConnectionMonitor
   let scheduler: PollScheduler
   let startAtLogin: StartAtLogin
+  /// Whether the menu bar panel rows show their run-out time (QUO-425).
+  private(set) var showsRunOutInPanel = false
+  func setShowsRunOutInPanel(_ on: Bool) {
+    showsRunOutInPanel = on
+    var saved = preferences.load()
+    saved.showRunOutInPanel = on
+    try? preferences.save(saved) // worst case the choice comes back off next launch
+  }
 
   private let service: MonitoringService
   private let preferences: PreferencesStore
@@ -92,6 +100,7 @@ final class AppModel {
       reachability: system.reachability
     )
     startAtLogin = StartAtLogin(service: system.loginItem, preferences: system.preferences)
+    showsRunOutInPanel = system.preferences.load().showRunOutInPanel
     notifications = NotificationSettings(center: system.notifier, preferences: system.preferences)
     updater = system.updater
     manualRefresh = .checking(scheduler: scheduler)
@@ -240,6 +249,7 @@ final class AppModel {
       try EraseLocalData(service: service, folder: eraseFolder, preferences: preferences).run(removeFolder: removeFolder) {
         updater.resetAfterErase()
         startAtLogin.resetAfterErase()
+        showsRunOutInPanel = false
         notifications.resetAfterErase()
         Task { await notifications.reload() }
       }

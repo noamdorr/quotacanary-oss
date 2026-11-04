@@ -1647,6 +1647,17 @@ values
     'api',
     5,
     true
+  ),
+  (
+    'reechee',
+    'Reechee',
+    '/logos/reechee.png',
+    'https://reechee.io',
+    'In Reechee, open Settings and create an API key (it starts with rch_live_). Copy it when it is shown: it appears once.',
+    'data',
+    'api',
+    100,
+    true
   )
 on conflict (id) do update set
   name                    = excluded.name,
@@ -2058,6 +2069,7 @@ update public.tools set description = 'One API for AI media models (Midjourney, 
 update public.tools set description = 'Text-to-speech and voice cloning API, billed from prepaid API credit.' where id = 'fishaudio';
 update public.tools set description = 'Company and technographics intelligence API, billed from credits.' where id = 'sumble';
 update public.tools set description = 'One token for thousands of SEO, enrichment, social and scraping API tools, billed from a prepaid USD balance.' where id = 'treg';
+update public.tools set description = 'Review intelligence for software sales teams, billed from credits spent on unlocks and reports.' where id = 'reechee';
 
 -- ---------------------------------------------------------------------------
 -- Tool homepages (directory "Website" button + JSON-LD url). Only seeded where
@@ -2167,6 +2179,7 @@ update public.tools set website_url = 'https://piapi.ai' where id = 'piapi';
 update public.tools set website_url = 'https://fish.audio' where id = 'fishaudio';
 update public.tools set website_url = 'https://sumble.com' where id = 'sumble';
 update public.tools set website_url = 'https://treg.to' where id = 'treg';
+update public.tools set website_url = 'https://reechee.io' where id = 'reechee';
 
 -- ---------------------------------------------------------------------------
 -- Top-up URLs for fresh installs. Migrations 034/035 backfilled these on the
@@ -2299,6 +2312,7 @@ update public.tools set topup_url = 'https://piapi.ai/pricing' where id = 'piapi
 update public.tools set topup_url = 'https://fish.audio' where id = 'fishaudio';
 update public.tools set topup_url = 'https://sumble.com/pricing' where id = 'sumble';
 update public.tools set topup_url = 'https://treg.to/app' where id = 'treg';
+update public.tools set topup_url = 'https://app.reechee.io/settings' where id = 'reechee';
 
 -- ---------------------------------------------------------------------------
 -- Pools for the multi-pool tools declared in migration 037 (same
@@ -2898,6 +2912,14 @@ update public.tools
     {"credit_type":"balance","label":"Balance","unit":"usd"}
   ]'::jsonb
   where id = 'treg';
+
+-- QUO-426: Reechee, a credit count. default_low_threshold is not seeded here
+-- (the rule in the closing block of this file applies it).
+update public.tools
+  set pools = '[
+    {"credit_type":"credits","label":"Credits","unit":"credits"}
+  ]'::jsonb
+  where id = 'reechee';
 
 -- ---------------------------------------------------------------------------
 -- Migration 009 parity (same migrations-run-before-seed problem): the three

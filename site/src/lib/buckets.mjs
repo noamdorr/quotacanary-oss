@@ -21,7 +21,7 @@ export const BUCKETS = [
       "aiark", "akta", "aviato", "blitzapi", "builtwith", "clay", "companyenrich", "crustdata",
       "datagma", "dropleads", "enrichlayer", "eodhd", "fetchin", "fiberai", "getleads", "icypeas",
       "influencersclub", "leadsforge", "mobiusengine-jobs", "moltsets", "openmart", "orthogonal",
-      "peopledatalabs", "predictleads", "sumble", "thecompaniesapi", "theirstack", "uplead",
+      "peopledatalabs", "predictleads", "reechee", "sumble", "thecompaniesapi", "theirstack", "uplead",
     ],
   },
   {

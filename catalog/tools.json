@@ -2668,6 +2668,28 @@
           "balance": "credits_remaining"
         }
       ]
+    },
+    {
+      "id": "reechee",
+      "name": "Reechee",
+      "topupUrl": "https://app.reechee.io/settings",
+      "request": {
+        "method": "GET",
+        "url": "https://app.reechee.io/api/v1/credit-balance"
+      },
+      "auth": {
+        "in": "header",
+        "name": "Authorization",
+        "format": "Bearer {key}"
+      },
+      "pools": [
+        {
+          "creditType": "credits",
+          "label": "Credits",
+          "unit": "credits",
+          "balance": "data.credits_balance"
+        }
+      ]
     }
   ]
 }

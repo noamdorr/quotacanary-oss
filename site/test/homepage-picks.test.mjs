@@ -31,7 +31,7 @@ describe("homepage picks", () => {
     assert.doesNotMatch(faq, /—/, "no em dashes in copy")
   })
 
-  it("makes Get the bird a real download and offers phones a hand-off (QUO-406)", () => {
+  it("makes the pricing Download a real download and offers phones a hand-off (QUO-406)", () => {
     const pricing = html.match(/<section class="pricing-section[\s\S]*?<\/section>/)?.[0]
     assert.ok(pricing, "no pricing section")
     assert.match(pricing, /<a class="button primary plausible-event-name=Mac\+Download\+Click" href="\/download\/mac"/)

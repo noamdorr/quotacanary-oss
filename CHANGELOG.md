@@ -9,6 +9,23 @@ migration under **Upgrade notes**. Always run the migration step after updating.
 
 ## [Unreleased]
 
+## [1.2.5] - 2026-11-04
+
+Mac app 0.1.5. The public mirror carries the exact `mac/` source the download
+was built from.
+
+### Added
+- Reechee (credit balance) joins the tool catalog on the Mac and the web.
+- Settings toggle for the panel run-out time, off by default.
+
+### Changed
+- Muted balances still tint the menu bar bird. Mute now only silences
+  notifications.
+
+### Upgrade notes
+- Self-hosters: one migration (100, adds the Reechee tool). Run the migration
+  step after updating. No new environment variables.
+
 ## [1.2.4] - 2026-11-03
 
 Mac app 0.1.4. The public mirror carries the exact `mac/` source the download

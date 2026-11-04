@@ -3,17 +3,21 @@
 // (the slot) and the bird in the menu bar opens a live HTML copy of the
 // panel. Sample data mirrors the `showcaseSite` snapshot scene;
 // the labels are the Mac app's own strings (mac/Sources/QuotaCanaryCore/Copy.swift).
-import AppleIcon from "./AppleIcon.astro"
+// QUO-432: no run-out captions (the app shows them only when asked) and the
+// bird in Canary Gold, as the panel header draws it.
+// The menu bar Apple is inlined (not AppleIcon's <img>) so QUO-428's bite masks
+// can step over it; its path is the same Font Awesome Free 6.7.2 glyph
+// (CC BY 4.0, see public/img/apple.LICENSE.txt).
 
 const rows = [
-  { name: "Apollo", pool: "AI Credits", logo: "/logos/apollo.webp", eta: "tomorrow", balance: "900 / 2,000", low: true },
-  { name: "Clay", pool: "Data credits", logo: "/logos/clay.webp", eta: "tomorrow", balance: "1,200", low: true },
-  { name: "OpenRouter", pool: "Credits", logo: "/logos/openrouter.webp", eta: "in ~5 days", balance: "$12.50", low: true },
-  { name: "Apify", pool: "Monthly Usage Left", logo: "/logos/apify.webp", eta: "in ~1 month", balance: "$38 / $49", low: false },
-  { name: "ElevenLabs", pool: "Characters", logo: "/logos/elevenlabs.webp", eta: "in ~1 month", balance: "84,000 / 100,000", low: false },
-  { name: "Instantly", pool: "Credits", logo: "/logos/instantly.webp", eta: "in ~1 month", balance: "4,200 / 5,000", low: false },
-  { name: "lemlist", pool: "Credits", logo: "/logos/lemlist.webp", eta: "in ~1 month", balance: "2,400", low: false },
-  { name: "Prospeo", pool: "Credits", logo: "/logos/prospeo.webp", eta: "in ~1 month", balance: "1,850 / 2,000", low: false },
+  { name: "Apollo", pool: "AI Credits", logo: "/logos/apollo.webp", balance: "900 / 2,000", low: true },
+  { name: "Clay", pool: "Data credits", logo: "/logos/clay.webp", balance: "1,200", low: true },
+  { name: "OpenRouter", pool: "Credits", logo: "/logos/openrouter.webp", balance: "$12.50", low: true },
+  { name: "Apify", pool: "Monthly Usage Left", logo: "/logos/apify.webp", balance: "$38 / $49", low: false },
+  { name: "DataForSEO", pool: "Account Balance", logo: "/logos/dataforseo.webp", balance: "$41.20", low: false },
+  { name: "ElevenLabs", pool: "Characters", logo: "/logos/elevenlabs.webp", balance: "84,000 / 100,000", low: false },
+  { name: "Instantly", pool: "Credits", logo: "/logos/instantly.webp", balance: "4,200 / 5,000", low: false },
+  { name: "Prospeo", pool: "Credits", logo: "/logos/prospeo.webp", balance: "1,850 / 2,000", low: false },
 ]
 const attention = rows.filter((row) => row.low)
 const healthy = rows.filter((row) => !row.low)
@@ -22,21 +26,44 @@ const healthy = rows.filter((row) => !row.low)
 <div class="desk">
   <div class="desk-bar">
     <span class="desk-bar-left" aria-hidden="true">
-      <AppleIcon width={11} height={14} /><b>Finder</b><span>File</span><span>Edit</span><span>View</span>
+      <span class="desk-apple" data-desk-apple>
+        <svg viewBox="0 0 384 512" width="11" height="14" data-frame="0">
+          <mask id="desk-apple-bites">
+            <rect width="384" height="512" fill="#fff"></rect>
+            <g class="bite-1"><circle cx="415" cy="250" r="105"></circle></g>
+            <g class="bite-2"><circle cx="430" cy="300" r="150"></circle><circle cx="-30" cy="320" r="90"></circle></g>
+            <g class="bite-3"><circle cx="446" cy="312" r="185"></circle><circle cx="-62" cy="312" r="185"></circle></g>
+          </mask>
+          <path mask="url(#desk-apple-bites)" d="M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.7-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C63.3 141.2 4 184.8 4 273.5q0 39.3 14.4 81.2c12.8 36.7 59 126.7 107.2 125.2 25.2-.6 43-17.9 75.8-17.9 31.8 0 48.3 17.9 76.4 17.9 48.6-.7 90.4-82.5 102.6-119.3-65.2-30.7-61.7-90-61.7-91.9zm-56.6-164.2c27.3-32.4 24.8-61.9 24-72.5-24.1 1.4-52 16.4-67.9 34.9-17.5 19.8-27.8 44.3-25.6 71.9 26.1 2 49.9-11.4 69.5-34.3z"></path>
+        </svg>
+      </span><b>Finder</b><span>File</span><span>Edit</span><span>View</span>
     </span>
     <span class="desk-bar-right">
       <button class="desk-bird" type="button" aria-expanded="true" aria-controls="desk-panel" aria-label="QuotaCanary menu (sample)" data-desk-bird>
-        <img src="/mark.svg" alt="" width="15" height="14" />
+        <svg class="dp-mark" viewBox="0 0 100 96" width="15" height="14" fill="#FFC400" aria-hidden="true"><path fill-rule="evenodd" d="M83.087 62.984 94 73 74.284 76.284A40 40 0 1 1 83.087 62.984ZM66.4 48a20.4 20.4 0 1 0-40.8 0 20.4 20.4 0 1 0 40.8 0Z"></path></svg>
       </button>
       <svg aria-hidden="true" viewBox="0 0 17 13"><path d="M1.5 4.5a10 10 0 0 1 14 0M4 7.3a6.4 6.4 0 0 1 9 0M6.6 10a2.7 2.7 0 0 1 3.8 0"></path></svg>
       <span aria-hidden="true" data-menu-bar-clock>Mon 9:41 AM</span>
     </span>
+    <div class="desk-apple-menu" aria-hidden="true" data-desk-apple-menu>
+      <div class="dp-item"><span>About This Mac (3 credits left)</span></div>
+      <div class="dp-item"><span>System Settings...</span></div>
+      <div class="dp-sep"></div>
+      <div class="dp-item"><span>Top Up Everything...</span></div>
+      <div class="dp-item"><span>Recent Burns</span></div>
+      <div class="dp-sep"></div>
+      <div class="dp-item"><span>Force Quit Apollo</span></div>
+      <div class="dp-sep"></div>
+      <div class="dp-item"><span>Sleep (QuotaCanary won't)</span></div>
+      <div class="dp-item"><span>Restart Free Trial</span></div>
+      <div class="dp-item"><span>Shut Down Before Renewal...</span></div>
+    </div>
   </div>
 
   <div class="desk-copy"><slot /></div>
 
   <div class="desk-panel open" id="desk-panel" role="group" aria-label="Sample QuotaCanary menu with demo balances" data-desk-panel>
-    <div class="dp-head"><strong><img src="/mark.svg" alt="" width="16" height="15" />QuotaCanary</strong><span>Checked just now</span></div>
+    <div class="dp-head"><strong><svg class="dp-mark" viewBox="0 0 100 96" width="16" height="15" fill="#FFC400" aria-hidden="true"><path fill-rule="evenodd" d="M83.087 62.984 94 73 74.284 76.284A40 40 0 1 1 83.087 62.984ZM66.4 48a20.4 20.4 0 1 0-40.8 0 20.4 20.4 0 1 0 40.8 0Z"></path></svg>QuotaCanary</strong><span>Checked just now</span></div>
     <p class="dp-sec">Needs attention</p>
     {
       attention.map((row) => (
@@ -44,7 +71,7 @@ const healthy = rows.filter((row) => !row.low)
           <span class="dp-badge">Low</span>
           <img class="dp-logo" src={row.logo} alt="" width="26" height="26" />
           <span class="dp-name"><b>{row.name}</b><small>{row.pool}</small></span>
-          <span class="dp-num"><small>{row.eta}</small>{row.balance}</span>
+          <span class="dp-num low">{row.balance}</span>
           <span class="dp-pill">Top up</span>
           <button class="dp-bell" type="button" aria-pressed="false" aria-label={`Mute ${row.name}`}>
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.9 1.9 0 0 0 3.4 0M3 3l18 18"></path></svg>
@@ -59,7 +86,7 @@ const healthy = rows.filter((row) => !row.low)
           <span class="dp-badge"></span>
           <img class="dp-logo" src={row.logo} alt="" width="26" height="26" />
           <span class="dp-name"><b>{row.name}</b><small>{row.pool}</small></span>
-          <span class="dp-num"><small>{row.eta}</small>{row.balance}</span>
+          <span class="dp-num">{row.balance}</span>
         </div>
       ))
     }
@@ -118,6 +145,54 @@ const healthy = rows.filter((row) => !row.low)
       setOpen(false)
       drop = setTimeout(() => setOpen(true), 900)
     }
+  }
+
+  // QUO-428: hovering the Apple eats it down to the core, a frame at a time,
+  // and leaving plays it back. A tap (no hover there) plays it once. Clicking
+  // drops a fake Apple menu whose items do nothing; any click or Escape closes it.
+  const apple = document.querySelector<HTMLElement>("[data-desk-apple]")
+  const appleArt = apple?.querySelector("svg")
+  const appleMenu = document.querySelector<HTMLElement>("[data-desk-apple-menu]")
+  if (apple && appleArt && appleMenu) {
+    const still = matchMedia("(prefers-reduced-motion: reduce)").matches
+    let frame = 0
+    let target = 0
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const step = () => {
+      frame = still ? target : frame + Math.sign(target - frame)
+      appleArt.dataset.frame = String(frame)
+      if (frame !== target) timer = setTimeout(step, 170)
+    }
+    const eat = (to: number) => {
+      target = to
+      clearTimeout(timer)
+      step()
+    }
+    let touch = false
+    apple.addEventListener("pointerdown", (event) => {
+      touch = event.pointerType !== "mouse"
+    })
+    apple.addEventListener("pointerenter", (event) => {
+      if (event.pointerType === "mouse") eat(3)
+    })
+    apple.addEventListener("pointerleave", (event) => {
+      if (event.pointerType === "mouse") eat(0)
+    })
+    const setMenu = (open: boolean) => {
+      appleMenu.classList.toggle("open", open)
+      apple.classList.toggle("open", open)
+    }
+    document.addEventListener("click", (event) => {
+      const onApple = apple.contains(event.target as Node)
+      setMenu(onApple && !appleMenu.classList.contains("open"))
+      if (onApple && touch) {
+        eat(3)
+        setTimeout(() => eat(0), still ? 1000 : 1510)
+      }
+    })
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") setMenu(false)
+    })
   }
 
   // Each bell mutes its sample row, the way the real one silences a balance.

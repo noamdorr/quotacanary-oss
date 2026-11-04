@@ -1,5 +1,5 @@
 ---
-import { GITHUB_URL, HOME, MAC_DOWNLOAD_URL, MAC_RELEASE_URL, MAC_VERSION, SITE_URL } from "../lib/copy"
+import { GITHUB_URL, HOME, MAC_DMG_FILE, MAC_DMG_SHA256, MAC_DOWNLOAD_URL, MAC_RELEASE_URL, MAC_TAG, MAC_VERSION, SITE_URL } from "../lib/copy"
 import AppleIcon from "./AppleIcon.astro"
 
 // The Mac download call to action, shared by the hero and the closing
@@ -14,6 +14,9 @@ import AppleIcon from "./AppleIcon.astro"
 //
 // QUO-402: the notarized line names the version the button serves and links
 // to its release on the public mirror.
+//
+// QUO-429: under the notarized line, a closed <details> with the DMG's SHA-256
+// and the release tag; opened, the full hash and a shasum line to paste.
 //
 // QUO-406: below 720px a hand-off button sits beside the DMG, which a phone
 // cannot open. It shares the page link (navigator.share) or copies it, so the
@@ -48,6 +51,20 @@ import AppleIcon from "./AppleIcon.astro"
         {HOME.notarized} v{MAC_VERSION}, {HOME.maturity}{" "}
         <a href={MAC_RELEASE_URL} target="_blank" rel="noopener">{HOME.releaseNotes}</a>
       </p>
+    )
+  }
+  {
+    MAC_DOWNLOAD_URL && (
+      <details class="download-verify">
+        <summary>
+          {HOME.verifySummary} <code>{MAC_DMG_SHA256.slice(0, 8)}…{MAC_DMG_SHA256.slice(-6)}</code>, {HOME.verifyTag}{" "}
+          <code>{MAC_TAG}</code>
+        </summary>
+        <p>{HOME.verifyHash}</p>
+        <code class="verify-block">{MAC_DMG_SHA256}</code>
+        <p>{HOME.verifyCheck}</p>
+        <code class="verify-block">shasum -a 256 ~/Downloads/{MAC_DMG_FILE}</code>
+      </details>
     )
   }
   <p class="download-facts">

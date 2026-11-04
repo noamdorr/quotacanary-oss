@@ -106,6 +106,8 @@ struct SettingsView: View {
             Hint(text: Copy.settingsGeneralNote)
             StartAtLoginSection(login: model.startAtLogin)
             Divider()
+            PanelSettingsSection(model: model)
+            Divider()
             AlertsSettingsSection(model: model, notifications: model.notifications)
             Divider()
             UpdatesSettingsSection(updater: model.updater)
@@ -438,6 +440,23 @@ struct StartAtLoginSection: View {
       Hint(text: Copy.monitoringLimits)
     }
     .onAppear { login.reload() }
+  }
+}
+
+// MARK: - Panel (QUO-425)
+
+/// Applies immediately: a display preference, not a draft.
+struct PanelSettingsSection: View {
+  var model: AppModel
+
+  var body: some View {
+    VStack(alignment: .leading, spacing: 8) {
+      Toggle(Copy.showRunOutToggle, isOn: Binding(
+        get: { model.showsRunOutInPanel },
+        set: { model.setShowsRunOutInPanel($0) }
+      ))
+      Hint(text: Copy.showRunOutHint)
+    }
   }
 }
 

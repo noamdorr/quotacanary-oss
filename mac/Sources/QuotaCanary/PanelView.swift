@@ -169,7 +169,7 @@ struct PanelView: View {
         NotMonitoredCue(row: row, compact: true)
         if row.muted { MutedCue(row: row) }
         // The short run-out time beside the amount (QUO-401); a muted row dims it with the rest.
-        if withCaption, let caption = PoolRowView.etaCaption(row, eta: eta) {
+        if withCaption, let caption = PoolRowView.etaCaption(row, eta: eta, enabled: model.showsRunOutInPanel) {
           Text(caption).font(.caption).monospacedDigit().foregroundStyle(.secondary).lineLimit(1).fixedSize()
         }
         Text(Self.compactAmount(row)).monospacedDigit().fixedSize().foregroundStyle(PoolRowView.amountColor(row))

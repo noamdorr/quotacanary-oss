@@ -644,5 +644,11 @@
     "url": "https://api.sumble.com/v9/technologies/find",
     "in": "header",
     "name": "Authorization"
+  },
+  "reechee": {
+    "method": "GET",
+    "url": "https://app.reechee.io/api/v1/credit-balance",
+    "in": "header",
+    "name": "Authorization"
   }
 }

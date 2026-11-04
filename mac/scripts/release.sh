@@ -75,6 +75,9 @@ SHA="$(shasum -a 256 "$ZIP" | awk '{print $1}')"
 echo "Feed:    site/public/mac/updates.json ($VERSION, sha256 $SHA)"
 
 DMG_SHA="$(shasum -a 256 "$DMG" | awk '{print $1}')"
+# QUO-429: the site prints this digest beside Download; ship it with the feed.
+printf '{\n  "version": "%s",\n  "sha256": "%s"\n}\n' "$VERSION" "$DMG_SHA" > ../site/src/data/mac-dmg.json
+echo "Digest:  site/src/data/mac-dmg.json ($VERSION, dmg sha256 $DMG_SHA)"
 NOTES="dist/release-notes-$VERSION.md"
 cat > "$NOTES" <<NOTES_EOF
 Signed, notarized build. Download: https://quotacanary.com/download/mac
@@ -112,4 +115,4 @@ else
     || fail "GitHub's digest for the disk image is not $DMG_SHA"
   echo "Published $TAG on $REPO; the served zip matches the feed and the served dmg matches dist/."
 fi
-echo "Next: ship site/public/mac/updates.json through a PR to master (Railway deploys the site)."
+echo "Next: ship site/public/mac/updates.json and site/src/data/mac-dmg.json through a PR to master (Railway deploys the site)."

@@ -3,6 +3,7 @@
 // approved; Privacy and Terms approved on 2026-10-24. Public-document review,
 // publication and merge remain pending.
 import macFeed from "../../public/mac/updates.json"
+import macDmg from "../data/mac-dmg.json"
 
 export const SITE_URL = "https://quotacanary.com"
 export const GITHUB_URL = "https://github.com/noamdorr/quotacanary-oss"
@@ -21,10 +22,21 @@ export const MAC_DOWNLOAD_URL: string | null = "/download/mac"
 // test/mac-version.test.mjs checks the built page against it.
 export const MAC_VERSION: string = macFeed.version
 export const MAC_RELEASE_URL = `${GITHUB_URL}/releases/tag/mac-v${MAC_VERSION}`
+// QUO-429: the SHA-256 of the DMG /download/mac serves, committed beside the
+// version and written by mac/scripts/release.sh. Never computed at build time
+// (Railway builds site/ alone); test/mac-checksum.test.mjs pins it to the feed
+// version and, on request, to GitHub's digest for the release asset.
+export const MAC_DMG_SHA256: string = macDmg.sha256
+export const MAC_TAG = `mac-v${MAC_VERSION}`
+export const MAC_DMG_FILE = `QuotaCanary-${MAC_VERSION}.dmg`
 // QUO-380: the Keychain store behind "Local, always." on the public mirror.
 export const KEYCHAIN_CODE_URL = `${GITHUB_URL}/blob/main/mac/Sources/QuotaCanaryCore/CredentialStore.swift`
 // QUO-417: the vendor transport and its redirect policy, proof that a key only goes to its own vendor.
 export const TRANSPORT_CODE_URL = `${GITHUB_URL}/blob/main/mac/Sources/QuotaCanaryCore/Transport.swift`
+// QUO-435: the same two files pinned to the shipped release tag, so a link on
+// /security cannot drift from the build a visitor downloaded.
+export const KEYCHAIN_CODE_URL_AT_TAG = `${GITHUB_URL}/blob/${MAC_TAG}/mac/Sources/QuotaCanaryCore/CredentialStore.swift`
+export const TRANSPORT_CODE_URL_AT_TAG = `${GITHUB_URL}/blob/${MAC_TAG}/mac/Sources/QuotaCanaryCore/Transport.swift`
 // PollScheduler.nominalInterval in the Mac app, in minutes; test/poll-interval.test.mjs
 // fails when they drift apart.
 export const MAC_POLL_MINUTES = 15
@@ -55,6 +67,12 @@ export const HOME = {
   // the GitHub release. Picked by Noam on 2026-11-02 (option A).
   maturity: "early release.",
   releaseNotes: "Release notes",
+  // QUO-429: variant B, picked by Noam on 2026-11-04 (hash and tag in the closed
+  // summary, full hash and the shasum line when opened).
+  verifySummary: "SHA-256",
+  verifyTag: "tag",
+  verifyHash: "Disk image SHA-256:",
+  verifyCheck: "Check yours:",
   // QUO-406: phones only, beside the DMG button. Picked by Noam on 2026-11-02
   // (option A). The page link is shared or copied, never the DMG.
   handoff: "Send it to your Mac",
@@ -112,7 +130,6 @@ export const HOME = {
   videoCta: "See how it works (26s)",
   // Noam's 2026-10-23 pick: free and open source permanently, no feature list.
   pricingHeadline: "Free. Open source. Staying that way.",
-  pricingCta: "Get the bird",
   pricingFootnote: "No credit card. No “talk to sales.” There is no sales.",
   closingHeading: "The bird that sings before the credits die.",
 } as const

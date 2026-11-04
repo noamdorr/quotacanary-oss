@@ -1,5 +1,6 @@
 ---
 import Layout from "../layouts/Layout.astro"
+import AppleIcon from "../components/AppleIcon.astro"
 import Arrow from "../components/Arrow.astro"
 import DownloadBlock from "../components/DownloadBlock.astro"
 import MacDesktop from "../components/MacDesktop.astro"
@@ -149,14 +150,17 @@ const jsonLd = JSON.stringify({
     <div class="pricing-actions">
       <p>{HOME.pricingFootnote}</p>
       {/* QUO-406: a real download, tagged like DownloadBlock, not a scroll to the hero. */}
+      {/* QUO-433: "Download", like every other download control, picked by Noam on 2026-11-04. */}
       {
         MAC_DOWNLOAD_URL ? (
           <a class="button primary plausible-event-name=Mac+Download+Click" href={MAC_DOWNLOAD_URL}>
-            {HOME.pricingCta} <Arrow />
+            <AppleIcon width={15} height={18} />
+            {HOME.navCta}
           </a>
         ) : (
           <a class="button primary" href="/#download">
-            {HOME.pricingCta} <Arrow />
+            <AppleIcon width={15} height={18} />
+            {HOME.navCta}
           </a>
         )
       }

@@ -59,16 +59,20 @@ public struct Preferences: Codable, Equatable, Sendable {
   public var updatePromptAnswered: Bool
   /// Last update check that got a verified answer from the feed.
   public var lastUpdateCheckAt: Date?
+  /// Show each balance's run-out time in the menu bar panel (QUO-425). Off by default to keep the panel clean.
+  public var showRunOutInPanel: Bool
 
   public init(
     loginPromptAnswered: Bool = false, alertsPromptAnswered: Bool = false, automaticUpdateChecks: Bool = false,
-    updatePromptAnswered: Bool = false, lastUpdateCheckAt: Date? = nil
+    updatePromptAnswered: Bool = false, lastUpdateCheckAt: Date? = nil,
+    showRunOutInPanel: Bool = false
   ) {
     self.loginPromptAnswered = loginPromptAnswered
     self.alertsPromptAnswered = alertsPromptAnswered
     self.automaticUpdateChecks = automaticUpdateChecks
     self.updatePromptAnswered = updatePromptAnswered
     self.lastUpdateCheckAt = lastUpdateCheckAt
+    self.showRunOutInPanel = showRunOutInPanel
   }
 
   public init(from decoder: Decoder) throws {
@@ -78,6 +82,7 @@ public struct Preferences: Codable, Equatable, Sendable {
     automaticUpdateChecks = try c.decodeIfPresent(Bool.self, forKey: .automaticUpdateChecks) ?? false
     updatePromptAnswered = try c.decodeIfPresent(Bool.self, forKey: .updatePromptAnswered) ?? false
     lastUpdateCheckAt = try c.decodeIfPresent(Date.self, forKey: .lastUpdateCheckAt)
+    showRunOutInPanel = try c.decodeIfPresent(Bool.self, forKey: .showRunOutInPanel) ?? false
   }
 }
 

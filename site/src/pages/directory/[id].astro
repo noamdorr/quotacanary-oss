@@ -1,6 +1,8 @@
 ---
 import Layout from "../../layouts/Layout.astro"
+import AppleIcon from "../../components/AppleIcon.astro"
 import Arrow from "../../components/Arrow.astro"
+import { HOME } from "../../lib/copy"
 import { TOOLS, bucketLabel, bucketOf, keyInUrl, toolSubheading, toolWebsiteUrl, withUtm } from "../../lib/tools"
 import type { Tool } from "../../lib/tools"
 import { requestsFor } from "../../lib/requests.mjs"
@@ -97,7 +99,7 @@ const jsonLd = JSON.stringify({
     }
 
     <div class="tool-actions">
-      <a class="button primary" href="/#download">Get the bird</a>
+      <a class="button primary" href="/#download"><AppleIcon width={15} height={18} />{HOME.navCta}</a>
       {
         websiteUrl && (
           <a class="button" href={websiteLink} target="_blank" rel="noopener noreferrer">

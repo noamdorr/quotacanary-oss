@@ -24,6 +24,17 @@ import Testing
     #expect(PoolRowView.etaCaption(row, eta: eta) == nil)
   }
 
+  @Test func captionIsOffByDefaultAndFollowsTheSetting() async throws {
+    let model = await SnapshotStacks.model(.hunter, system: .preview())
+    let row = try row(model)
+    #expect(model.showsRunOutInPanel == false)
+    #expect(PoolRowView.etaCaption(row, eta: eta, enabled: model.showsRunOutInPanel) == nil)
+    model.setShowsRunOutInPanel(true)
+    #expect(PoolRowView.etaCaption(row, eta: eta, enabled: model.showsRunOutInPanel) == "in ~2 days")
+    model.setShowsRunOutInPanel(false)
+    #expect(PoolRowView.etaCaption(row, eta: eta, enabled: model.showsRunOutInPanel) == nil)
+  }
+
   @Test func voiceOverReadsTheLongEstimate() async throws {
     let model = await SnapshotStacks.model(.hunter, system: .preview())
     var row = try row(model)

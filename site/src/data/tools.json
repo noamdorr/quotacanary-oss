@@ -1693,6 +1693,24 @@
     ]
   },
   {
+    "id": "reechee",
+    "name": "Reechee",
+    "logo_url": "/logos/reechee.webp",
+    "category": "data",
+    "description": "Review intelligence for software sales teams, billed from credits spent on unlocks and reports.",
+    "website_url": "https://reechee.io",
+    "api_docs_url": "https://reechee.io",
+    "key_instructions": "",
+    "topup_url": "https://app.reechee.io/settings",
+    "pools": [
+      {
+        "unit": "credits",
+        "label": "Credits",
+        "credit_type": "credits"
+      }
+    ]
+  },
+  {
     "id": "reoon",
     "name": "Reoon",
     "logo_url": "/logos/reoon.webp",

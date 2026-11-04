@@ -64,8 +64,8 @@ public struct BalancesAsShown: Sendable {
     local.worstAlert
   }
 
-  /// Monitored low, critical or empty balances.
-  public var poolsAtRisk: Int { local.flatMap(\.poolRows).filter(\.alerts).count }
+  /// Monitored low, critical or empty balances on the bird, muted ones too (QUO-419).
+  public var poolsAtRisk: Int { local.flatMap(\.poolRows).filter(\.warns).count }
 
   /// Every balance a notification can open.
   public var notificationTargets: [PoolKey] {

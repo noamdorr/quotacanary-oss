@@ -420,6 +420,10 @@ public enum Copy {
   public static func reasonProviderError(_ provider: String) -> String { "\(provider) returned an error" }
   public static func reasonUnexpected(_ provider: String) -> String { "\(provider) sent something that isn't a balance" }
 
+  // Panel run-out time toggle (QUO-425). Wording is staged in the PR, not final.
+  public static let showRunOutToggle = "Show run-out times in the menu"
+  public static let showRunOutHint = "Each balance in the menu shows when it should run out. Off keeps the menu clean. Hovering a balance still tells you."
+
   // Updates (QUO-139)
   public static let updatesSection = "Updates"
   public static let updatesAutomaticToggle = "Check for updates automatically"
