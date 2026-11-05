@@ -478,10 +478,6 @@ public extension Copy {
   static let attentionSection = "Needs attention"
   static let connectionsSection = "Connections"
   static let openWindowButton = "Open window"
-  static func moreConnections(_ count: Int) -> String { "\(count) more in your stack" }
-  static func moreConnectionsAccessibility(_ count: Int) -> String {
-    "Open the full window: \(count) more \(count == 1 ? "connection" : "connections") in your stack"
-  }
   static func menuBarCountAccessibility(_ count: Int, severity: AlertSeverity) -> String {
     let worst: String
     switch severity {

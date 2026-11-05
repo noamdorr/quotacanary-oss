@@ -9,6 +9,17 @@ migration under **Upgrade notes**. Always run the migration step after updating.
 
 ## [Unreleased]
 
+## [1.2.7] - 2026-11-05
+
+Mac app 0.1.7. The public mirror carries the exact `mac/` source the download
+was built from.
+
+### Changed
+- The menu bar panel lists every healthy tool by name and scrolls when the list is long, instead of folding them into one link past six.
+
+### Upgrade notes
+- Self-hosters: no migration and no new environment variables.
+
 ## [1.2.6] - 2026-11-04
 
 Mac app 0.1.6. The public mirror carries the exact `mac/` source the download

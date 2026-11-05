@@ -107,6 +107,20 @@ private func launched(_ stack: StackScenario) async throws -> (MonitoringService
       == ["burning", "flat", "collecting"])
   }
 
+  /// QUO-440: the panel lists every healthy tool by name, however many there are.
+  @Test(arguments: [7, 12, 30])
+  func panelListsEveryHealthyTool(count: Int) async throws {
+    let (service, shown) = try await launched(.stack(count: count))
+    let panel = shown.panel
+    #expect(panel.attention.isEmpty)
+    #expect(panel.quietCount == count)
+    let names = panel.quiet.compactMap { line -> String? in
+      if case let .local(connection, _, _) = line { connection.name } else { nil }
+    }
+    #expect(Set(names) == Set(service.connections.map(\.name)))
+    #expect(names.count == count)
+  }
+
   /// What the manage window's controls call (QUO-129), on the two-Hunter scenario.
   @Test func twoHunterRenamesReplacesTheKeyAndRemoves() async throws {
     let service = try await ScriptedScenario.twoHunter.connected()

@@ -62,6 +62,19 @@ enum MenuBarPanel {
 }
 
 struct PanelView: View {
+  /// A list longer than this scrolls inside `scrollHeight`.
+  static let scrollAfterRows = 10
+  static let scrollHeight: CGFloat = 280
+
+  /// The height the quiet list scrolls in, or nil when it shows in full. It
+  /// takes half the rows under a Needs attention list, so both long lists
+  /// still leave Quit on a small screen, and it cuts through a 28-point row
+  /// because a clean cut reads as the end of the list (QUO-440).
+  static func quietScrollHeight(quiet: Int, attention: Int) -> CGFloat? {
+    let rows = attention == 0 ? scrollAfterRows : scrollAfterRows / 2
+    return quiet > rows ? (CGFloat(rows) + 0.5) * 28 : nil
+  }
+
   var model: AppModel
   @Environment(\.referenceDate) private var referenceDate
 
@@ -94,19 +107,16 @@ struct PanelView: View {
       .padding(.horizontal, 8).padding(.vertical, 6)
       if !panel.attention.isEmpty {
         section(Copy.attentionSection)
-        if panel.attention.count > 10 {
-          ScrollView { attentionRows(panel.attention) }.frame(height: 280)
-        } else { attentionRows(panel.attention) }
+        if panel.attention.count > Self.scrollAfterRows {
+          ScrollView { rows(panel.attention, topUp: true) }.frame(height: Self.scrollHeight)
+        } else { rows(panel.attention, topUp: true) }
       }
       if panel.quietCount > 0 {
         if !panel.attention.isEmpty { Divider().padding(.horizontal, 8) }
         section(panel.quietHeading)
-        if panel.quietCount > 6 {
-          menuAction(Copy.moreConnections(panel.quietCount)) { StackWindow.show(model: model) }
-            .accessibilityLabel(Copy.moreConnectionsAccessibility(panel.quietCount))
-        } else {
-          ForEach(panel.quiet) { line($0, topUp: false) }
-        }
+        if let height = Self.quietScrollHeight(quiet: panel.quiet.count, attention: panel.attention.count) {
+          ScrollView { rows(panel.quiet, topUp: false) }.frame(height: height)
+        } else { rows(panel.quiet, topUp: false) }
       }
       AlertProblemLine(model: model, alerts: model.alerts, notifications: model.notifications)
       FirstRunPrompts(model: model, notifications: model.notifications, login: model.startAtLogin, updater: model.updater)
@@ -126,9 +136,9 @@ struct PanelView: View {
       .padding(.horizontal, 8).padding(.top, 4)
   }
 
-  private func attentionRows(_ lines: [BalancesAsShown.PanelLine]) -> some View {
+  private func rows(_ lines: [BalancesAsShown.PanelLine], topUp: Bool) -> some View {
     VStack(spacing: 0) {
-      ForEach(lines) { line($0, topUp: true) }
+      ForEach(lines) { line($0, topUp: topUp) }
     }
   }
 

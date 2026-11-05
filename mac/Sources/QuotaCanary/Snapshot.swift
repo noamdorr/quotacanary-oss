@@ -110,6 +110,10 @@ enum Snapshot {
         stackStates += [("stack-50-window-hunter", window(model, search)), ("stack-50-window-at-risk", window(model, risk))]
       }
     }
+    // QUO-440: every healthy tool listed; 12 and 30 scroll.
+    for count in [7, 12, 30] {
+      stackStates.append(("stack-\(count)-healthy", panel(await SnapshotStacks.model(.stack(count: count)), reference: reference)))
+    }
     // QUO-269: long names (up to the 40-character limit) at the panel's 380 points and the window's 760.
     let longNames = await SnapshotStacks.model(.stack(count: 8))
     for (index, connection) in ConnectionPresentation.ranked(longNames.connections, failingIDs: longNames.shown.failingIDs).enumerated() {
