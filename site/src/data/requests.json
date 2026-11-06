@@ -609,12 +609,6 @@
     "in": "query",
     "name": "api_token"
   },
-  "x": {
-    "method": "GET",
-    "url": "https://api.x.com/2/usage/tweets?usage.fields=project_cap,project_usage,cap_reset_day",
-    "in": "header",
-    "name": "Authorization"
-  },
   "datagma": {
     "method": "GET",
     "url": "https://gateway.datagma.net/api/ingress/v1/mine",

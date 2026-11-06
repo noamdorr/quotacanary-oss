@@ -5,6 +5,7 @@ import SwiftUI
 
 @MainActor
 struct QuotaCanaryApp: App {
+  @NSApplicationDelegateAdaptor(AppEntranceDelegate.self) private var entrance
   @State private var model: AppModel
 
   init() {
@@ -13,8 +14,12 @@ struct QuotaCanaryApp: App {
     // QUO-51: the recordable demo over in-memory fixtures, never personal stores.
     let demo = CommandLine.arguments.contains("--demo")
     let count = CommandLine.arguments.compactMap(Int.init).first ?? 50
-    let model = demo ? SnapshotStacks.demoModel() : preview ? SnapshotStacks.model(count: count) : AppModel.fromEnvironment()
+    // QUO-443: the real launch and reopen over in-memory fixtures, then exits.
+    let launchCheck = CommandLine.arguments.contains("--check-launch")
+    let model = demo ? SnapshotStacks.demoModel() : preview || launchCheck ? SnapshotStacks.model(count: count) : AppModel.fromEnvironment()
     _model = State(initialValue: model)
+    AppEntranceDelegate.model = model
+    if launchCheck { InteractionSmoke.launch(model: model) }
     if demo {
       NSApplication.shared.setActivationPolicy(.accessory)
       Task { @MainActor in
@@ -38,9 +43,13 @@ struct QuotaCanaryApp: App {
   var body: some Scene {
     MenuBarExtra {
       // Only the live panel registers its window; snapshots render PanelView offscreen.
-      PanelView(model: model).background(MenuBarPanel.Reader())
+      PanelView(model: model).background(MenuBarPanel.Reader { model.panelClosed() })
     } label: {
-      BirdLabel(active: model.hasAnyConnection, severity: model.shown.severity, poolsAtRisk: model.shown.poolsAtRisk)
+      let shown = model.shown
+      BirdLabel(
+        active: model.hasAnyConnection, severity: shown.severity, poolsAtRisk: shown.poolsAtRisk,
+        muted: shown.mutedAtRisk, stopped: shown.stoppedIDs.count
+      )
     }
     .menuBarExtraStyle(.window)
     .commands {

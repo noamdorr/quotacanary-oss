@@ -9,6 +9,33 @@ migration under **Upgrade notes**. Always run the migration step after updating.
 
 ## [Unreleased]
 
+## [1.2.8] - 2026-11-06
+
+Mac app 0.1.8. The public mirror carries the exact `mac/` source the download
+was built from.
+
+### Changed
+- A new connection with its full allowance left reads healthy: the default Warn below is 20% of the plan's cap when the plan is small. A Warn below you saved is never changed.
+- The first launch opens the menu bar panel on the connect form, and opening the app again while it runs shows the window.
+- The run-out time appears only after 4 readings over 6 hours, ignores a single odd reading, and is dropped when its reading is more than 2 hours old.
+- The menu bar bird turns gold when checks have stopped (a rejected key, or three failed checks in a row). A failing connection keeps its failure line and lists its at-risk balances under it, marked "Old reading". Muted balances are counted and labelled.
+- A long list in the menu bar panel shows a cut row and its count, and the panel fits a 13-inch display.
+
+### Fixed
+- A key typed after searching the tool list can no longer be sent to a tool the list does not show.
+- A connections file the app cannot read is kept under a dated name instead of being overwritten by the next Connect. One unreadable entry no longer hides the others.
+- "Offline" clears as soon as the network is back, a rejected key no longer reads healthy after a network blip, and the panel header names the last good check when every connection is failing.
+- The diagnostics export no longer carries the treg organization id.
+
+### Removed
+- X is removed from the tool catalog until its usage read is confirmed free. An existing X connection stays listed and stops checking.
+
+### Docs
+- `mac/README.md` describes what the diagnostics export contains, including a failed check's vendor response.
+
+### Upgrade notes
+- Self-hosters: run migration `101_retire_x.sql`. It removes the X tool row, or sets it inactive when a connection uses it. No new environment variables.
+
 ## [1.2.7] - 2026-11-05
 
 Mac app 0.1.7. The public mirror carries the exact `mac/` source the download

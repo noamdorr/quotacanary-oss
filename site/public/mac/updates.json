@@ -1,8 +1,8 @@
 {
-  "feedSignature" : "XWUbOlOMfYHCT2CrvtbRMm9PvtC7HBSv5UHdmjX/VerUvKsJFYtHSpf+nHaCLE2HktiGj4gM8IzP63cQjXrJAg==",
+  "feedSignature" : "3t6/Iztx1EaVLMzGpmeSSEbb9iibErnlKvgqHuna7Ema9thItnowiPmoJtaiL1FtLVaYfNLyEwpengRF0z/wBg==",
   "minimumSystemVersion" : "26.0",
-  "sha256" : "dd7509ce8afc2db1b5b6af5b3cca367fba8fc00cbcf7f896d05a9fc077a5446c",
-  "signature" : "NKsgjrdzOX6u/bkKRFDk05HjlNP8fE9DaCpmgdO0XaxcHMYGAUSSw4hHiY9NGCNe9DyMJymAhTJ4gJWSBretBw==",
-  "url" : "https://quotacanary.com/mac/QuotaCanary-0.1.6.zip",
-  "version" : "0.1.6"
+  "sha256" : "a098b3ec07f52a8fd5f34862f1075508b4c2a57dfea9e60dbbb1de2d70c1d583",
+  "signature" : "NIKRZRAURyvV8HFGnNzjEl1eWN9/xARX0aaRElnTxtxhH+7nTJe+HE3ty4LLv8z4OIf0hwjJ1ZD4QnUclCKJAw==",
+  "url" : "https://quotacanary.com/mac/QuotaCanary-0.1.7.zip",
+  "version" : "0.1.7"
 }

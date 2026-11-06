@@ -50,7 +50,7 @@ private func key(_ id: String, _ creditType: String) -> PoolKey { PoolKey(connec
     #expect(rows.map(\.pool.creditType) == ["plan", "paygo", "key"])
     #expect(rows.map(\.pool.label) == ["Plan Credits", "Pay-as-you-go Credits", "API Key Credits"])
     #expect(rows.map(\.balance) == [13800, 80, 410])
-    #expect(rows.map(\.status) == [.healthy, .critical, .healthy]) // defaults low 300 / critical 100
+    #expect(rows.map(\.status) == [.healthy, .healthy, .healthy]) // paygo 80 of 100: default low is 20% of its cap (QUO-441)
     #expect(!h.persisted.contains("tvly-SYNTHETIC-MARKER"))
   }
 
@@ -88,7 +88,7 @@ private func key(_ id: String, _ creditType: String) -> PoolKey { PoolKey(connec
     let rows = try h.service.updateWatched(id: connection.id, creditTypes: connection.allPoolRows.map(\.key.creditType)).poolRows
     // Catalog pools in order (export and direct dial unreported: unknown), then the extra dialer.
     #expect(rows.map(\.pool.creditType) == ["lead_credit", "export_credit", "direct_dial_credit", "ai_credit", "dialer"])
-    #expect(rows.map(\.status) == [.healthy, .unknown, .unknown, .unavailable, .critical])
+    #expect(rows.map(\.status) == [.healthy, .unknown, .unknown, .unavailable, .healthy]) // dialer 488 of 500
     #expect(rows.last?.pool.unit == .minutes)
 
     let minutes = PoolSettings(monitored: true, low: 120, critical: 30)
@@ -111,13 +111,13 @@ private func key(_ id: String, _ creditType: String) -> PoolKey { PoolKey(connec
   @Test func prospeoConnectRefreshAndRelaunch() async throws {
     let h = ProviderHarness(prospeo: [
       .respond(status: 200, body: prospeoFixture),
-      .respond(status: 200, body: #"{"error":false,"response":{"remaining_credits":400,"used_credits":600}}"#),
+      .respond(status: 200, body: #"{"error":false,"response":{"remaining_credits":50,"used_credits":950}}"#),
     ])
     let connection = try await h.service.connect(provider: .prospeo, key: "prospeo-SYNTHETIC-MARKER")
     #expect(h.prospeo.requests.first?.headers == ["X-KEY": "prospeo-SYNTHETIC-MARKER"])
-    #expect(connection.poolRows.map(\.status) == [.low]) // 900, default low 1500
+    #expect(connection.poolRows.map(\.status) == [.healthy]) // 900 of 1000, default low is 200 (QUO-441)
     let refreshed = try await h.service.refresh(id: connection.id)
-    #expect(refreshed.poolRows.first?.balance == 400)
+    #expect(refreshed.poolRows.first?.balance == 50)
     #expect(refreshed.poolRows.first?.status == .critical)
     #expect(refreshed.poolRows.first?.pool.cap == 1000)
     #expect(try h.makeService().restore() == [refreshed])

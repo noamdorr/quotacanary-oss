@@ -125,14 +125,14 @@ public final class ConnectionMonitor {
     messages = [:]
   }
 
-  /// Health from the scheduler. `.checking` keeps the last error on screen
-  /// until the check ends; success and offline clear it.
+  /// Health from the scheduler. `.checking` and offline keep the last error
+  /// on screen until a check answers (QUO-446); success clears it.
   func update(_ id: String, health state: ConnectionHealth, error: MonitorError? = nil) {
     health[id] = state
     switch state {
-    case .checking:
+    case .checking, .offline:
       return
-    case .ok, .offline:
+    case .ok:
       errors[id] = nil
       messages[id] = nil
     case .failed:

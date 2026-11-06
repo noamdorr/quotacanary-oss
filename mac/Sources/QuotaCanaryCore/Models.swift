@@ -96,6 +96,22 @@ public enum CreditUnit: String, Codable, Equatable, Sendable {
   case minutes
   /// Data volume (the catalog schema allows it; no bundled tool uses it yet).
   case gb
+  /// A unit this build does not know, in a state file from a newer build
+  /// (QUO-447): the amount shows as a bare number.
+  case unknown
+
+  /// Only a state-file decode tolerates an unknown unit; the catalog stays strict.
+  public init(from decoder: Decoder) throws {
+    let raw = try decoder.singleValueContainer().decode(String.self)
+    if let known = CreditUnit(rawValue: raw) {
+      self = known
+    } else if let issues = decoder.userInfo[StateCoding.Issues.key] as? StateCoding.Issues {
+      issues.count += 1
+      self = .unknown
+    } else {
+      throw DecodingError.dataCorrupted(.init(codingPath: decoder.codingPath, debugDescription: "Unknown unit \(raw)"))
+    }
+  }
 }
 
 /// A pool is a separately identified allowance within a connection.
@@ -203,7 +219,7 @@ public struct Connection: Codable, Equatable, Identifiable, Sendable {
       mutes = [:]
       for (creditType, balance) in legacy {
         let pool = lastReading?.balances.first { $0.pool.creditType == creditType }?.pool
-        let status = pool.map { PoolStatus.of(PoolBalance(pool: $0, balance: balance), settings: settings(for: creditType)) }
+        let status = pool.map { PoolStatus.of(PoolBalance(pool: $0, balance: balance), settings: settings(for: creditType, cap: pool?.cap)) }
         mutes[creditType] = Mute(until: nil, balance: balance, severity: status.flatMap(AlertSeverity.init(status:)) ?? .none)
       }
     }
@@ -240,6 +256,7 @@ public enum Format {
     case .credits: return number(value, locale)
     case .minutes: return Copy.minutes(number(value, locale))
     case .gb: return Copy.gigabytes(number(value, locale))
+    case .unknown: return number(value, locale)
     }
   }
 
@@ -259,6 +276,7 @@ public enum Format {
     case .credits: return Copy.unitCredits
     case .minutes: return Copy.unitMinutes
     case .gb: return Copy.unitGB
+    case .unknown: return ""
     }
   }
 

@@ -10,7 +10,7 @@ import Testing
 @Suite struct ProviderRegistryTests {
   @Test func thePickerListsEveryCatalogToolPlusTheHandWrittenOnes() throws {
     let ids = ProviderID.allCases
-    #expect(ids.count == 109 + 40)
+    #expect(ids.count == 108 + 40)
     #expect(Set(ids).count == ids.count)
     #expect(ids.contains(.openrouter) && ids.contains(.tavily) && ids.contains(.apollo) && ids.contains(.lemlist)
       && ids.contains(.peopledatalabs) && ids.contains(.phantombuster) && ids.contains(.deepgram)

@@ -205,7 +205,7 @@ enum InteractionSmoke {
       contentRect: NSRect(x: 0, y: 0, width: 200, height: 100), styleMask: [.titled], backing: .buffered, defer: false
     )
     panel.isReleasedWhenClosed = false
-    panel.contentViewController = NSHostingController(rootView: Color.clear.background(MenuBarPanel.Reader()))
+    panel.contentViewController = NSHostingController(rootView: Color.clear.background(MenuBarPanel.Reader { model.panelClosed() }))
     for (name, open) in [
       ("Open window", { StackWindow.show(model: model) }),
       ("Settings...", { SettingsWindow.show(model: model) }),
@@ -215,6 +215,13 @@ enum InteractionSmoke {
       open()
       await expect("\(name) puts the panel away") { !panel.isVisible }
     }
+    // QUO-445: an untouched connect form goes with the panel, so it opens on the
+    // balances. The stand-in cannot take key in-process; the real panel resigns
+    // key as it closes, so post that.
+    model.beginAdding(on: .panel)
+    check(model.isAddingInPanel, "Add connection opens the connect form in the panel")
+    NotificationCenter.default.post(name: NSWindow.didResignKeyNotification, object: panel)
+    await expect("closing the panel drops an untouched connect form") { !model.isAddingInPanel }
     if let settings = settingsWindow() {
       key(settings, "w", code: 13, flags: .command)
       await expect("closing Settings after the panel check") { !settings.isVisible }
@@ -646,5 +653,48 @@ enum InteractionSmoke {
     guard let editor = field.currentEditor() as? NSTextView else { return }
     editor.selectAll(nil)
     if text.isEmpty { editor.deleteBackward(nil) } else { editor.insertText(text, replacementRange: editor.selectedRange()) }
+  }
+}
+
+/// QUO-443: the real app's launch and reopen, read from the window list.
+/// `--check-launch 0` is a first run, `--check-launch 1` has a connection.
+extension InteractionSmoke {
+  static func launch(model: AppModel) {
+    setvbuf(stdout, nil, _IOLBF, 0)
+    let started = ProcessInfo.processInfo.systemUptime
+    NSApplication.shared.setActivationPolicy(.accessory) // as the bundle's LSUIElement
+    Task { @MainActor in
+      let popoverOpen = { MenuBarPanel.window?.isVisible == true }
+      let stackOpen = { visible(Copy.appName) > 0 }
+      if model.hasAnyConnection {
+        try? await Task.sleep(for: .seconds(3))
+        check(!popoverOpen() && !stackOpen(), "with a connection, launch opens nothing")
+      } else {
+        _ = await until { popoverOpen() || stackOpen() }
+        let seconds = ProcessInfo.processInfo.systemUptime - started
+        if popoverOpen() {
+          check(seconds < 2.5 && model.showsConnectForm, String(format: "first launch: popover with the connect form after %.1fs", seconds))
+        } else {
+          check(stackOpen(), "first launch: no menu bar bird found, the stack window opened instead")
+        }
+      }
+      // Twice, as from Finder: the window comes forward once, never doubled.
+      for _ in 0..<2 { sendReopen() }
+      await expect("reopen brings the stack window forward") { stackOpen() }
+      try? await Task.sleep(for: .milliseconds(500))
+      check(visible(Copy.appName) == 1, "two reopens, \(visible(Copy.appName)) stack window")
+      check(!popoverOpen(), "the window replaces the popover")
+      exit(passed ? 0 : 1)
+    }
+  }
+
+  /// The Apple event Finder, Spotlight and Launchpad send to a running app.
+  private static func sendReopen() {
+    let event = NSAppleEventDescriptor(
+      eventClass: AEEventClass(kCoreEventClass), eventID: AEEventID(kAEReopenApplication),
+      targetDescriptor: NSAppleEventDescriptor(processIdentifier: ProcessInfo.processInfo.processIdentifier),
+      returnID: AEReturnID(kAutoGenerateReturnID), transactionID: AETransactionID(kAnyTransactionID)
+    )
+    _ = try? event.sendEvent(options: [.noReply], timeout: 1)
   }
 }

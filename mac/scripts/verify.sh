@@ -46,6 +46,9 @@ else
     .build/debug/QuotaCanary --check-settings-window "$count"
     .build/debug/QuotaCanary --check-stack-window "$count"
   done
+  # QUO-443: the real app's launch and reopen (first run, then with a connection).
+  .build/debug/QuotaCanary --check-launch 0
+  .build/debug/QuotaCanary --check-launch 1
   .build/debug/QuotaCanary --check-interactions 0
   .build/debug/QuotaCanary --check-interactions 1
   # The interaction check must catch what it exists for: a collapsed, empty host.

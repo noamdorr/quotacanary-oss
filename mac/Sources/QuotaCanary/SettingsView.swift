@@ -365,6 +365,9 @@ struct PoolSettingsEditor: View {
         "\(Thresholds.text(row.settings.critical)) \(Format.unitName(row.pool.unit))",
         afterSave: pendingCritical
       ))
+      if case let .success(pending) = draft.validated(), Thresholds.isAtOrAboveCap(pending.low, cap: row.pool.cap) {
+        Hint(text: Copy.warnBelowAtCapHint)
+      }
       if row.status == .unavailable {
         Hint(text: Copy.unavailableHint)
       } else if row.status == .unknown {

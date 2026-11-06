@@ -133,6 +133,12 @@ enum Snapshot {
         historyStates.append((name, window(historyModel, StackWindowState(selection: item.id))))
       }
     }
+    // QUO-444: the run-out time's evidence rules, one inspector each.
+    let runOut = await SnapshotStacks.model(.runOutEvidence)
+    for (connection, name) in zip(runOut.connections,
+      ["run-out-collecting", "run-out-stale", "run-out-glitch", "run-out-small-dip"]) {
+      historyStates.append((name, window(runOut, StackWindowState(selection: connection.poolRows.first?.key))))
+    }
     // QUO-160: no alert is not the same as healthy.
     var quietTruthStates: [Scene] = []
     for alerting in [false, true] {
@@ -140,6 +146,17 @@ enum Snapshot {
       let name = alerting ? "quiet-truth-attention" : "quiet-truth"
       quietTruthStates += [(name, view), ("\(name)-increased-contrast", view)]
     }
+    // QUO-441: five full small plans read healthy; a typed Warn below at the cap gets a hint.
+    let smallPlans = await SnapshotStacks.model(.smallPlans)
+    let smallRow = smallPlans.connections.first?.poolRows.first
+    quietTruthStates += [("small-plans", panel(smallPlans, reference: reference)), ("small-plans-window", window(smallPlans))]
+    if let key = smallRow?.key {
+      let state = StackWindowState(selection: key)
+      state.drafts.drafts = BalanceDrafts([key: PoolSettingsDraft(monitored: true, low: "5000")])
+      quietTruthStates.append(("warn-below-at-cap-window", window(smallPlans, state)))
+    }
+    // QUO-446: nothing monitored is not "All healthy".
+    quietTruthStates.append(("quiet-nothing-monitored", panel(await SnapshotStacks.model(.nothingMonitored), reference: reference)))
     // QUO-351: a balance muted until it changes, dimmed with its marker.
     let muted = await SnapshotStacks.model(.muted)
     quietTruthStates += [("muted-balance", panel(muted, reference: reference)), ("muted-balance-window", window(muted))]
@@ -147,6 +164,43 @@ enum Snapshot {
     quietTruthStates.append(("muted-balance-inspector-window", window(muted, StackWindowState(
       selection: muted.connections.flatMap(\.poolRows).first { $0.muted }?.key
     ))))
+    // QUO-449: checks stopped (gold bird); a failing connection's red balance
+    // under its line, marked old; muted balances counted in the At risk tab.
+    let stopped = await SnapshotStacks.model(.checksStopped)
+    let behind = await SnapshotStacks.model(.failingBehindLines)
+    let behindAtRisk = StackWindowState()
+    behindAtRisk.filter = .atRisk
+    quietTruthStates += [
+      ("health-checks-stopped", panel(stopped, reference: reference)),
+      ("failing-behind-lines", panel(behind, reference: reference)),
+      ("failing-behind-lines-window-at-risk", window(behind, behindAtRisk)),
+    ]
+    // QUO-445: hidden rows show a cut row and a count; the tallest panel (first-run
+    // questions, a login refusal, an update waiting) fits a 13-inch screen; an
+    // untouched connect form closed with the panel opens on the balances again.
+    let fitUpdaters = await Scenarios.checkedUpdaters(
+      downloads: FileManager.default.temporaryDirectory.appendingPathComponent("QuotaCanarySnapshotFitUpdates")
+    )
+    var tallHooks = SystemHooks.preview(
+      promptAnswered: false, loginRefuses: true, alertsPromptAnswered: false,
+      notifier: FakeNotificationCenter(permission: .denied), updatePromptAnswered: false, updater: fitUpdaters.ready
+    )
+    tallHooks.clock = ManualClock(now: Scenarios.checkedAt)
+    let tallest = AppModel(service: StackScenario.atRisk(10, healthy: 12, longNames: true).service(), system: tallHooks)
+    await tallest.scheduler.settle()
+    tallest.startAtLogin.answerPrompt(enable: true)
+    await tallest.notifications.reload()
+    let reopened = await SnapshotStacks.model(.atRisk(3, healthy: 2))
+    reopened.beginAdding(on: .panel)
+    reopened.panelClosed()
+    quietTruthStates += [
+      ("at-risk-11", panel(await SnapshotStacks.model(.atRisk(11, healthy: 3)), reference: reference)),
+      ("at-risk-25", panel(await SnapshotStacks.model(.atRisk(25)), reference: reference)),
+      ("at-risk-100-long", panel(await SnapshotStacks.model(.atRisk(100, longNames: true)), reference: reference)),
+      ("at-risk-10-long-healthy-12", panel(await SnapshotStacks.model(.atRisk(10, healthy: 12, longNames: true)), reference: reference)),
+      ("at-risk-tallest", panel(tallest, reference: reference)),
+      ("connect-form-closed-reopened", panel(reopened, reference: reference)),
+    ]
     // QUO-212, QUO-213: the website heroes and launch gallery.
     let showcase = await SnapshotStacks.model(.showcase)
     // QUO-51: the local --demo fixture.
@@ -161,6 +215,8 @@ enum Snapshot {
     } + [
       // QUO-50: the showcase stack's menu bar label (Hunter critical, Apollo low).
       ("bird-count-showcase", AnyView(BirdLabel(active: true, severity: .critical, poolsAtRisk: 2).padding(8))),
+      // QUO-449: checks stopped, no balance at risk: gold.
+      ("bird-checks-stopped", AnyView(BirdLabel(active: true, stopped: 1).padding(8))),
     ]
     // QUO-288: one picker scene per plated logo (a search shows one of them each).
     let platedPickerStates: [Scene] = ["ocean", "myemail", "tavily"].map { query in
@@ -176,6 +232,9 @@ enum Snapshot {
     let states: [Scene] = [
       ("connect-form", panel(firstRun())),
       ("connect-form-hunter", panel(firstRun { $0.provider = .hunter })),
+      // QUO-443: what a first launch opens, and the window a reopen (or a missing bird) shows.
+      ("launch-first-run", panel(firstRun())),
+      ("reopen-window-empty", window(await SnapshotStacks.model(.stack(count: 0)))),
       ("connected", panel(connected)),
       ("refresh-failed", panel(failing)),
       ("pools-mixed", panel(mixed)),
@@ -196,6 +255,8 @@ enum Snapshot {
       // The logo list (QUO-241): narrowed by a search, and with nothing left.
       ("connect-form-picker-filtered", panel(firstRun { $0.providerSearch = "serp" })),
       ("connect-form-picker-none", panel(firstRun { $0.providerSearch = "no such tool" })),
+      // QUO-442: the pick is hidden by the search, so the key fields and Connect are off.
+      ("connect-form-picker-pick-hidden", panel(firstRun { $0.providerSearch = "tavily" })),
       ("pools-tavily", panel(await model(.tavily))),
       ("pools-apollo", panel(apollo)),
       ("settings-apollo", AnyView(SettingsView(model: apollo, showBalances: true))),
@@ -217,7 +278,11 @@ enum Snapshot {
       ("showcase-window", window(showcase, StackWindowState(selection: firstBalance(showcase)), height: 560)),
       ("showcase-window-warn", window(showcase, warnState, height: 560)),
       ("demo-window", window(demo, StackWindowState(selection: demo.connections.first?.poolRows.first?.key), height: 560)),
-    ] + birdCountStates + platedPickerStates + siteNotificationStates
+    ] + birdCountStates + platedPickerStates + siteNotificationStates + [
+      // QUO-447: an unreadable connections file kept aside at launch.
+      ("load-set-aside-first-run", panel(AppModel(service: await Scenarios.setAsideService(keepingOpenRouter: false)))),
+      ("load-set-aside-connected", panel(AppModel(service: await Scenarios.setAsideService(keepingOpenRouter: true)), reference: reference)),
+    ]
     // NSAppearance(named:) returns plain Aqua for the high-contrast names, so a
     // `-increased-contrast` scene is real only under the system switch (QUO-181).
     let realContrast = NSWorkspace.shared.accessibilityDisplayShouldIncreaseContrast
@@ -297,6 +362,12 @@ enum Snapshot {
     // SwiftUI's native List and split-view columns settle on the next run loop.
     try? await Task.sleep(for: .milliseconds(150))
     host.layoutSubtreeIfNeeded()
+    // The panel sizes its lists from rows it measured on the first pass (QUO-445).
+    if !windowChrome, host.fittingSize != host.frame.size {
+      window.setContentSize(host.fittingSize)
+      try? await Task.sleep(for: .milliseconds(50))
+      host.layoutSubtreeIfNeeded()
+    }
     host.displayIfNeeded()
     let capture = windowChrome ? (host.superview ?? host) : host
     capture.layoutSubtreeIfNeeded()
@@ -371,7 +442,7 @@ enum Snapshot {
       promptAnswered: false, alertsPromptAnswered: false, notifier: FakeNotificationCenter()
     ))
     await prompt.alerts.settle()
-    // Hunter verifications at 480 of 1,000 (critical at 500): the bird's
+    // Hunter verifications at 60 of 1,000 (critical at 66): the bird's
     // critical shape, one notification handed to the fake center.
     let critical = await model(.hunter)
     await critical.alerts.settle()
@@ -427,8 +498,15 @@ enum Snapshot {
       FileHandle.standardError.write(Data("snapshot: monitoring check failed: \(name)\n".utf8))
       return nil
     }
+    // QUO-446: a rejected key, then a five-second network blip: still failing.
+    let blip = await failing(.respond(status: 401, body: "{}"), checks: 2, center: FakeNotificationCenter(permission: .allowed))
+    blip.scheduler.handle(.reachabilityChanged(online: false))
+    blip.scheduler.handle(.reachabilityChanged(online: true))
+    await blip.scheduler.settle()
     return [
+      // QUO-446: every connection failing, so the header names the last good check.
       ("health-three-failures", panel(threeFailed)),
+      ("health-key-rejected-after-blip", panel(blip)),
       ("health-key-rejected", panel(rejected)),
       // QUO-437: "Replace key…" beside the inspector's error.
       ("health-key-rejected-window", window(rejected)),

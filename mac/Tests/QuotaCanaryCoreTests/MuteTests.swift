@@ -85,7 +85,9 @@ private final class MuteHarness {
     let shown = BalancesAsShown(local: [connection])
     #expect(shown.severity == .empty)
     #expect(shown.poolsAtRisk == 1)
-    #expect(shown.stackItems(filter: .atRisk).isEmpty)
+    // The At risk tab lists it, labelled as muted, like the bird's count (QUO-449).
+    #expect(shown.stackItems(filter: .atRisk).map(\.row.key.creditType) == ["verifications"])
+    #expect(shown.mutedAtRisk == 1)
     #expect(shown.panel.attention.isEmpty)
   }
 

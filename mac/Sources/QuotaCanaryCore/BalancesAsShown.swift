@@ -27,15 +27,16 @@ public struct BalancesAsShown: Sendable {
   }
 
   /// A connection is failing when its scheduled check failed, or, before the
-  /// scheduler has a result, when the last check left an error or a streak.
+  /// scheduler has a result or while offline, when the last check left an
+  /// error or a streak: only a successful check ends a failure (QUO-446).
   static func failing(
     _ connections: [Connection], health: [String: ConnectionHealth], errors: [String: String]
   ) -> Set<String> {
     Set(connections.filter { connection in
       switch health[connection.id] {
       case .failed: return true
-      case .offline, .ok: return false
-      case .checking, nil:
+      case .ok: return false
+      case .checking, .offline, nil:
         return errors[connection.id] != nil || connection.monitoring.consecutiveFailures > 0
       }
     }.map(\.id))
@@ -64,8 +65,44 @@ public struct BalancesAsShown: Sendable {
     local.worstAlert
   }
 
-  /// Monitored low, critical or empty balances on the bird, muted ones too (QUO-419).
+  /// Monitored low, critical or empty balances on the bird, muted ones too
+  /// (QUO-419). The At risk tab and the panel list the same ones (QUO-449).
   public var poolsAtRisk: Int { local.flatMap(\.poolRows).filter(\.warns).count }
+
+  /// How many of `poolsAtRisk` are muted, labelled in the bird's count and the At risk tab (QUO-449).
+  public var mutedAtRisk: Int { local.flatMap(\.poolRows).filter { $0.warns && $0.muted }.count }
+
+  /// Failing connections whose checks have stopped (QUO-449): a key the
+  /// provider refuses, or as many failed checks in a row as the failure
+  /// notification needs. Each has a failure line in Needs attention.
+  public var stoppedIDs: Set<String> {
+    Set(local.filter { connection in
+      guard isFailing(connection) else { return false }
+      if let error = lastErrors[connection.id], CheckFailureReason(error)?.isCredentialProblem == true { return true }
+      return connection.monitoring.credentialAlertSent
+        || connection.monitoring.consecutiveFailures >= MonitoringDecider.failureThreshold
+    }.map(\.id))
+  }
+
+  /// The bird's colour: the worst balance, and at least gold while checks
+  /// have stopped. Worst wins, so a red balance stays red (QUO-449).
+  public var birdSeverity: AlertSeverity { Self.birdSeverity(severity, stopped: stoppedIDs.count) }
+
+  /// The bird's VoiceOver label: the count (muted labelled), then stopped checks.
+  public var birdAccessibility: String {
+    Self.birdAccessibility(severity: severity, atRisk: poolsAtRisk, muted: mutedAtRisk, stopped: stoppedIDs.count)
+  }
+
+  public static func birdSeverity(_ severity: AlertSeverity, stopped: Int) -> AlertSeverity {
+    stopped == 0 ? severity : max(severity, .low)
+  }
+
+  public static func birdAccessibility(severity: AlertSeverity, atRisk: Int, muted: Int, stopped: Int) -> String {
+    let base = atRisk > 0
+      ? Copy.menuBarCountAccessibility(atRisk, muted: muted, severity: severity)
+      : Copy.birdAccessibility(severity)
+    return stopped > 0 ? base + ", " + Copy.birdChecksStopped(stopped) : base
+  }
 
   /// Every balance a notification can open.
   public var notificationTargets: [PoolKey] {
@@ -76,7 +113,8 @@ public struct BalancesAsShown: Sendable {
 
   /// One line of the menu bar panel.
   public enum PanelLine: Identifiable, Sendable {
-    /// A local connection whose checks fail shows one line, not its balances.
+    /// A local connection whose checks fail shows one line, then its
+    /// at-risk balances as `.local` lines marked old (QUO-449).
     case localFailure(LocalFailure)
     /// `extra` is how many more balances the collapsed line stands for.
     case local(Connection, PoolRow, extra: Int)
@@ -99,7 +137,8 @@ public struct BalancesAsShown: Sendable {
   }
 
   public struct Panel: Sendable {
-    /// Needs attention: failing or alerting connections, worst first.
+    /// Needs attention: failing or alerting connections, worst first, each
+    /// with every balance the bird counts (muted ones too).
     public let attention: [PanelLine]
     /// The rest, one collapsed line per connection.
     public let quiet: [PanelLine]
@@ -123,10 +162,10 @@ public struct BalancesAsShown: Sendable {
           reason: errors[connection.id] ?? Copy.stackFailing,
           detail: Self.compactFailure(lastErrors[connection.id])
         )))
-      } else {
-        attention += ConnectionPresentation.rankedPools(connection.poolRows).filter(\.alerts)
-          .map { .local(connection, $0, extra: 0) }
       }
+      // The same balances the bird counts, so a coloured bird is explained here (QUO-449).
+      attention += ConnectionPresentation.rankedPools(connection.poolRows).filter(\.warns)
+        .map { .local(connection, $0, extra: 0) }
     }
     let quiet: [PanelLine] = quietLocal.compactMap { connection in
       ConnectionPresentation.summaryRow(connection.poolRows).map { .local(connection, $0, extra: connection.poolRows.count - 1) }

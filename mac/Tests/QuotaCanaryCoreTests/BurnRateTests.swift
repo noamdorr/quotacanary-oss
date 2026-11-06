@@ -62,29 +62,29 @@ private func close(_ a: Double, _ b: Double) -> Bool { abs(a - b) < 1e-5 }
   }
 
   // QUO-271: "not enough history" is not "no consumption".
-  @Test func assessmentNeedsTwoReadingsOverATimeSpanBeforeItJudges() {
+  @Test func assessmentNeedsReadingsOverATimeSpanBeforeItJudges() {
     #expect(BurnRate.assess([]) == .collecting)
     #expect(BurnRate.assess([point(5000, 1)]) == .collecting)
     #expect(BurnRate.assess([point(4000, 1), point(5000, 1)]) == .collecting)
   }
 
   @Test func assessmentOfFlatReadingsOverASpanIsNoConsumptionObserved() {
-    #expect(BurnRate.assess([point(5000, 10), point(5000, 8), point(5000, 1)]) == .noConsumption(spanDays: 9))
-    #expect(BurnRate.assess([point(7000, 10), point(5000, 1)]) == .noConsumption(spanDays: 9))
+    #expect(BurnRate.assess([point(5000, 10), point(5000, 8), point(5000, 4), point(5000, 1)]) == .noConsumption(spanDays: 9))
+    #expect(BurnRate.assess([point(7000, 10), point(5000, 7), point(5000, 4), point(5000, 1)]) == .noConsumption(spanDays: 9))
   }
 
   @Test func aFlatSpanUnderADayIsStillCollecting() {
     let t = day(1)
     let minutes = [0.0, 5, 10].map { HistoryPoint(balance: 5000, recordedAt: t.addingTimeInterval($0 * 60)) }
     #expect(BurnRate.assess(minutes) == .collecting)
-    let almost = [0.0, 23].map { HistoryPoint(balance: 5000, recordedAt: t.addingTimeInterval($0 * 3600)) }
+    let almost = [0.0, 8, 16, 23].map { HistoryPoint(balance: 5000, recordedAt: t.addingTimeInterval($0 * 3600)) }
     #expect(BurnRate.assess(almost) == .collecting)
-    let full = [0.0, 24].map { HistoryPoint(balance: 5000, recordedAt: t.addingTimeInterval($0 * 3600)) }
+    let full = [0.0, 8, 16, 24].map { HistoryPoint(balance: 5000, recordedAt: t.addingTimeInterval($0 * 3600)) }
     #expect(BurnRate.assess(full) == .noConsumption(spanDays: 1))
   }
 
   @Test func assessmentOfADeclineCarriesTheRateAndTheSpan() throws {
-    let a = BurnRate.assess([point(8000, 11), point(9000, 6), point(10000, 1)])
+    let a = BurnRate.assess([point(8000, 11), point(8500, 8), point(9000, 6), point(10000, 1)])
     guard case let .burning(rate, spanDays) = a else { Issue.record("expected burning, got \(a)"); return }
     #expect(close(rate.perDay, 200))
     #expect(close(spanDays, 10))

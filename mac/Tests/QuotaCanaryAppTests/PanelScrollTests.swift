@@ -7,16 +7,20 @@ import Testing
 /// QUO-440: long lists scroll inside a capped height, so the panel stays on screen.
 @Suite @MainActor struct PanelScrollTests {
   @Test func quietListShowsInFullUpToTenRowsThenScrolls() {
-    #expect(PanelView.quietScrollHeight(quiet: 7, attention: 0) == nil)
-    #expect(PanelView.quietScrollHeight(quiet: 10, attention: 0) == nil)
-    #expect(PanelView.quietScrollHeight(quiet: 11, attention: 0) == 294)
-    #expect(PanelView.quietScrollHeight(quiet: 30, attention: 0) == 294)
+    let rows = { (count: Int) in [CGFloat](repeating: 28, count: count) }
+    #expect(PanelView.fit(attention: [], quiet: rows(7), chrome: 200).quiet.scroll == nil)
+    #expect(PanelView.fit(attention: [], quiet: rows(10), chrome: 200).quiet.scroll == nil)
+    #expect(PanelView.fit(attention: [], quiet: rows(11), chrome: 200).quiet.scroll == 294)
+    #expect(PanelView.fit(attention: [], quiet: rows(30), chrome: 200).quiet.scroll == 294)
   }
 
-  @Test func quietListTakesHalfTheRowsUnderNeedsAttention() {
-    #expect(PanelView.quietScrollHeight(quiet: 5, attention: 1) == nil)
-    #expect(PanelView.quietScrollHeight(quiet: 6, attention: 1) == 154)
-    #expect(PanelView.quietScrollHeight(quiet: 45, attention: 11) == 154)
+  /// QUO-445: under Needs attention the quiet list takes what the popover has
+  /// left, no longer a fixed half.
+  @Test func quietListTakesTheRoomLeftUnderNeedsAttention() {
+    let rows = { (count: Int) in [CGFloat](repeating: 28, count: count) }
+    #expect(PanelView.fit(attention: rows(1), quiet: rows(5), chrome: 250).quiet.scroll == nil)
+    let long = PanelView.fit(attention: rows(11), quiet: rows(45), chrome: 250)
+    #expect(long.attention.height + long.quiet.height == PanelView.maxHeight - 250)
   }
 
   @Test func thirtyToolsScrollInsideAPanelThatFitsTheSmallestScreen() async throws {

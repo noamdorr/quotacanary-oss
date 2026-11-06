@@ -7,20 +7,25 @@ enum Brand {
   static let goldNS = NSColor(red: 1, green: 196 / 255, blue: 0, alpha: 1)
 }
 
-/// The menu bar mark: native monochrome unless a monitored balance is at risk.
-/// Color only, no count or badge (QUO-391); VoiceOver still hears both.
+/// The menu bar mark: native monochrome unless a monitored balance is at risk
+/// or checks have stopped (gold, QUO-449). Color only, no count or badge
+/// (QUO-391); VoiceOver still hears both.
 struct BirdLabel: View {
   let active: Bool
   /// Worst monitored warning (QUO-131): changes the mark's color.
   var severity: AlertSeverity = .none
   var poolsAtRisk: Int = 0
+  /// How many of `poolsAtRisk` are muted (QUO-449).
+  var muted: Int = 0
+  /// Connections whose checks have stopped (QUO-449).
+  var stopped: Int = 0
 
   var body: some View {
-    Image(nsImage: Self.image(active: active, severity: severity))
+    Image(nsImage: Self.image(active: active, severity: BalancesAsShown.birdSeverity(severity, stopped: stopped)))
       .accessibilityElement(children: .ignore)
-      .accessibilityLabel(poolsAtRisk > 0
-        ? Copy.menuBarCountAccessibility(poolsAtRisk, severity: severity)
-        : Self.accessibility(severity))
+      .accessibilityLabel(BalancesAsShown.birdAccessibility(
+        severity: severity, atRisk: poolsAtRisk, muted: muted, stopped: stopped
+      ))
   }
 
   /// Point height of the mark in the menu bar (QUO-171).
@@ -48,35 +53,93 @@ enum MenuBarPanel {
   }
 
   /// Records the window hosting the panel, once SwiftUI has placed it.
+  /// `onClose` runs when it stops being key, which is when it goes away.
   struct Reader: NSViewRepresentable {
-    func makeNSView(context _: Context) -> NSView { ReaderView() }
+    var onClose: @MainActor () -> Void = {}
+    func makeNSView(context _: Context) -> NSView { ReaderView(onClose: onClose) }
     func updateNSView(_: NSView, context _: Context) {}
   }
 
   private final class ReaderView: NSView {
+    let onClose: @MainActor () -> Void
+    private var observer: NSObjectProtocol?
+
+    init(onClose: @escaping @MainActor () -> Void) {
+      self.onClose = onClose
+      super.init(frame: .zero)
+    }
+
+    @available(*, unavailable)
+    required init?(coder _: NSCoder) { fatalError() }
+
     override func viewDidMoveToWindow() {
       super.viewDidMoveToWindow()
-      if let window { MenuBarPanel.window = window }
+      if let observer { NotificationCenter.default.removeObserver(observer) }
+      observer = nil
+      guard let window else { return }
+      MenuBarPanel.window = window
+      observer = NotificationCenter.default.addObserver(
+        forName: NSWindow.didResignKeyNotification, object: window, queue: .main
+      ) { [weak self] _ in MainActor.assumeIsolated { self?.onClose() } }
     }
   }
 }
 
 struct PanelView: View {
-  /// A list longer than this scrolls inside `scrollHeight`.
-  static let scrollAfterRows = 10
-  static let scrollHeight: CGFloat = 280
+  /// The tallest the popover gets (QUO-445). The smallest supported screen is
+  /// a 13-inch display at 1280 by 800: 776 points under the menu bar, less the
+  /// gap below it and a bottom Dock at its default size.
+  static let maxHeight: CGFloat = 700
+  /// Each list's own limit, ten and a half one-line rows (QUO-440).
+  static let listCap: CGFloat = 294
+  /// What the quiet list keeps under a long Needs attention list.
+  static let quietFloor: CGFloat = 98
+  /// A row not yet measured.
+  static let rowEstimate: CGFloat = 28
 
-  /// The height the quiet list scrolls in, or nil when it shows in full. It
-  /// takes half the rows under a Needs attention list, so both long lists
-  /// still leave Quit on a small screen, and it cuts through a 28-point row
-  /// because a clean cut reads as the end of the list (QUO-440).
-  static func quietScrollHeight(quiet: Int, attention: Int) -> CGFloat? {
-    let rows = attention == 0 ? scrollAfterRows : scrollAfterRows / 2
-    return quiet > rows ? (CGFloat(rows) + 0.5) * 28 : nil
+  /// How one list sits in the popover: `height` is the room it takes;
+  /// `scroll` the visible scroll height when rows are hidden, nil in full.
+  struct ListFit: Equatable {
+    var height: CGFloat
+    var scroll: CGFloat?
+  }
+
+  /// Both lists from their row heights and the height of everything else
+  /// (QUO-445). Needs attention comes first and the quiet list keeps
+  /// `quietFloor`; together they never push the popover past `maxHeight`.
+  /// Once either scrolls the popover is as tall as it gets, so a row added
+  /// below the cut never shrinks it.
+  static func fit(attention: [CGFloat], quiet: [CGFloat], chrome: CGFloat) -> (attention: ListFit, quiet: ListFit) {
+    let room = max(maxHeight - chrome, 0)
+    let quietFull = quiet.reduce(0, +)
+    let attentionRoom = max(min(listCap, room - min(quietFull, quietFloor)), min(attention.reduce(0, +), 42))
+    let attentionFit = fit(attention, in: attentionRoom)
+    return (attentionFit, fit(quiet, in: max(min(listCap, room - attentionFit.height), 0)))
+  }
+
+  /// A list in full when it fits, else scrolling in `room` with the cut
+  /// between a third and two thirds of the way down a row, because a clean
+  /// cut reads as the end of the list (QUO-440). What the cut gives back
+  /// stays as space below.
+  static func fit(_ rows: [CGFloat], in room: CGFloat) -> ListFit {
+    let full = rows.reduce(0, +)
+    guard full > room else { return ListFit(height: full, scroll: nil) }
+    var top: CGFloat = 0
+    var previousCut: CGFloat?
+    for row in rows {
+      if room < top + row / 3 { return ListFit(height: room, scroll: previousCut ?? room) }
+      if room < top + row { return ListFit(height: room, scroll: min(room, top + row * 2 / 3)) }
+      previousCut = top + row * 2 / 3
+      top += row
+    }
+    return ListFit(height: room, scroll: room)
   }
 
   var model: AppModel
   @Environment(\.referenceDate) private var referenceDate
+  /// Measured row heights by line id, and the height of everything but the lists.
+  @State private var rowHeights: [String: CGFloat] = [:]
+  @State private var chrome: CGFloat = 0
 
   var body: some View {
     if model.showsConnectForm { connectPanel } else { quietPanel }
@@ -85,6 +148,8 @@ struct PanelView: View {
   private var quietPanel: some View {
     let shown = model.shown
     let panel = shown.panel
+    let heights = { (lines: [BalancesAsShown.PanelLine]) in lines.map { rowHeights[$0.id] ?? Self.rowEstimate } }
+    let fit = Self.fit(attention: heights(panel.attention), quiet: heights(panel.quiet), chrome: chrome)
     return VStack(alignment: .leading, spacing: 6) {
       HStack(spacing: 8) {
         LogoMarkImage(height: 14).foregroundStyle(Brand.gold)
@@ -106,18 +171,15 @@ struct PanelView: View {
       }
       .padding(.horizontal, 8).padding(.vertical, 6)
       if !panel.attention.isEmpty {
-        section(Copy.attentionSection)
-        if panel.attention.count > Self.scrollAfterRows {
-          ScrollView { rows(panel.attention, topUp: true) }.frame(height: Self.scrollHeight)
-        } else { rows(panel.attention, topUp: true) }
+        section(Copy.attentionSection, count: fit.attention.scroll == nil ? nil : panel.attention.count)
+        list(fit.attention) { rows(panel.attention, topUp: true, failing: shown.failingIDs) }
       }
       if panel.quietCount > 0 {
         if !panel.attention.isEmpty { Divider().padding(.horizontal, 8) }
-        section(panel.quietHeading)
-        if let height = Self.quietScrollHeight(quiet: panel.quiet.count, attention: panel.attention.count) {
-          ScrollView { rows(panel.quiet, topUp: false) }.frame(height: height)
-        } else { rows(panel.quiet, topUp: false) }
+        section(panel.quietHeading, count: fit.quiet.scroll == nil ? nil : panel.quiet.count)
+        list(fit.quiet) { rows(panel.quiet, topUp: false) }
       }
+      if let notice = model.loadNotice { ErrorLine(message: notice).padding(.horizontal, 8) }
       AlertProblemLine(model: model, alerts: model.alerts, notifications: model.notifications)
       FirstRunPrompts(model: model, notifications: model.notifications, login: model.startAtLogin, updater: model.updater)
       UpdateReadyLine(updater: model.updater, model: model)
@@ -129,34 +191,54 @@ struct PanelView: View {
       menuAction(Copy.quitButton, shortcut: "⌘Q") { NSApplication.shared.terminate(nil) }.keyboardShortcut("q")
     }
     .font(.body).padding(6).frame(width: 380)
+    // Everything but the lists, for the next fit (QUO-445).
+    .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { total in
+      let measured = total - fit.attention.height - fit.quiet.height
+      if abs(measured - chrome) > 0.5 { chrome = measured }
+    }
   }
 
-  private func section(_ title: String) -> some View {
-    Text(title).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+  /// `count`, when rows are hidden, says how many the list holds (QUO-445).
+  private func section(_ title: String, count: Int? = nil) -> some View {
+    Text(count.map { Copy.sectionCount(title, $0) } ?? title).font(.caption.weight(.semibold)).foregroundStyle(.secondary)
       .padding(.horizontal, 8).padding(.top, 4)
   }
 
-  private func rows(_ lines: [BalancesAsShown.PanelLine], topUp: Bool) -> some View {
+  @ViewBuilder
+  private func list<Rows: View>(_ fit: ListFit, @ViewBuilder rows: () -> Rows) -> some View {
+    if let scroll = fit.scroll {
+      ScrollView { rows() }.frame(height: scroll).frame(height: fit.height, alignment: .top)
+    } else { rows() }
+  }
+
+  /// `failing`: connections whose balance lines are old, under their failure line (QUO-449).
+  private func rows(_ lines: [BalancesAsShown.PanelLine], topUp: Bool, failing: Set<String> = []) -> some View {
     VStack(spacing: 0) {
-      ForEach(lines) { line($0, topUp: topUp) }
+      ForEach(lines) { item in
+        line(item, topUp: topUp, failing: failing)
+          .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height in
+            if abs((rowHeights[item.id] ?? 0) - height) > 0.5 { rowHeights[item.id] = height }
+          }
+      }
     }
   }
 
   /// `topUp` adds the visible "Top up" button (Needs attention rows only).
   @ViewBuilder
-  private func line(_ line: BalancesAsShown.PanelLine, topUp: Bool) -> some View {
+  private func line(_ line: BalancesAsShown.PanelLine, topUp: Bool, failing: Set<String>) -> some View {
     switch line {
     case let .localFailure(failure): failureRow(failure)
     case let .local(connection, row, extra):
-      balanceRow(connection, row: row, extra: extra, topUp: topUp)
+      // Under a failing connection's line, its number is from the last good check (QUO-449).
+      balanceRow(connection, row: row, extra: extra, topUp: topUp, old: failing.contains(connection.id))
     }
   }
 
   private func balanceRow(
-    _ connection: Connection, row: PoolRow, extra: Int, topUp: Bool
+    _ connection: Connection, row: PoolRow, extra: Int, topUp: Bool, old: Bool
   ) -> some View {
     HStack(spacing: 4) {
-      balanceRowButton(connection, row: row, extra: extra)
+      balanceRowButton(connection, row: row, extra: extra, old: old)
       if topUp {
         TopUpButton(url: connection.provider.topupURL).buttonStyle(.bordered).controlSize(.small)
         MuteMenuButton(model: model, row: row).buttonStyle(.bordered).controlSize(.small)
@@ -168,11 +250,14 @@ struct PanelView: View {
     }
   }
 
-  private func balanceRowButton(_ connection: Connection, row: PoolRow, extra: Int) -> some View {
+  private func balanceRowButton(_ connection: Connection, row: PoolRow, extra: Int, old: Bool) -> some View {
     // Sorts the pool's history: once per row, shared with its label.
     let eta = model.eta(for: row)
     return Button { StackWindow.show(model: model, selecting: row.key) } label: {
-      AdaptiveRowLine(name: connection.name, detail: row.pool.label, nameNote: row.backFromMute ? Copy.backFromMute : nil) {
+      AdaptiveRowLine(
+        name: connection.name, detail: row.pool.label,
+        nameNote: old ? Copy.oldBalanceNote : (row.backFromMute ? Copy.backFromMute : nil)
+      ) {
         StatusCue(row: row)
         ProviderLogo(provider: connection.provider)
       } trailing: { withCaption in
@@ -191,7 +276,7 @@ struct PanelView: View {
     .help(connection.name + ", " + PoolRowView.summary(row, eta: eta))
     .accessibilityElement(children: .ignore)
     .accessibilityLabel(connection.name + ", " + PoolRowView.summary(row, eta: eta)
-      + (extra > 0 ? ", " + Copy.additionalBalances(extra) : ""))
+      + (extra > 0 ? ", " + Copy.additionalBalances(extra) : "") + (old ? ", " + Copy.oldBalanceNote : ""))
   }
 
   private func failureRow(_ failure: BalancesAsShown.LocalFailure) -> some View {
@@ -316,14 +401,14 @@ struct ConnectForm: View {
             .textFieldStyle(.roundedBorder)
             .focused($keyFocused)
             .onSubmit(submit)
-            .disabled(model.isBusy)
+            .disabled(model.isBusy || !model.keyEntryOpen)
         }
       } else {
         CredentialInputs(
           fields: model.provider.credentialFields, values: $model.credentialInputs, firstFocused: $keyFocused,
           onSubmit: submit
         )
-        .disabled(model.isBusy)
+        .disabled(model.isBusy || !model.keyEntryOpen)
       }
       if let requirement = Copy.keyRequirement(model.provider.rawValue) {
         Text(requirement)
@@ -339,7 +424,7 @@ struct ConnectForm: View {
         Button(Copy.connectButton, action: submit)
           .buttonStyle(.borderedProminent)
           .keyboardShortcut(.defaultAction)
-          .disabled(model.isBusy || model.connectNameError != nil)
+          .disabled(model.isBusy || !model.keyEntryOpen || model.connectNameError != nil)
         if model.isBusy {
           ProgressView().controlSize(.small)
           Text(Copy.connecting).font(.caption).foregroundStyle(.secondary)
@@ -351,6 +436,7 @@ struct ConnectForm: View {
             .disabled(model.isBusy)
         }
       }
+      ErrorLine(message: model.loadNotice)
       ErrorLine(message: model.errorMessage)
     }
     .onAppear { searchFocused = true }
@@ -671,14 +757,7 @@ struct LoginPromptRow: View {
 // MARK: - Notifications (QUO-131)
 
 extension BirdLabel {
-  static func accessibility(_ severity: AlertSeverity) -> String {
-    switch severity {
-    case .none: return Copy.birdAccessibility
-    case .low: return Copy.birdLowAccessibility
-    case .critical: return Copy.birdCriticalAccessibility
-    case .empty: return Copy.birdEmptyAccessibility
-    }
-  }
+  static func accessibility(_ severity: AlertSeverity) -> String { Copy.birdAccessibility(severity) }
 
   /// Color alone (QUO-391): gold for low, red for critical and empty. The
   /// panel and the VoiceOver label carry the non-color channel.

@@ -17,6 +17,12 @@ public final class MonitoringService {
   public private(set) var history = ReadingHistory()
   /// The last provider call per connection id, redacted, in memory only (QUO-279).
   public private(set) var lastChecks: [String: CheckRecord] = [:]
+  /// Where the last restore kept a copy of a connections file it could not
+  /// read in full (QUO-447).
+  public private(set) var setAsideFile: URL?
+  /// The last restore failed and nothing was kept aside: a save would replace
+  /// the unread file, so connect refuses until an erase (QUO-447).
+  private var loadFailed = false
 
   private let credentials: CredentialStore
   private let store: ConnectionStore
@@ -46,7 +52,10 @@ public final class MonitoringService {
   public func restore() throws -> [Connection] {
     do {
       connections = try store.load()
+      loadFailed = false
+      setAsideFile = store.setAside
     } catch {
+      loadFailed = true
       throw MonitorError.loadFailed
     }
     // No history file (fresh install, or a state file from before QUO-186)
@@ -66,12 +75,17 @@ public final class MonitoringService {
     connections = []
     history = ReadingHistory()
     lastChecks = [:]
+    loadFailed = false
+    setAsideFile = nil
   }
 
   /// The last 7 days of one pool's readings: the burn-rate input.
   public func history(for key: PoolKey) -> [HistoryPoint] {
     history.recent(for: key, now: now())
   }
+
+  /// The service's clock, so a run-out time ages against the same "now" as its history.
+  public var currentTime: Date { now() }
 
   /// The same week at one point per 6 hours: the sparkline input.
   public func sparkline(for key: PoolKey) -> [HistoryPoint] {
@@ -93,6 +107,7 @@ public final class MonitoringService {
   public func connect(provider: ProviderID, key rawKey: String, name rawName: String? = nil) async throws -> Connection {
     let key = rawKey.trimmingCharacters(in: .whitespacesAndNewlines)
     guard !key.isEmpty else { throw MonitorError.missingKey }
+    guard !loadFailed else { throw MonitorError.loadFailed } // never save over an unread file
     _ = try resolveName(rawName, provider: provider) // refuse a taken name before any read
 
     let (result, record) = await readRecorded(provider: provider, key: key)

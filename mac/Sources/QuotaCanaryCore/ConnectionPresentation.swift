@@ -55,7 +55,8 @@ public enum ConnectionPresentation {
     return ranked(connections, failingIDs: failingIDs).compactMap { connection in
       if filter == .failing && !failingIDs.contains(connection.id) { return nil }
       var rows = rankedPools(connection.poolRows)
-      if filter == .atRisk { rows = rows.filter(\.alerts) }
+      // Muted at-risk balances too, as the bird counts them (QUO-449).
+      if filter == .atRisk { rows = rows.filter(\.warns) }
       let matchesConnection = query.isEmpty || normalized(connection.name).contains(query)
         || normalized(connection.provider.displayName).contains(query)
       if !matchesConnection { rows = rows.filter { normalized($0.pool.label).contains(query) } }
@@ -73,9 +74,10 @@ public enum ConnectionPresentation {
 
   /// Whether the quiet group may call itself healthy: every balance has a
   /// healthy reading or is not in the plan, and each connection has at least
-  /// one healthy reading. No alert alone is not a healthy balance (QUO-160).
+  /// one healthy reading. No alert alone is not a healthy balance (QUO-160),
+  /// and nothing monitored is not healthy either (QUO-446).
   public static func allHealthy(_ connections: [Connection]) -> Bool {
-    connections.allSatisfy { connection in
+    connections.contains { $0.poolRows.contains(where: \.settings.monitored) } && connections.allSatisfy { connection in
       let statuses = connection.poolRows.map(\.status)
       return statuses.contains(.healthy) && statuses.allSatisfy { $0 == .healthy || $0 == .unavailable }
     }

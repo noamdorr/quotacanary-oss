@@ -75,8 +75,10 @@ public struct PoolRow: Equatable, Identifiable, Sendable {
 }
 
 public extension Connection {
-  func settings(for creditType: String) -> PoolSettings {
-    poolSettings[creditType] ?? provider.defaultSettings
+  /// The saved settings, else the provider default sized to the balance's
+  /// `cap` when it has one (QUO-441). A saved setting is never touched.
+  func settings(for creditType: String, cap: Double? = nil) -> PoolSettings {
+    poolSettings[creditType] ?? Thresholds.defaults(provider.defaultSettings, cap: cap)
   }
 
   /// Forgets every mute that is over and leaves no "Back from mute" marker,
@@ -105,7 +107,7 @@ public extension Connection {
     }
     return pools.map { catalogPool in
       let reading = reported.first { $0.pool.creditType == catalogPool.creditType }
-      let settings = settings(for: catalogPool.creditType)
+      let settings = settings(for: catalogPool.creditType, cap: reading?.pool.cap ?? catalogPool.cap)
       let status = PoolStatus.of(reading, settings: settings)
       let (mute, back) = Mute.state(mutes[catalogPool.creditType], balance: reading?.balance, status: status, now: now)
       return PoolRow(
@@ -194,6 +196,30 @@ public enum Thresholds {
       settings.critical.isFinite, settings.critical >= 0,
       settings.low > settings.critical else { return .notANumber }
     return nil
+  }
+
+  /// The share of a plan's cap that a default Warn below never exceeds
+  /// (QUO-441): a full small plan must not start out low.
+  public static let defaultShareOfCap = 0.2
+
+  /// The flat provider default, or 20% of the cap when the flat Warn below
+  /// would sit at or above that share. Critical stays one third. No cap (or a
+  /// cap of zero, which is "not in plan") keeps the flat default.
+  public static func defaults(_ flat: PoolSettings, cap: Double?) -> PoolSettings {
+    guard let cap, cap.isFinite, cap > 0 else { return flat }
+    let share = cap * defaultShareOfCap
+    guard flat.low >= share else { return flat }
+    var sized = flat
+    sized.low = share
+    sized.critical = critical(for: share)
+    return sized
+  }
+
+  /// Whether a typed Warn below is at or above the balance's cap, so it
+  /// would warn from the first reading.
+  public static func isAtOrAboveCap(_ warnBelow: Double, cap: Double?) -> Bool {
+    guard let cap, cap > 0 else { return false }
+    return warnBelow >= cap
   }
 
   /// One third, floored for Warn below >= 3, otherwise rounded to two decimals.

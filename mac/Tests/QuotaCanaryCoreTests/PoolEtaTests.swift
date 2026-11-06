@@ -15,39 +15,43 @@ private func row(_ balance: Double?, cap: Double? = 1000) -> PoolRow {
   )
 }
 private func points(_ balances: [Double]) -> [HistoryPoint] {
-  balances.enumerated().map { HistoryPoint(balance: $1, recordedAt: t.addingTimeInterval(Double($0) * 3600)) }
+  balances.enumerated().map { HistoryPoint(balance: $1, recordedAt: t.addingTimeInterval(Double($0) * 2 * 3600)) }
+}
+// QUO-444: the ETA is read at the newest reading, so ageing never enters these cases.
+private func eta(_ row: PoolRow, history: [HistoryPoint]) -> BurnEta? {
+  PoolEta.of(row, history: history, now: history.map(\.recordedAt).max() ?? t)
 }
 
 /// Mirrors src/lib/pool-eta.ts: the ETA a pool row shows, if any.
 @Suite struct PoolEtaTests {
-  @Test func declineOverThreeChecksGivesABurnAndARelativeEta() {
-    // 1000 -> 940 -> 880 over two hours: 1440/day, 880 left = 0.61 days.
-    #expect(PoolEta.of(row(880), history: points([1000, 940, 880]))
-      == BurnEta(short: "in ~15h", long: "Empties in ~15 hours."))
-    // 1000 -> 970 -> 940: 720/day, 940 left = 1.31 days.
-    #expect(PoolEta.of(row(940), history: points([1000, 970, 940]))?.short == "tomorrow")
-    // 1000 -> 990 -> 980: 240/day, 980 left = 4.08 days. Relative, never a weekday.
-    #expect(PoolEta.of(row(980), history: points([1000, 990, 980]))
+  @Test func declineOverFourChecksGivesABurnAndARelativeEta() {
+    // 1000 -> 640 over six hours: 1440/day, 640 left = 0.44 days.
+    #expect(eta(row(640), history: points([1000, 880, 760, 640]))
+      == BurnEta(short: "in ~11h", long: "Empties in ~11 hours."))
+    // 600/day, 850 left = 1.42 days.
+    #expect(eta(row(850), history: points([1000, 950, 900, 850]))?.short == "tomorrow")
+    // 240/day, 940 left = 3.92 days. Relative, never a weekday.
+    #expect(eta(row(940), history: points([1000, 980, 960, 940]))
       == BurnEta(short: "in ~4 days", long: "Empties in ~4 days."))
   }
 
   @Test func freshInstallIsCollectingAndAFlatSpanIsNoConsumptionObserved() {
     let collecting = BurnEta(short: "collecting history", long: "Collecting history.")
-    #expect(PoolEta.of(row(880), history: []) == collecting)
-    #expect(PoolEta.of(row(880), history: points([880])) == collecting)
+    #expect(eta(row(880), history: []) == collecting)
+    #expect(eta(row(880), history: points([880])) == collecting)
     // Flat over a real span is a measurement, not a gap in the evidence.
     let none = BurnEta(short: "not draining", long: "Not draining.")
-    #expect(PoolEta.of(row(880), history: points(Array(repeating: 880, count: 25))) == none)
-    // Flat over two hours is too soon to say.
-    #expect(PoolEta.of(row(880), history: points([880, 880, 880])) == collecting)
+    #expect(eta(row(880), history: points(Array(repeating: 880, count: 25))) == none)
+    // Flat over four hours is too soon to say.
+    #expect(eta(row(880), history: points([880, 880, 880])) == collecting)
   }
 
   @Test func aDepletedPoolIsAlreadyGoneEvenWithoutAMeasurableBurn() {
-    #expect(PoolEta.of(row(0), history: []) == BurnEta(short: "empty now", long: "Already empty."))
+    #expect(eta(row(0), history: []) == BurnEta(short: "empty now", long: "Already empty."))
   }
 
   @Test func unreadAndNotInPlanPoolsHaveNoEta() {
-    #expect(PoolEta.of(row(nil), history: []) == nil)
-    #expect(PoolEta.of(row(0, cap: 0), history: points([0, 0])) == nil)
+    #expect(eta(row(nil), history: []) == nil)
+    #expect(eta(row(0, cap: 0), history: points([0, 0])) == nil)
   }
 }

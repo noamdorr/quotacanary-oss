@@ -20,6 +20,12 @@ public struct StackScenario: Sendable {
     self.history = history ? Self.history(connections, burn: burn) : ReadingHistory()
   }
 
+  init(connections: [Connection], failingID: String? = nil, readings: ReadingHistory) {
+    self.connections = connections
+    self.failingID = failingID
+    self.history = readings
+  }
+
   @MainActor
   public func service() -> MonitoringService {
     let store = InMemoryConnectionStore()
@@ -55,6 +61,30 @@ extension StackScenario {
   /// no history at all (collecting).
   public static var historyStates: StackScenario {
     StackScenario(connections: connections(count: 3, plainNames: true), burn: [1.4, 0, -1])
+  }
+
+  /// The run-out time's evidence rules (QUO-444), one inspector each: 0 has
+  /// two checks five minutes apart (collecting), 1 a steady week whose newest
+  /// reading is three days old because its checks fail (no estimate), 2 a
+  /// flat week with one odd reading (not draining), 3 a 0.1% dip over a week
+  /// (a sparkline that stays flat).
+  public static var runOutEvidence: StackScenario {
+    let connections = connections(count: 4, plainNames: true)
+    var readings = ReadingHistory()
+    func add(_ index: Int, _ balance: Double, ago: TimeInterval) {
+      guard let first = connections[index].lastReading?.balances.first else { return }
+      readings.append(
+        Reading(balances: [PoolBalance(pool: first.pool, balance: balance)], checkedAt: Scenarios.checkedAt.addingTimeInterval(-ago)),
+        connectionID: connections[index].id
+      )
+    }
+    func base(_ index: Int) -> Double { connections[index].lastReading?.balances.first?.balance ?? 0 }
+    add(0, base(0) * 1.005, ago: 300)
+    add(0, base(0), ago: 0)
+    for step in 0...27 { add(1, base(1) * (1 + 0.4 * Double(27 - step) / 27), ago: 3 * 86_400 + Double(27 - step) * 6 * 3600) }
+    for day in 0...7 { add(2, day == 4 ? base(2) * 10 : base(2), ago: Double(7 - day) * 86_400) }
+    for step in 0...27 { add(3, base(3) * (1 + 0.001 * Double(27 - step) / 27), ago: Double(27 - step) * 6 * 3600) }
+    return StackScenario(connections: connections, failingID: connections[1].id, readings: readings)
   }
 
   /// Website hero and launch gallery (QUO-212), and the `--demo` stack: the
@@ -97,10 +127,29 @@ extension StackScenario {
       balances.insert(balances.remove(at: focus), at: 0)
       return Connection(
         id: "site-\(index)", provider: provider, name: provider.displayName, credentialRef: "site-\(index)",
-        lastReading: Reading(balances: balances, checkedAt: Scenarios.checkedAt)
+        lastReading: Reading(balances: balances, checkedAt: Scenarios.checkedAt),
+        // The hero's Apollo row stays low (QUO-406): it keeps the flat Warn below.
+        poolSettings: focusType == "ai_credit" ? ["ai_credit": provider.defaultSettings] : [:]
       )
     }
     return StackScenario(connections: connections, burn: [7, 7, 1.4, 0.2, 0.2, 0.2, 0.2, 0.2])
+  }
+
+  /// QUO-441: five brand-new connections, each with its whole small allowance
+  /// left. The default Warn below follows each cap, so nothing is low. No history.
+  public static var smallPlans: StackScenario {
+    let specs: [(ProviderID, Double)] = [(.hunter, 25), (.hunter, 50), (.prospeo, 75), (.tavily, 1000), (.apollo, 500)]
+    let connections = specs.enumerated().map { index, spec in
+      let (provider, cap) = spec
+      var pool = provider.pools[0]
+      pool.cap = cap
+      let id = "small-\(index)"
+      return Connection(
+        id: id, provider: provider, name: "\(provider.displayName) \(Int(cap))", credentialRef: id,
+        lastReading: Reading(balances: [PoolBalance(pool: pool, balance: cap)], checkedAt: Scenarios.checkedAt)
+      )
+    }
+    return StackScenario(connections: connections, history: false)
   }
 
   /// QUO-160: Hunter balances that raise no alert yet are not all healthy.
@@ -136,6 +185,59 @@ extension StackScenario {
       )
     }
     return StackScenario(connections: connections, history: false)
+  }
+
+  /// QUO-446: every balance healthy with monitoring off. Nothing is watched,
+  /// so the quiet heading is the neutral one, not "All healthy". No history.
+  public static var nothingMonitored: StackScenario {
+    let connections = quietTruth(alerting: false).connections.prefix(2).map { connection in
+      var connection = connection
+      for row in connection.poolRows {
+        var settings = row.settings
+        settings.monitored = false
+        connection.poolSettings[row.key.creditType] = settings
+      }
+      return connection
+    }
+    return StackScenario(connections: Array(connections), history: false)
+  }
+
+  /// QUO-449: a Prospeo whose checks have failed three times in a row (the
+  /// launch check makes four), balances healthy, beside a healthy OpenRouter.
+  /// The bird is gold for the stopped checks alone. No history.
+  public static var checksStopped: StackScenario {
+    let all = connections(count: 5, risks: Array(repeating: .healthy, count: 5), plainNames: true)
+    var prospeo = all[4]
+    prospeo.monitoring.consecutiveFailures = MonitoringDecider.failureThreshold
+    return StackScenario(connections: [all[0], prospeo], failingID: prospeo.id, history: false)
+  }
+
+  /// QUO-449: one failed check on a Prospeo whose balance is empty, so its
+  /// red balance is listed under the failure line, marked old; a Hunter with
+  /// low searches and a muted empty sibling, counted and labelled. No history.
+  public static var failingBehindLines: StackScenario {
+    var searches = ProviderID.hunter.pools[0]
+    searches.cap = 10_000
+    var verifications = ProviderID.hunter.pools[1]
+    verifications.cap = 10_000
+    var prospeo = ProviderID.prospeo.pools[0]
+    prospeo.cap = 10_000
+    let connections = [
+      Connection(
+        id: "behind-0", provider: .prospeo, name: "Prospeo", credentialRef: "behind-0",
+        lastReading: Reading(balances: [PoolBalance(pool: prospeo, balance: 0)], checkedAt: Scenarios.checkedAt)
+      ),
+      Connection(
+        id: "behind-1", provider: .hunter, name: "Hunter", credentialRef: "behind-1",
+        lastReading: Reading(
+          balances: [PoolBalance(pool: searches, balance: ProviderID.hunter.defaultSettings.critical + 1),
+                     PoolBalance(pool: verifications, balance: 0)],
+          checkedAt: Scenarios.checkedAt
+        ),
+        mutes: [verifications.creditType: Mute(until: nil, balance: 0, severity: .empty)]
+      ),
+    ]
+    return StackScenario(connections: connections, failingID: "behind-0", history: false)
   }
 
   /// QUO-351, QUO-393: a free-plan Hunter muted until top-up at empty and a
@@ -182,6 +284,29 @@ extension StackScenario {
         balances: [PoolBalance(pool: searches, balance: 9000), PoolBalance(pool: verifications, balance: 1)],
         checkedAt: checkedAt)
     )
+  }
+
+  /// QUO-445: `atRisk` Prospeo balances below Warn below (every fifth one
+  /// empty), then `healthy` healthy tools. Short names keep every at-risk row
+  /// on one line; long names wrap each to two beside its Top up and Mute
+  /// buttons. No history.
+  public static func atRisk(_ atRisk: Int, healthy: Int = 0, longNames: Bool = false) -> StackScenario {
+    let settings = ProviderID.prospeo.defaultSettings
+    var pool = ProviderID.prospeo.pools[0]
+    pool.cap = 10_000
+    let risky = (0..<atRisk).map { index in
+      let id = "at-risk-\(index)"
+      return Connection(
+        id: id, provider: .prospeo,
+        name: longNames ? "Prospeo client workspace number \(index + 10)" : "Lead \(index + 1)", credentialRef: id,
+        lastReading: Reading(
+          balances: [PoolBalance(pool: pool, balance: index % 5 == 4 ? 0 : settings.critical + Double(index))],
+          checkedAt: Scenarios.checkedAt
+        )
+      )
+    }
+    let rest = connections(count: healthy, risks: Array(repeating: .healthy, count: healthy))
+    return StackScenario(connections: risky + rest, history: false)
   }
 
   /// QUO-51: the recordable showcase stack, time anchored at `now`.

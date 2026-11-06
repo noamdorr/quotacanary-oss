@@ -14,7 +14,7 @@ struct ProviderLogo: View {
   /// Black-only marks: drawn in the text color so they show in dark mode.
   static let templated: Set<ProviderID> = [
     .apollo, .decodo, .deepgram, ProviderID("elevenlabs"), ProviderID("linkup"), .meltly, .plivo,
-    ProviderID("runway"), ProviderID("scrapingdog"), .vonage, ProviderID("x"),
+    ProviderID("runway"), ProviderID("scrapingdog"), .vonage,
   ]
 
   /// Dark marks that vanish on a dark background (QUO-288): drawn on a light plate.

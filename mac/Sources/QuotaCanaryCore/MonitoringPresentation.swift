@@ -53,6 +53,8 @@ public enum PanelFreshness: Equatable, Sendable {
   case checking
   case offline(lastGood: Date)
   case checked(Date)
+  /// Every connection with a reading is failing: the newest good check (QUO-446).
+  case lastGood(Date)
   case noGoodCheckYet
 
   public static func of(
@@ -60,7 +62,8 @@ public enum PanelFreshness: Equatable, Sendable {
   ) -> PanelFreshness {
     if isBusy { return .checking }
     guard let date = ConnectionPresentation.oldestSuccessfulCheck(connections, failingIDs: failingIDs) else {
-      return .noGoodCheckYet
+      guard let lastGood = connections.compactMap({ $0.lastReading?.checkedAt }).max() else { return .noGoodCheckYet }
+      return anyOffline ? .offline(lastGood: lastGood) : .lastGood(lastGood)
     }
     return anyOffline ? .offline(lastGood: date) : .checked(date)
   }
@@ -70,6 +73,7 @@ public enum PanelFreshness: Equatable, Sendable {
     case .checking: return Copy.checkingNow
     case let .offline(date): return Copy.offlineLastGoodCheck(relative(date))
     case let .checked(date): return Copy.checked(relative(date))
+    case let .lastGood(date): return Copy.lastGoodCheck(relative(date))
     case .noGoodCheckYet: return Copy.noGoodCheckYet
     }
   }

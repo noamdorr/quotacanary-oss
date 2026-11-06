@@ -71,7 +71,8 @@ private func ids(_ lines: [BalancesAsShown.PanelLine]) -> [String] { lines.map(\
       health: ["streak": .checking, "recovered": .ok(lastSuccess: checkedAt), "offline": .offline(lastSuccess: nil)],
       errors: ["errored": "Unreachable"]
     )
-    #expect(shown.failingIDs == ["streak", "errored"])
+    // Offline is no answer, so a streak still stands (QUO-446).
+    #expect(shown.failingIDs == ["streak", "errored", "offline"])
   }
 
   @Test func attentionIsWorstFirstAndQuietIsTheRest() throws {

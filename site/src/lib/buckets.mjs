@@ -41,7 +41,7 @@ export const BUCKETS = [
       "diffbot", "firecrawl", "hasdata", "ipinfo", "iproyal", "litescrape", "netnut", "olostep",
       "outscraper", "phantombuster", "scrapecreators", "scrapedo", "scrapegraphai", "scrapeops",
       "scraperapi", "scrapfly", "scrapingant", "scrapingbee", "scrapingdog", "shodan",
-      "spidercloud", "tikhub", "tinyfish", "treg", "webshare", "x",
+      "spidercloud", "tikhub", "tinyfish", "treg", "webshare",
     ],
   },
   {

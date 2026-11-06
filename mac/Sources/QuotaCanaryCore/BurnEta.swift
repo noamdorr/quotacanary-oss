@@ -45,7 +45,12 @@ public struct BurnEta: Codable, Equatable, Sendable {
 /// wording for one pool row. Nil when there is nothing to say (no reading,
 /// or an allowance the plan does not include).
 public enum PoolEta {
-  public static func of(_ row: PoolRow, history: [HistoryPoint]) -> BurnEta? {
+  /// QUO-444: past this age the newest reading no longer supports a run-out
+  /// time; a failing or offline connection says nothing rather than the old
+  /// estimate. Up to it, the estimate is counted from the reading's time.
+  public static let staleAfter: TimeInterval = 2 * 3600
+
+  public static func of(_ row: PoolRow, history: [HistoryPoint], now: Date) -> BurnEta? {
     guard let balance = row.balance, row.status != .unavailable else { return nil }
     // A depleted pool is already gone, even with too few readings to measure
     // a burn. Without this it would read "no burn yet", a self-contradiction.
@@ -53,7 +58,11 @@ public enum PoolEta {
     switch BurnRate.assess(history) {
     case .collecting: return BurnEta(short: Copy.etaCollectingShort, long: Copy.etaCollectingLong)
     case .noConsumption: return BurnEta(short: Copy.etaNoConsumptionShort, long: Copy.etaNoConsumptionLong)
-    case let .burning(rate, _): return BurnEta.format(daysLeft: rate.daysLeft)
+    case let .burning(rate, _):
+      let age = history.map(\.recordedAt).max().map { now.timeIntervalSince($0) } ?? 0
+      let daysLeft = rate.daysLeft - age / 86_400
+      guard age <= staleAfter, daysLeft > 0 else { return nil }
+      return BurnEta.format(daysLeft: daysLeft)
     }
   }
 }

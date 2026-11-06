@@ -262,8 +262,8 @@ private func key(_ connectionID: String, _ creditType: String) -> PoolKey {
     #expect(rows.map(\.pool.unit) == [.credits, .credits])
     #expect(rows.map(\.balance) == [0, 520])
     // Zero-cap searches: not in plan, never "empty", never alerting.
-    #expect(rows.map(\.status) == [.unavailable, .low])
-    #expect(rows.map(\.alerts) == [false, true])
+    #expect(rows.map(\.status) == [.unavailable, .healthy]) // 520 of 1000: default low is 200 (QUO-441)
+    #expect(rows.map(\.alerts) == [false, false])
   }
 
   @Test func settingsSurviveRefreshAndRelaunch() async throws {
@@ -378,7 +378,7 @@ private func key(_ connectionID: String, _ creditType: String) -> PoolKey {
     try h.service.updatePoolSettings([key("conn-1", "searches"): off])
 
     let missing = try await h.service.refresh(id: "conn-1")
-    #expect(missing.poolRows.map(\.status) == [.unknown, .low]) // 999 left, default Low is 1500
+    #expect(missing.poolRows.map(\.status) == [.unknown, .healthy]) // 999 of 1000 left, default Low is 200
     #expect(missing.poolRows[0].settings == off)
 
     let back = try await h.service.refresh(id: "conn-1")

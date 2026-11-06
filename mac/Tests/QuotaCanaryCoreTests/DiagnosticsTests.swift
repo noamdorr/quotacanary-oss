@@ -134,9 +134,11 @@ private func jsonString(_ report: Diagnostics.Report) -> String {
     #expect(!jsonString(report).contains(diagSecret))
   }
 
-  @Test func vendorTextFromACatalogReadNeverReachesTheReport() async throws {
-    // QUO-196: errorPath and bodyError carry the vendor string for the row; diagnostics keep
-    // only the case name, for the message paths and for the no-message fallback alike.
+  @Test func vendorTextFromACatalogReadNeverReachesTheErrorCase() async throws {
+    // QUO-196: errorPath and bodyError carry the vendor string for the row; the export's
+    // lastErrorCase keeps only the case name, for the message paths and for the no-message
+    // fallback alike. A failed check's redacted response text is a separate field (lastCheck.body,
+    // QUO-279), described in the README.
     let base = CatalogEntry(
       id: "acme", name: "Acme", request: .init(method: .get, url: "https://api.acme.test/"),
       auth: .init(in: .header, name: "Authorization"),

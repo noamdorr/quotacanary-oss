@@ -66,7 +66,10 @@ private func quietConnection(
 
   @Test func unmonitoredHealthyReadingIsStillHealthy() {
     let muted = quietConnection("muted", searches: 900, verifications: 800, monitored: false)
-    #expect(ConnectionPresentation.allHealthy([muted]))
+    let watched = quietConnection("watched", searches: 900, verifications: 800)
+    #expect(ConnectionPresentation.allHealthy([watched, muted]))
+    // Nothing monitored at all is not called healthy (QUO-446).
+    #expect(!ConnectionPresentation.allHealthy([muted]))
     #expect(ConnectionPresentation.summaryRow(muted.poolRows)?.status == .healthy)
   }
 

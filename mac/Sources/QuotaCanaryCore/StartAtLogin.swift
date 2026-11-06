@@ -95,20 +95,26 @@ public protocol PreferencesStore: AnyObject {
 
 public final class JSONFilePreferencesStore: PreferencesStore {
   public let url: URL
+  private let now: () -> Date
 
   public init(url: URL = JSONFileConnectionStore.defaultURL()
-    .deletingLastPathComponent().appendingPathComponent("preferences.json"))
+    .deletingLastPathComponent().appendingPathComponent("preferences.json"), now: @escaping () -> Date = Date.init)
   {
     self.url = url
+    self.now = now
   }
 
+  /// An unreadable file is moved aside before it can be saved over (QUO-447).
   public func load() -> Preferences {
     guard let data = try? Data(contentsOf: url) else { return Preferences() }
-    return (try? JSONDecoder().decode(Preferences.self, from: data)) ?? Preferences()
+    if let preferences = try? JSONDecoder().decode(Preferences.self, from: data) { return preferences }
+    try? FileManager.default.moveItem(at: url, to: setAsideURL(for: url, now: now()))
+    return Preferences()
   }
 
   public func erase() throws {
     if FileManager.default.fileExists(atPath: url.path) { try FileManager.default.removeItem(at: url) }
+    try removeSetAsideCopies(of: url)
   }
 
   public func save(_ preferences: Preferences) throws {

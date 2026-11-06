@@ -20,9 +20,9 @@ struct BalanceSparkline: View {
 
   var body: some View {
     if points.count >= 2 {
-      let low = points.map(\.balance).min() ?? 0
-      let high = points.map(\.balance).max() ?? 0
-      let pad = max((high - low) * 0.1, high == low ? 1 : 0)
+      // QUO-444: from zero, so a 0.1% dip is drawn as small as it is.
+      let low = min(points.map(\.balance).min() ?? 0, 0)
+      let high = max(points.map(\.balance).max() ?? 0, 1)
       Chart(points, id: \.recordedAt) { point in
         AreaMark(x: .value("Time", point.recordedAt), y: .value("Balance", point.balance))
           .foregroundStyle(tone.opacity(0.15))
@@ -32,7 +32,7 @@ struct BalanceSparkline: View {
       }
       .chartXAxis(.hidden)
       .chartYAxis(.hidden)
-      .chartYScale(domain: (low - pad)...(high + pad))
+      .chartYScale(domain: low...(high * 1.05))
       .chartPlotStyle { $0.frame(height: 48).clipped() }
       .frame(height: 48)
       .accessibilityHidden(true)

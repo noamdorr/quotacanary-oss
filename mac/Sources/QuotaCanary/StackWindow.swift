@@ -132,7 +132,7 @@ struct StackView: View {
     })
     let presented = rows[state.filter] ?? []
     VStack(spacing: 0) {
-      toolbar(counts: rows.mapValues(\.count))
+      toolbar(counts: rows.mapValues(\.count), mutedAtRisk: rows[.atRisk]?.filter(\.row.muted).count ?? 0)
       Divider()
 
       GeometryReader { geometry in
@@ -165,16 +165,18 @@ struct StackView: View {
   }
 
   /// The count is the segment's value, so VoiceOver reads "All, 3" and not one glued string.
-  private func filterSegment(_ title: String, count: Int) -> some View {
-    Text("\(title) \(count)").accessibilityLabel(title).accessibilityValue("\(count)")
+  private func filterSegment(_ title: String, count: Int, muted: Int = 0) -> some View {
+    let value = Copy.stackAtRiskCount(count, muted: muted)
+    return Text("\(title) \(value)").accessibilityLabel(title).accessibilityValue(value)
   }
 
-  private func toolbar(counts: [ConnectionFilter: Int]) -> some View {
+  /// `mutedAtRisk` labels the muted share of the At risk count, as the bird's does (QUO-449).
+  private func toolbar(counts: [ConnectionFilter: Int], mutedAtRisk: Int) -> some View {
     HStack(spacing: 12) {
       Text(Copy.stackTitle).font(.headline)
       Picker(Copy.stackFilter, selection: $state.filter) {
         filterSegment(Copy.stackAll, count: counts[.all] ?? 0).tag(ConnectionFilter.all)
-        filterSegment(Copy.stackAtRisk, count: counts[.atRisk] ?? 0).tag(ConnectionFilter.atRisk)
+        filterSegment(Copy.stackAtRisk, count: counts[.atRisk] ?? 0, muted: mutedAtRisk).tag(ConnectionFilter.atRisk)
         filterSegment(Copy.stackFailing, count: counts[.failing] ?? 0).tag(ConnectionFilter.failing)
       }
       .pickerStyle(.segmented).labelsHidden().fixedSize()

@@ -39,10 +39,10 @@ public struct BurnRate: Codable, Equatable, Sendable {
 }
 
 /// What the local history supports saying about consumption (QUO-271).
-/// A burn needs what `BurnRate.of` requires: two readings over a positive time
-/// span. "No consumption observed" additionally needs a flat span of at least
-/// `minimumQuietSpanDays`. Below that nothing is known, which must never read
-/// as "not consuming".
+/// A burn needs the evidence floor (QUO-444): at least `minimumReadings`
+/// readings over at least `minimumSpan`. "No consumption observed"
+/// additionally needs a flat span of at least `minimumQuietSpanDays`. Below
+/// the floor nothing is known, which must never read as "not consuming".
 public enum BurnAssessment: Equatable, Sendable {
   case collecting
   case noConsumption(spanDays: Double)
@@ -53,13 +53,35 @@ public extension BurnRate {
   /// A flat balance only counts as "no consumption observed" once the history
   /// spans at least this many days; a shorter flat span is still collecting.
   static let minimumQuietSpanDays = 1.0
+  /// QUO-444: no run-out time from fewer readings or a shorter span than this.
+  static let minimumReadings = 4
+  static let minimumSpan: TimeInterval = 6 * 3600
 
   static func assess(_ history: [HistoryPoint]) -> BurnAssessment {
-    guard history.count >= 2 else { return .collecting }
-    let times = history.map(\.recordedAt)
-    let spanDays = (times.max()!.timeIntervalSince(times.min()!)) / 86_400
-    guard spanDays > 0 else { return .collecting }
-    if let rate = of(history) { return .burning(rate, spanDays: spanDays) }
+    let readings = withoutGlitches(history.sorted { $0.recordedAt < $1.recordedAt })
+    guard readings.count >= minimumReadings,
+      let first = readings.first, let last = readings.last else { return .collecting }
+    let span = last.recordedAt.timeIntervalSince(first.recordedAt)
+    guard span >= minimumSpan else { return .collecting }
+    let spanDays = span / 86_400
+    if let rate = of(readings) { return .burning(rate, spanDays: spanDays) }
     return spanDays >= minimumQuietSpanDays ? .noConsumption(spanDays: spanDays) : .collecting
+  }
+
+  /// Drops a reading that departs from both neighbours and is undone by the
+  /// next one (its neighbours sit within a tenth of the departure of each
+  /// other), so one odd reading cannot create a burn. Steady declines and
+  /// refills are untouched. `readings` is sorted oldest first.
+  static func withoutGlitches(_ readings: [HistoryPoint]) -> [HistoryPoint] {
+    guard readings.count >= 3 else { return readings }
+    return readings.enumerated().filter { index, reading in
+      guard index > 0, index < readings.count - 1 else { return true }
+      let before = readings[index - 1].balance
+      let after = readings[index + 1].balance
+      let up = reading.balance - before
+      let down = reading.balance - after
+      guard up * down > 0 else { return true }
+      return min(abs(up), abs(down)) < 10 * abs(before - after)
+    }.map(\.element)
   }
 }

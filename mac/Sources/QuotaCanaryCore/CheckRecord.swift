@@ -69,9 +69,11 @@ public struct CheckRecord: Codable, Equatable, Sendable {
   ) -> CheckRecord {
     let redacted = { (text: String) in scrub(text, secrets: secrets) }
     let projectID = deepgramProjectID(in: url)
-    let bodySecrets = projectID.map {
+    var bodySecrets = projectID.map {
       secrets + [$0, $0.addingPercentEncoding(withAllowedCharacters: Deepgram.idAllowed) ?? $0]
     } ?? secrets
+    let tregOrg = tregOrgID(in: url)
+    if let tregOrg { bodySecrets.append(tregOrg) }
     var text = ""
     // The projects listing has no request ID to match against a provider echo.
     // Failed listing bodies are omitted rather than exposing a project ID.
@@ -83,6 +85,8 @@ public struct CheckRecord: Codable, Equatable, Sendable {
     let path: String
     if url.host == "api.deepgram.com", url.path.hasPrefix("/v1/projects/") {
       path = projectID == nil ? "/v1/projects/[project]" : "/v1/projects/[project]/balances"
+    } else if tregOrg != nil {
+      path = "/orgs/[org]/balance"
     } else {
       path = redacted(url.path)
     }
@@ -90,6 +94,15 @@ public struct CheckRecord: Codable, Equatable, Sendable {
       method: method, host: url.host ?? "", path: path, status: status,
       durationMs: durationMs, body: text, checkedAt: now
     )
+  }
+
+  /// treg's org id sits in the balance path (`/orgs/<id>/balance`) and is an
+  /// account identifier, so it is kept out of the record like Deepgram's.
+  private static func tregOrgID(in url: URL) -> String? {
+    guard url.host == "treg.to" else { return nil }
+    let parts = url.path.split(separator: "/", omittingEmptySubsequences: true)
+    guard parts.count == 3, parts[0] == "orgs", parts[2] == "balance" else { return nil }
+    return String(parts[1])
   }
 
   /// The ID is private even though it is part of Deepgram's request URL.

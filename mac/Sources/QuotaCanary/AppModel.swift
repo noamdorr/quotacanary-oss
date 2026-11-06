@@ -15,6 +15,9 @@ final class AppModel {
   /// Connect and load failures (not tied to one connection). Refresh and
   /// remove failures live on each connection's monitoring record (QUO-310).
   private(set) var errorMessage: String?
+  /// Where an unreadable connections file was kept at launch (QUO-447); stays
+  /// up until an erase.
+  private(set) var loadNotice: String?
   /// The typed error behind `errorMessage`. Diagnostics export reads it to
   /// report the enum case name only, never the message.
   private(set) var lastError: MonitorError?
@@ -107,6 +110,7 @@ final class AppModel {
     (system.notifier as? SystemNotificationCenter)?.onOpen = { [weak self] target in self?.openNotification(target) }
     do {
       connections = try service.restore()
+      loadNotice = service.setAsideFile.map { Copy.connectionsSetAside(($0.path as NSString).abbreviatingWithTildeInPath) }
     } catch {
       lastError = error as? MonitorError
       errorMessage = lastError?.message ?? Copy.loadFailed
@@ -163,7 +167,14 @@ final class AppModel {
   /// Something to go back to from the connect form, local.
   var hasAnyConnection: Bool { !connections.isEmpty }
 
+  /// The credential fields and Connect work only while the picked tool is
+  /// listed under the current search (QUO-442).
+  var keyEntryOpen: Bool {
+    ProviderPicker.keyEntryOpen(current: provider, search: providerSearch, among: availableProviders)
+  }
+
   func connect() async {
+    guard keyEntryOpen else { return }
     await run {
       let key = self.provider.credential(key: self.keyInput, inputs: self.credentialInputs)
       let fresh = try await self.service.connect(provider: self.provider, key: key, name: self.nameInput)
@@ -207,6 +218,14 @@ final class AppModel {
     draft.reset()
     providerSearch = ""
     errorMessage = nil
+  }
+
+  /// The popover closed (QUO-445). An untouched connect form there goes, so
+  /// the balances show next time; typed input, a connect under way or a
+  /// balance checklist stays, one Cancel away from them.
+  func panelClosed() {
+    guard addingOn == .panel, watchChoiceID == nil, !isBusy, providerSearch.isEmpty, !draft.hasTypedInput else { return }
+    cancelAdding()
   }
 
   /// The stack window's sheet closed. When the panel took the form over, its
@@ -258,6 +277,7 @@ final class AppModel {
     }
     monitor.forgetAll()
     errorMessage = nil
+    loadNotice = nil
     lastError = nil
     draft = ConnectDraft()
     providerSearch = ""
@@ -381,7 +401,7 @@ extension AppModel {
 
   func assessment(for key: PoolKey) -> BurnAssessment { BurnRate.assess(service.history(for: key)) }
 
-  func eta(for row: PoolRow) -> BurnEta? { PoolEta.of(row, history: service.history(for: row.key)) }
+  func eta(for row: PoolRow) -> BurnEta? { PoolEta.of(row, history: service.history(for: row.key), now: service.currentTime) }
 
   func sparkline(for key: PoolKey) -> [HistoryPoint] { service.sparkline(for: key) }
 }

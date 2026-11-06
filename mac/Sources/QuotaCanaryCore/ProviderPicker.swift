@@ -9,6 +9,13 @@ public enum ProviderPicker {
     rows.contains(current) ? current : rows.first
   }
 
+  /// QUO-442: whether the form may take a key. While a search is typed and the
+  /// picked tool is not among its results, the title and key label name a tool
+  /// the list does not show, so nothing may be sent until a visible one is picked.
+  public static func keyEntryOpen(current: ProviderID, search: String, among all: [ProviderID]) -> Bool {
+    ProviderSearch.filter(search, among: all).contains(current)
+  }
+
   /// One row up (negative) or down (positive), stopping at either end.
   public static func move(_ highlighted: ProviderID?, by step: Int, in rows: [ProviderID]) -> ProviderID? {
     guard !rows.isEmpty else { return nil }
@@ -54,6 +61,11 @@ public struct ConnectDraft: Equatable, Sendable {
   /// Typing the suggestion back counts as following it again.
   public mutating func setName(_ name: String, suggested: String) {
     editedName = name == suggested ? nil : name
+  }
+
+  /// Anything typed into the form: a key, a credential value or a name of its own (QUO-445).
+  public var hasTypedInput: Bool {
+    !key.isEmpty || credentialInputs.values.contains { !$0.isEmpty } || editedName != nil
   }
 
   /// After Connect or Cancel: what was typed goes, the pick stays.

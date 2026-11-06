@@ -90,6 +90,10 @@ public enum Copy {
   public static let credentialDeleteFailed = "Couldn't remove the key from Keychain."
   public static let saveFailed = "Couldn't save to disk. Nothing changed."
   public static let loadFailed = "Couldn't read saved settings."
+  /// QUO-447: a connections file read only in part, kept aside before any save.
+  public static func connectionsSetAside(_ path: String) -> String {
+    "Part of the saved connections file couldn't be read. The original is kept at \(path)."
+  }
   public static let notConnected = "Nothing connected yet."
 
   // Pool rows and statuses
@@ -135,6 +139,7 @@ public enum Copy {
   public static let unitGB = "GB"
   public static func gigabytes(_ amount: String) -> String { "\(amount) GB" }
   public static func minutes(_ amount: String) -> String { "\(amount) min" }
+  public static let warnBelowAtCapHint = "At or above the plan size, so this balance will warn straight away."
   public static let unavailableHint = "Your plan has no allowance here, so it will not alert."
   public static let unknownHint = "No reading for this balance yet. Settings apply once it reports."
   public static let saveButton = "Save"
@@ -420,7 +425,7 @@ public enum Copy {
   public static func reasonProviderError(_ provider: String) -> String { "\(provider) returned an error" }
   public static func reasonUnexpected(_ provider: String) -> String { "\(provider) sent something that isn't a balance" }
 
-  // Panel run-out time toggle (QUO-425). Wording is staged in the PR, not final.
+  // Panel run-out time toggle (QUO-425).
   public static let showRunOutToggle = "Show run-out times in the menu"
   public static let showRunOutHint = "Each balance in the menu shows when it should run out. Off keeps the menu clean. Hovering a balance still tells you."
 
@@ -476,9 +481,12 @@ public enum Copy {
 
 public extension Copy {
   static let attentionSection = "Needs attention"
+  /// A list heading with its row count, while some rows scroll out of sight (QUO-445).
+  static func sectionCount(_ heading: String, _ count: Int) -> String { "\(heading) · \(count)" }
   static let connectionsSection = "Connections"
   static let openWindowButton = "Open window"
-  static func menuBarCountAccessibility(_ count: Int, severity: AlertSeverity) -> String {
+  /// `count` is every balance the bird shows, `muted` of them included (QUO-449).
+  static func menuBarCountAccessibility(_ count: Int, muted: Int = 0, severity: AlertSeverity) -> String {
     let worst: String
     switch severity {
     case .none: return birdAccessibility
@@ -486,7 +494,35 @@ public extension Copy {
     case .critical: worst = statusCritical
     case .empty: worst = statusEmpty
     }
-    return "QuotaCanary, \(count) \(count == 1 ? "balance" : "balances") running low, worst: \(worst)"
+    let alerting = count - muted
+    func balances(_ n: Int) -> String { n == 1 ? "balance" : "balances" }
+    guard muted > 0 else { return "QuotaCanary, \(count) \(balances(count)) running low, worst: \(worst)" }
+    guard alerting > 0 else { return "QuotaCanary, \(muted) muted \(balances(muted)) running low, worst: \(worst)" }
+    return "QuotaCanary, \(alerting) \(balances(alerting)) running low, \(mutedCount(muted)), worst: \(worst)"
+  }
+
+  /// The bird's label with no balance at risk, by severity.
+  static func birdAccessibility(_ severity: AlertSeverity) -> String {
+    switch severity {
+    case .none: return birdAccessibility
+    case .low: return birdLowAccessibility
+    case .critical: return birdCriticalAccessibility
+    case .empty: return birdEmptyAccessibility
+    }
+  }
+
+  // Bird and popover agree (QUO-449).
+  /// The muted part of a count: "2 at risk, 2 muted".
+  static func mutedCount(_ count: Int) -> String { "\(count) muted" }
+  /// After the bird's label while checks have stopped.
+  static func birdChecksStopped(_ connections: Int) -> String {
+    connections == 1 ? "checks stopped for 1 connection" : "checks stopped for \(connections) connections"
+  }
+  /// On a balance row under a failing connection's line: its number is from the last good check.
+  static let oldBalanceNote = "Old reading"
+  /// The At risk tab's count: `count` includes `muted`.
+  static func stackAtRiskCount(_ count: Int, muted: Int) -> String {
+    muted == 0 ? "\(count)" : "\(count - muted), \(mutedCount(muted))"
   }
 }
 

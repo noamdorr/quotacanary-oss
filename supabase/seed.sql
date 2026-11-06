@@ -1572,17 +1572,6 @@ values
     true
   ),
   (
-    'x',
-    'X',
-    '/logos/x.png',
-    'https://docs.x.com/x-api/usage/get-usage',
-    'In the X Developer Console, open your app and copy its bearer token. This reads the monthly Post read cap; the prepaid USD balance lives only in the Console.',
-    'data',
-    'api',
-    10000,
-    true
-  ),
-  (
     'datagma',
     'Datagma',
     '/logos/datagma.png',
@@ -2062,7 +2051,6 @@ update public.tools set description = 'B2B email finder and verifier with compan
 update public.tools set description = 'Image, video, audio and chat model API, billed from prepaid credits.' where id = 'reapi';
 update public.tools set description = 'Job postings API pulled from employer career sites, metered in daily tokens.' where id = 'mobiusengine-jobs';
 update public.tools set description = 'Stock, fundamentals and market data API with a daily call limit.' where id = 'eodhd';
-update public.tools set description = 'The X API, with a monthly cap on Post reads per project.' where id = 'x';
 update public.tools set description = 'Contact and company enrichment API (emails, phones, firmographics), billed from prepaid credits.' where id = 'datagma';
 update public.tools set description = 'Job postings and technographics API, billed from credits.' where id = 'theirstack';
 update public.tools set description = 'One API for AI media models (Midjourney, Kling, Flux and more), billed from prepaid credits.' where id = 'piapi';
@@ -2172,7 +2160,6 @@ update public.tools set website_url = 'https://orbisearch.com' where id = 'orbis
 update public.tools set website_url = 'https://reapi.ai' where id = 'reapi';
 update public.tools set website_url = 'https://jobs.arihaan.ai' where id = 'mobiusengine-jobs';
 update public.tools set website_url = 'https://eodhd.com' where id = 'eodhd';
-update public.tools set website_url = 'https://x.com' where id = 'x';
 update public.tools set website_url = 'https://datagma.com' where id = 'datagma';
 update public.tools set website_url = 'https://theirstack.com' where id = 'theirstack';
 update public.tools set website_url = 'https://piapi.ai' where id = 'piapi';
@@ -2305,7 +2292,6 @@ update public.tools set topup_url = 'https://orbisearch.com/pricing' where id = 
 update public.tools set topup_url = 'https://reapi.ai/pricing' where id = 'reapi';
 update public.tools set topup_url = 'https://jobs.arihaan.ai/pricing' where id = 'mobiusengine-jobs';
 update public.tools set topup_url = 'https://eodhd.com/pricing' where id = 'eodhd';
-update public.tools set topup_url = 'https://console.x.com' where id = 'x';
 update public.tools set topup_url = 'https://datagma.com/pricing' where id = 'datagma';
 update public.tools set topup_url = 'https://theirstack.com/en/pricing' where id = 'theirstack';
 update public.tools set topup_url = 'https://piapi.ai/pricing' where id = 'piapi';
@@ -2868,12 +2854,6 @@ update public.tools
     {"credit_type":"extra","label":"Extra API calls","unit":"credits"}
   ]'::jsonb
   where id = 'eodhd';
-
-update public.tools
-  set pools = '[
-    {"credit_type":"post_reads","label":"Post reads","unit":"credits"}
-  ]'::jsonb
-  where id = 'x';
 
 update public.tools
   set pools = '[

@@ -96,7 +96,8 @@ private func status(_ balance: Double, pool: Pool = credits, _ settings: PoolSet
     #expect(rows[1].balance == nil)
     // The saved choice holds even though the pool is not in this reading.
     #expect(rows[1].settings == PoolSettings(monitored: false, low: 50, critical: 10))
-    #expect(rows[0].settings == ProviderID.hunter.defaultSettings)
+    // Searches has a cap of 25, so its default Warn below is 20% of it (QUO-441).
+    #expect(rows[0].settings == Thresholds.defaults(ProviderID.hunter.defaultSettings, cap: 25))
   }
 
   @Test func neverCheckedConnectionShowsEveryCatalogPoolAsUnknown() {

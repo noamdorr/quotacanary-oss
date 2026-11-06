@@ -2535,29 +2535,6 @@
       ]
     },
     {
-      "id": "x",
-      "name": "X",
-      "topupUrl": "https://console.x.com",
-      "request": {
-        "method": "GET",
-        "url": "https://api.x.com/2/usage/tweets?usage.fields=project_cap,project_usage,cap_reset_day"
-      },
-      "auth": {
-        "in": "header",
-        "name": "Authorization",
-        "format": "Bearer {key}"
-      },
-      "pools": [
-        {
-          "creditType": "post_reads",
-          "label": "Post reads",
-          "unit": "credits",
-          "limit": "data.project_cap",
-          "used": "data.project_usage"
-        }
-      ]
-    },
-    {
       "id": "datagma",
       "name": "Datagma",
       "topupUrl": "https://datagma.com/pricing",

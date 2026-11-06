@@ -147,7 +147,8 @@ public final class PollScheduler {
   public nonisolated static let nominalInterval: TimeInterval = 15 * 60
   /// Upper bound on one check, on top of the transport's own timeout.
   public static let checkTimeout: TimeInterval = 30
-  /// Wake and reconnect skip a connection attempted less than this long ago.
+  /// Wake and reconnect skip a connection attempted less than this long ago,
+  /// except that a reconnect always checks a connection marked offline.
   public static let eventGap: TimeInterval = 60
   /// Timer ticks tolerate this much jitter against the minimum interval.
   static let timerSlack: TimeInterval = 30
@@ -313,7 +314,11 @@ public final class PollScheduler {
     switch trigger {
     case .manual, .launch: return true
     case .timer: return age >= Self.minimumInterval(for: connection.provider) - Self.timerSlack
-    case .wake, .reconnect: return age >= Self.eventGap
+    case .wake: return age >= Self.eventGap
+    case .reconnect:
+      // A connection marked offline gets a real check, however recent the last attempt (QUO-446).
+      if case .offline = monitor.health[connection.id] { return true }
+      return age >= Self.eventGap
     }
   }
 

@@ -2539,24 +2539,6 @@
     "pools": null
   },
   {
-    "id": "x",
-    "name": "X",
-    "logo_url": "/logos/x.webp",
-    "category": "data",
-    "description": "The X API, with a monthly cap on Post reads per project.",
-    "website_url": "https://x.com",
-    "api_docs_url": "https://docs.x.com/x-api/usage/get-usage",
-    "key_instructions": "",
-    "topup_url": "https://console.x.com",
-    "pools": [
-      {
-        "unit": "credits",
-        "label": "Post reads",
-        "credit_type": "post_reads"
-      }
-    ]
-  },
-  {
     "id": "youcom",
     "name": "You.com",
     "logo_url": "/logos/youcom.webp",

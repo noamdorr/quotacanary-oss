@@ -44,6 +44,22 @@ public enum Scenarios {
     syntheticService(openRouter: [rejected], hunter: [rejected], tavily: [rejected], apollo: [rejected], prospeo: [rejected])
   }
 
+  /// QUO-447: a launch that kept an unreadable connections file aside. With
+  /// `keepingOpenRouter`, one connection still loaded from it.
+  @MainActor
+  public static func setAsideService(keepingOpenRouter: Bool) async -> MonitoringService {
+    let credentials = InMemoryCredentialStore()
+    let store = InMemoryConnectionStore()
+    let transport = RoutedTransport([OpenRouter.creditsURL.host!: ScriptedTransport([openRouterOK])])
+    if keepingOpenRouter {
+      let first = MonitoringService(credentials: credentials, store: store, transport: transport, now: { checkedAt })
+      _ = try? await first.connect(provider: .openrouter, key: "synthetic")
+    }
+    store.setAside = JSONFileConnectionStore.defaultURL().deletingLastPathComponent()
+      .appendingPathComponent("connections-unreadable-2026-11-05-091500.json")
+    return MonitoringService(credentials: credentials, store: store, transport: transport, now: { checkedAt })
+  }
+
   private static func host(_ provider: ProviderID) -> String {
     URL(string: ProviderRegistry.current.entry(provider)!.request.url)!.host!
   }
@@ -140,8 +156,8 @@ public struct ScriptedScenario: Sendable {
 extension ScriptedScenario {
   /// OpenRouter $12.50 at default thresholds (low).
   public static let openRouter = ScriptedScenario(connects: [Connect(.openrouter)])
-  /// Hunter searches with a zero cap (not in plan) and 480 verifications left
-  /// (critical at 500).
+  /// Hunter searches with a zero cap (not in plan) and 60 verifications left
+  /// of 1,000 (critical at 66, a third of the default Warn below of 200).
   public static let hunter = ScriptedScenario(connects: [Connect(.hunter)])
   /// The two above together.
   public static let mixed = ScriptedScenario(connects: [Connect(.openrouter), Connect(.hunter)])
@@ -160,7 +176,7 @@ extension ScriptedScenario {
   public static let twoHunter = ScriptedScenario(
     hunter: [
       Scenarios.hunterOK,
-      .respond(status: 200, body: #"{"data":{"requests":{"searches":{"used":40,"available":500},"verifications":{"used":120,"available":1000}}}}"#),
+      .respond(status: 200, body: #"{"data":{"requests":{"searches":{"used":480,"available":500},"verifications":{"used":840,"available":1000}}}}"#),
     ],
     connects: [Connect(.hunter), Connect(.hunter, name: "Client work")]
   )
@@ -186,7 +202,7 @@ public enum SyntheticBodies {
   public static let openRouter = #"{"data":{"total_credits":20,"total_usage":7.5}}"#
   /// Shaped like Hunter's real /v2/account response: a plan without searches.
   public static let hunter =
-    #"{"data":{"requests":{"searches":{"used":0,"available":0},"verifications":{"used":520,"available":1000}}}}"#
+    #"{"data":{"requests":{"searches":{"used":0,"available":0},"verifications":{"used":940,"available":1000}}}}"#
   /// Shaped like Tavily's /usage: plan nearly spent, pay-as-you-go switched
   /// off (limit 0), and a key with its own 500-credit cap.
   public static let tavily =
@@ -194,7 +210,7 @@ public enum SyntheticBodies {
   /// Shaped like Apollo's documented credit_usage_stats response: AI credits
   /// and conversations not in plan (limit 0), dialer in minutes.
   public static let apollo =
-    #"{"credit_usage_stats":{"lead_credit":{"limit":10000,"consumed":2500,"left_over":7500},"export_credit":{"limit":5000,"consumed":250,"left_over":4750},"direct_dial_credit":{"limit":1000,"consumed":120,"left_over":880},"ai_credit":{"limit":0,"consumed":0,"left_over":0},"conversation_credit":{"limit":0,"consumed":0,"left_over":0},"dialer":{"limit":500,"consumed":12,"left_over":488}},"current_credit_cycle":{"start_date":"2026-09-01T00:00:00.000Z","end_date":"2026-10-01T00:00:00.000Z"}}"#
+    #"{"credit_usage_stats":{"lead_credit":{"limit":10000,"consumed":2500,"left_over":7500},"export_credit":{"limit":5000,"consumed":250,"left_over":4750},"direct_dial_credit":{"limit":1000,"consumed":850,"left_over":150},"ai_credit":{"limit":0,"consumed":0,"left_over":0},"conversation_credit":{"limit":0,"consumed":0,"left_over":0},"dialer":{"limit":500,"consumed":12,"left_over":488}},"current_credit_cycle":{"start_date":"2026-09-01T00:00:00.000Z","end_date":"2026-10-01T00:00:00.000Z"}}"#
   /// Shaped like Prospeo's /account-information.
   public static let prospeo =
     #"{"error":false,"response":{"current_plan":"STARTER","remaining_credits":1840,"used_credits":160}}"#
