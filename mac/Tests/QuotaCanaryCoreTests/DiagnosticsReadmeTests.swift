@@ -34,7 +34,7 @@ import Testing
     "status": "HTTP status",
     "durationMs": "duration",
     "checkedAt": "time",
-    "body": "the vendor's response",
+    "body": "response body field is always empty",
   ]
 
   private static func keys(in value: Any, into found: inout Set<String>) {
@@ -91,11 +91,8 @@ import Testing
     }
   }
 
-  @Test func readmeNoLongerPromisesWhatTheExportDoesNotKeep() throws {
+  @Test func readmeStatesTheExportBodyBoundary() throws {
     let section = try Self.readmeSection().replacingOccurrences(of: "\n", with: " ")
-    #expect(!section.contains("response bodies"))
-    #expect(!section.contains("any other account identifier"))
-    #expect(!section.contains("(not its message)"))
-    #expect(!section.contains("in the panel"))
+    #expect(section.contains("diagnostics never include request or response bodies"))
   }
 }

@@ -184,7 +184,7 @@ private let missing: [ProviderID: (body: String, field: String)] = [
 
   @Test func firecrawlReportsARefusedRequest() async {
     #expect(await read(.firecrawl, body: #"{"success":false}"#).0.error
-      == .reportedError("Firecrawl rejected the credit usage request."))
+      == .guidance(.firecrawlRejected))
   }
 
   // MARK: All four

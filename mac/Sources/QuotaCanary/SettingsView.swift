@@ -610,7 +610,9 @@ struct EraseSettingsSection: View {
 
   private func erase() {
     isConfirming = false
-    error = model.eraseLocalData()
-    if error == nil { onErased() }
+    Task { @MainActor in
+      error = await model.eraseLocalData()
+      if error == nil { onErased() }
+    }
   }
 }

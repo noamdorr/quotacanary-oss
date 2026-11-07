@@ -15,6 +15,8 @@ final class SystemNotificationCenter: NSObject, NotificationCenterLike, UNUserNo
   }
 
   private let center: UNUserNotificationCenter?
+  private var generation = 0
+  private var adding = 0
   /// Opens the window for a clicked notification (QUO-266). A click that
   /// launched the app can arrive before the model sets this, so it waits.
   private var pendingOpen: NotificationTarget??
@@ -42,9 +44,31 @@ final class SystemNotificationCenter: NSObject, NotificationCenterLike, UNUserNo
     return Self.map(await center.notificationSettings().authorizationStatus)
   }
 
+  func clearNotifications() {
+    generation += 1
+    pendingOpen = nil
+    center?.removeAllPendingNotificationRequests()
+    center?.removeAllDeliveredNotifications()
+  }
+
+  /// The OS removes notifications asynchronously. In particular, the
+  /// uninstall process must not exit until the daemon confirms both queues.
+  func waitUntilCleared() async -> Bool {
+    guard let center else { return false }
+    for _ in 0..<20 {
+      let pending = await center.pendingNotificationRequests()
+      let delivered = await center.deliveredNotifications()
+      if adding == 0 && pending.isEmpty && delivered.isEmpty { return true }
+      try? await Task.sleep(for: .milliseconds(100))
+    }
+    return false
+  }
+
   func deliver(title: String, body: String, id: String, target: NotificationTarget?) async throws {
     guard let center else { throw NotificationDeliveryError.notAllowed(.unavailable) }
+    let epoch = generation
     let state = await status()
+    guard epoch == generation else { throw CancellationError() }
     guard state == .allowed else { throw NotificationDeliveryError.notAllowed(state) }
     let content = UNMutableNotificationContent()
     content.title = title
@@ -52,7 +76,17 @@ final class SystemNotificationCenter: NSObject, NotificationCenterLike, UNUserNo
     content.sound = .default
     if let target { content.userInfo = target.userInfo }
     do {
-      try await center.add(UNNotificationRequest(identifier: id, content: content, trigger: nil))
+      adding += 1
+      defer { adding -= 1 }
+      let identifier = "\(epoch).\(id)"
+      try await center.add(UNNotificationRequest(identifier: identifier, content: content, trigger: nil))
+      if epoch != generation {
+        // add() was in flight when erase cleared the OS queues. Remove just
+        // the retired request, never a subsequent connection's notification.
+        center.removePendingNotificationRequests(withIdentifiers: [identifier])
+        center.removeDeliveredNotifications(withIdentifiers: [identifier])
+        throw CancellationError()
+      }
     } catch {
       throw NotificationDeliveryError.failed(code: (error as NSError).code)
     }

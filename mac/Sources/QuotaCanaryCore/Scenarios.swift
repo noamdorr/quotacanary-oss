@@ -80,7 +80,7 @@ extension Scenarios {
     try? FileManager.default.removeItem(at: downloads)
     func updater(signedBy signer: Curve25519.Signing.PrivateKey) -> Updater {
       let entry = try? UpdateEntry.signed(
-        version: "0.2.0", url: "https://updates.example.test/QuotaCanary-0.2.0.zip", archive: archive, key: signer
+        version: "0.2.0", url: "https://quotacanary.com/mac/QuotaCanary-0.2.0.zip", archive: archive, key: signer
       )
       let transport = FakeUpdateTransport(
         feed: .respond(status: 200, body: (try? JSONEncoder().encode(entry)) ?? Data()),

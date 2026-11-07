@@ -72,7 +72,7 @@ public enum EnrichCRM: HandWrittenProvider {
     let message = object["message"] as? String
     if let code = ProviderJSON.finiteOrNil(object["code"]), code != 0 {
       if message?.lowercased().contains("can't get credit") == true {
-        return .reportedError(Copy.enrichCRMCreditsUnreadable)
+        return .guidance(.enrichCRMCreditsUnreadable)
       }
       return .reportedError(message ?? Copy.enrichCRMError)
     }

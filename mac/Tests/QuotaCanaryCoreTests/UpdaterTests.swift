@@ -78,6 +78,35 @@ private final class UpdateHarness {
     }
   }
 
+  @Test func unsignedArchiveDestinationNeverTriggersARequest() async {
+    for target in ["https://elsewhere.example/update.zip", "http://127.0.0.1/local", "https://quotacanary.com/mac/other.zip",
+                   "https://quotacanary.com/mac/QuotaCanary-0.2.0.zip?where=elsewhere"] {
+      let h = UpdateHarness()
+      var entry = h.entry("0.2.0")
+      entry.url = target
+      h.serve(entry)
+      await h.updater.checkNow()
+      #expect(h.updater.status == .failed(.feedUnreadable))
+      #expect(h.transport.requests.count == 1)
+    }
+  }
+
+  @Test func productionArchiveRedirectsMatchTheReleaseChain() {
+    let origin = URL(string: "https://quotacanary.com/mac/QuotaCanary-0.2.0.zip")!
+    let github = "https://github.com/noamdorr/quotacanary-oss/releases/download/mac-v0.2.0/QuotaCanary-0.2.0.zip"
+    for (target, accepted) in [(github, true), ("https://release-assets.githubusercontent.com/github-production-release-asset/123/asset?sig=x", false),
+      (github.replacingOccurrences(of: "noamdorr", with: "another-org"), false), (github + "?redirect=x", false),
+      (github.replacingOccurrences(of: "github.com", with: "github.com:4430"), false),
+      ("https://github.com@evil.example/asset", false), ("http://127.0.0.1/internal", false)] {
+      #expect(UpdateFeed.allowsArchiveRedirect(from: origin, previous: origin, to: URL(string: target)!, feedURL: UpdateFeed.url) == accepted)
+    }
+    let asset = URL(string: "https://release-assets.githubusercontent.com/github-production-release-asset/1276281564/file-id?sig=x")!
+    let wrongRepo = URL(string: asset.absoluteString.replacingOccurrences(of: "1276281564", with: "123"))!
+    #expect(!UpdateFeed.allowsArchiveRedirect(from: origin, previous: origin, to: asset, feedURL: UpdateFeed.url))
+    #expect(!UpdateFeed.allowsArchiveRedirect(from: origin, previous: URL(string: github)!, to: wrongRepo, feedURL: UpdateFeed.url))
+    #expect(UpdateFeed.allowsArchiveRedirect(from: origin, previous: URL(string: github)!, to: asset, feedURL: UpdateFeed.url))
+  }
+
   @Test func onlyANewerVersionIsDownloaded() async {
     for (version, expectReady) in [("0.2.0", true), ("0.1.0", false), ("0.0.9", false)] {
       let h = UpdateHarness()

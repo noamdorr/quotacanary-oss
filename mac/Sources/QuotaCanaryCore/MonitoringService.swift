@@ -17,6 +17,12 @@ public final class MonitoringService {
   public private(set) var history = ReadingHistory()
   /// The last provider call per connection id, redacted, in memory only (QUO-279).
   public private(set) var lastChecks: [String: CheckRecord] = [:]
+  /// Removing a credential invalidates reads that started with it, even if
+  /// the connection row must stay on disk for a cleanup retry.
+  private final class ReadGeneration {
+    var removalError = MonitorError.notConnected
+  }
+  private var readGenerations: [String: ReadGeneration] = [:]
   /// Where the last restore kept a copy of a connections file it could not
   /// read in full (QUO-447).
   public private(set) var setAsideFile: URL?
@@ -75,6 +81,7 @@ public final class MonitoringService {
     connections = []
     history = ReadingHistory()
     lastChecks = [:]
+    readGenerations = [:]
     loadFailed = false
     setAsideFile = nil
   }
@@ -161,7 +168,9 @@ public final class MonitoringService {
     // A reading is dated when its request went out, so a slow answer can be
     // told apart from a newer one that landed first.
     let startedAt = now()
-    let balances = try await read(provider: current.provider, key: key, recordFor: id)
+    let generation = readGeneration(for: id)
+    let read = await readRecorded(provider: current.provider, key: key)
+    let balances = try finishRead(read, for: id, generation: generation)
     try Task.checkCancellation()
     // Re-look-up after the await: settings may have been saved meanwhile.
     guard let index = connections.firstIndex(where: { $0.id == id }) else {
@@ -263,7 +272,9 @@ public final class MonitoringService {
     let key = rawKey.trimmingCharacters(in: .whitespacesAndNewlines)
     guard !key.isEmpty else { throw MonitorError.missingKey }
 
-    let balances = try await read(provider: current.provider, key: key, recordFor: id)
+    let generation = readGeneration(for: id)
+    let read = await readRecorded(provider: current.provider, key: key)
+    let balances = try finishRead(read, for: id, generation: generation)
     // Removed while the new key was being checked: write nothing, so a
     // removed connection cannot come back through its Keychain item.
     guard let index = connections.firstIndex(where: { $0.id == id }) else {
@@ -320,16 +331,27 @@ public final class MonitoringService {
     } catch {
       throw MonitorError.credentialDeleteFailed
     }
+    let interruptedReads = readGenerations.removeValue(forKey: id)
+    lastChecks[id] = nil
     let remaining = connections.filter { $0.id != id }
+    var cleanedHistory = history
+    cleanedHistory.remove(connectionID: id)
+    do {
+      // Keep the connection available for retry until both persisted copies
+      // are gone. A missing Keychain item is safe to delete again.
+      try historyStore.save(cleanedHistory)
+    } catch {
+      interruptedReads?.removalError = .removalHistoryFailed
+      throw MonitorError.removalHistoryFailed
+    }
+    history = cleanedHistory
     do {
       try store.save(remaining)
     } catch {
-      throw MonitorError.saveFailed
+      interruptedReads?.removalError = .removalRecordFailed
+      throw MonitorError.removalRecordFailed
     }
     connections = remaining
-    lastChecks[id] = nil
-    history.remove(connectionID: id)
-    try? historyStore.save(history)
   }
 
   // MARK: Alert marks (QUO-131)
@@ -395,16 +417,25 @@ public final class MonitoringService {
     connections = updated
   }
 
-  /// Reads through a recording wrapper and keeps what the call did under
-  /// `id`. A check that read fine drops its body; a failed one keeps the
-  /// redacted slice the inspector and the diagnostics export show.
-  private func read(provider: ProviderID, key: String, recordFor id: String) async throws -> [PoolBalance] {
-    let (result, record) = await readRecorded(provider: provider, key: key)
+  private func readGeneration(for id: String) -> ReadGeneration {
+    if let generation = readGenerations[id] { return generation }
+    let generation = ReadGeneration()
+    readGenerations[id] = generation
+    return generation
+  }
+
+  private typealias RecordedRead = (Result<[PoolBalance], Error>, CheckRecord?)
+
+  /// A check that read fine drops its body; a failed one keeps the
+  /// redacted slice the local inspector shows. Diagnostics omit it.
+  private func finishRead(_ read: RecordedRead, for id: String, generation: ReadGeneration) throws -> [PoolBalance] {
+    guard readGenerations[id] === generation else { throw generation.removalError }
+    let (result, record) = read
     if let record { lastChecks[id] = (try? result.get()) == nil ? record : record.withoutBody }
     return try result.get()
   }
 
-  private func readRecorded(provider: ProviderID, key: String) async -> (Result<[PoolBalance], Error>, CheckRecord?) {
+  private func readRecorded(provider: ProviderID, key: String) async -> RecordedRead {
     let recorder = RecordingTransport(transport, key: key, now: now)
     do {
       return (.success(try await read(provider: provider, key: key, transport: recorder)), recorder.record)
@@ -420,7 +451,9 @@ public final class MonitoringService {
       guard let definition = ProviderRegistry.current.definition(provider) else {
         throw ProviderReadError.missingField("catalog")
       }
-      return try await definition.read(key, transport)
+      let balances = try await definition.read(key, transport)
+      guard balances.count <= Reading.maximumBalances else { throw ProviderReadError.missingField("balances") }
+      return balances
     } catch let error as ProviderReadError {
       throw MonitorError.provider(provider, error)
     }

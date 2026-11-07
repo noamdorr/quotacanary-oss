@@ -142,6 +142,9 @@ public struct PoolBalance: Codable, Equatable, Sendable {
 
 /// A reading is a timestamped set of pool balances from one successful check.
 public struct Reading: Codable, Equatable, Sendable {
+  /// An account returning more than this is not a usable balance reading.
+  static let maximumBalances = 256
+  enum Limit: Error { case tooManyBalances }
   public var balances: [PoolBalance]
   public var checkedAt: Date
 
@@ -149,6 +152,21 @@ public struct Reading: Codable, Equatable, Sendable {
     self.balances = balances
     self.checkedAt = checkedAt
   }
+
+  public init(from decoder: Decoder) throws {
+    let c = try decoder.container(keyedBy: CodingKeys.self)
+    var items = try c.nestedUnkeyedContainer(forKey: .balances)
+    var decoded: [PoolBalance] = []
+    while !items.isAtEnd {
+      guard decoded.count < Self.maximumBalances else {
+        throw Limit.tooManyBalances
+      }
+      decoded.append(try items.decode(PoolBalance.self))
+    }
+    balances = decoded
+    checkedAt = try c.decode(Date.self, forKey: .checkedAt)
+  }
+
 }
 
 /// A connection is one named credential set for a provider. The credential
@@ -201,7 +219,15 @@ public struct Connection: Codable, Equatable, Identifiable, Sendable {
     provider = try c.decode(ProviderID.self, forKey: .provider)
     name = try c.decode(String.self, forKey: .name)
     credentialRef = try c.decode(String.self, forKey: .credentialRef)
-    lastReading = try c.decodeIfPresent(Reading.self, forKey: .lastReading)
+    do {
+      lastReading = try c.decodeIfPresent(Reading.self, forKey: .lastReading)
+    } catch Reading.Limit.tooManyBalances {
+      guard let issues = decoder.userInfo[StateCoding.Issues.key] as? StateCoding.Issues else {
+        throw Reading.Limit.tooManyBalances
+      }
+      issues.count += 1
+      lastReading = nil
+    }
     poolSettings = try c.decodeIfPresent([String: PoolSettings].self, forKey: .poolSettings) ?? [:]
     // State files written before alerts existed have no `alertMarks`.
     alertMarks = try c.decodeIfPresent([String: AlertSeverity].self, forKey: .alertMarks) ?? [:]

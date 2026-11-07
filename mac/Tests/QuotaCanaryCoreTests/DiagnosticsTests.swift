@@ -160,7 +160,7 @@ private func jsonString(_ report: Diagnostics.Report) -> String {
         Issue.record("expected a reported error")
       } catch let readError as ProviderReadError {
         let error = MonitorError.provider(ProviderID("acme"), readError)
-        if body.contains(diagSecret) { #expect(error.checkFailureMessage == diagSecret) }
+        #expect(error.checkFailureMessage == Copy.checkReportedError("acme"))
         let snapshot = Diagnostics.ConnectionSnapshot(provider: ProviderID("acme"), hasCredential: true, lastReading: nil, lastError: error)
         let report = Diagnostics.report(connections: [snapshot], appVersion: "0.1.0")
         #expect(report.connections.first?.lastErrorCase == caseName)

@@ -2,31 +2,30 @@ import { afterEach, describe, expect, it, vi } from "vitest"
 import { tregAdapter as adapter } from "./treg"
 
 const TOKEN = "treg-token"
-const LEGACY = JSON.stringify({ api_token: TOKEN, org_id: "26314" })
+const LEGACY = JSON.stringify({ api_token: TOKEN, org_id: "123456" })
 const ME_URL = "https://treg.to/auth/me"
-const ENDPOINT = "https://treg.to/orgs/26314/balance"
-// /auth/me as treg answered it on 2026-11-03, trimmed to the fields read.
+const ENDPOINT = "https://treg.to/orgs/123456/balance"
+// Invented account metadata; no customer data.
 const ME = {
   email: "someone@example.com",
-  org_id: 26314,
-  org: "reechee",
+  org_id: 123456,
+  org: "synthetic-team",
   role: "owner",
 }
 
 afterEach(() => vi.restoreAllMocks())
 
-// The 200 a CLI user token got on 2026-10-29, trimmed: the real body also
-// carries a recent-ledger page under entries.items, which the adapter ignores.
-const REAL_RESPONSE = {
-  org_id: 26314,
-  balance_micro: 5147475,
-  balance_usd: 5.147475,
-  promo_grant_micro: 5000000,
+// Synthetic billing values with the provider response shape. The ledger is empty.
+const SYNTHETIC_RESPONSE = {
+  org_id: 123456,
+  balance_micro: 1250000,
+  balance_usd: 1.25,
+  promo_grant_micro: 2000000,
   blocks: [
     {
       kind: "promotional",
-      remaining_micro: 5147475,
-      expires_at: "2027-01-27T00:00:00Z",
+      remaining_micro: 1250000,
+      expires_at: "2030-01-01T00:00:00Z",
     },
   ],
   holds: [],
@@ -58,7 +57,7 @@ function stubFetch(
 const READING = {
   creditType: "balance",
   label: "Balance",
-  balance: 5.147475,
+  balance: 1.25,
   balanceLimit: null,
   unit: "usd",
 }
@@ -67,7 +66,7 @@ const NOT_TIED = "This treg token isn't tied to a team."
 
 describe("treg adapter", () => {
   it("finds the org from the key, then reads its USD balance", async () => {
-    const fetchMock = stubFetch(200, REAL_RESPONSE)
+    const fetchMock = stubFetch(200, SYNTHETIC_RESPONSE)
     expect(await adapter.readBalance(TOKEN)).toEqual({
       ok: true,
       balances: [READING],
@@ -83,9 +82,9 @@ describe("treg adapter", () => {
   it("still reads a saved two-field secret and ignores its org id", async () => {
     for (const secret of [
       LEGACY,
-      JSON.stringify({ api_token: TOKEN, org_id: "Reechee" }),
+      JSON.stringify({ api_token: TOKEN, org_id: "Synthetic Team" }),
     ]) {
-      const fetchMock = stubFetch(200, REAL_RESPONSE)
+      const fetchMock = stubFetch(200, SYNTHETIC_RESPONSE)
       expect(await adapter.readBalance(secret)).toEqual({
         ok: true,
         balances: [READING],
@@ -98,12 +97,12 @@ describe("treg adapter", () => {
   })
 
   it("asks for the token when it is blank, without sending", async () => {
-    const fetchMock = stubFetch(200, REAL_RESPONSE)
+    const fetchMock = stubFetch(200, SYNTHETIC_RESPONSE)
     for (const secret of [
       "",
       "  ",
-      JSON.stringify({ api_token: " ", org_id: "26314" }),
-      JSON.stringify({ org_id: "26314" }),
+      JSON.stringify({ api_token: " ", org_id: "123456" }),
+      JSON.stringify({ org_id: "123456" }),
     ]) {
       expect(await adapter.readBalance(secret)).toEqual({
         ok: false,
@@ -117,12 +116,12 @@ describe("treg adapter", () => {
     for (const me of [
       { email: "a@b.c" },
       { org_id: null },
-      { org_id: "26314" },
+      { org_id: "123456" },
       { org_id: 0 },
       { org_id: 1.5 },
       null,
     ]) {
-      const fetchMock = stubFetch(200, REAL_RESPONSE, 200, me)
+      const fetchMock = stubFetch(200, SYNTHETIC_RESPONSE, 200, me)
       expect(await adapter.readBalance(TOKEN)).toEqual({
         ok: false,
         error: NOT_TIED,
@@ -150,7 +149,7 @@ describe("treg adapter", () => {
 
   it("says the token has no team on 400, 403 and 404", async () => {
     for (const status of [400, 403, 404]) {
-      stubFetch(200, REAL_RESPONSE, status, { detail: "nope" })
+      stubFetch(200, SYNTHETIC_RESPONSE, status, { detail: "nope" })
       expect(await adapter.readBalance(TOKEN)).toEqual({
         ok: false,
         error: NOT_TIED,
@@ -172,7 +171,7 @@ describe("treg adapter", () => {
   })
 
   it("keeps a spent balance as a real zero", async () => {
-    stubFetch(200, { ...REAL_RESPONSE, balance_usd: 0 })
+    stubFetch(200, { ...SYNTHETIC_RESPONSE, balance_usd: 0 })
     expect(await adapter.readBalance(TOKEN)).toEqual({
       ok: true,
       balances: [{ ...READING, balance: 0 }],
@@ -180,11 +179,11 @@ describe("treg adapter", () => {
   })
 
   it("fails on a missing or non-numeric balance instead of reading 0", async () => {
-    const { balance_usd: _omit, ...rest } = REAL_RESPONSE
+    const { balance_usd: _omit, ...rest } = SYNTHETIC_RESPONSE
     for (const body of [
       rest,
-      { ...REAL_RESPONSE, balance_usd: null },
-      { ...REAL_RESPONSE, balance_usd: "lots" },
+      { ...SYNTHETIC_RESPONSE, balance_usd: null },
+      { ...SYNTHETIC_RESPONSE, balance_usd: "lots" },
       null,
     ]) {
       stubFetch(200, body)

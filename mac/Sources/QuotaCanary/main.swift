@@ -84,7 +84,8 @@ if arguments.contains("--check-provider-logos") {
   Task { @MainActor in exit(await UpdateHeadless.run(install: install)) }
   dispatchMain()
 } else if arguments.contains("--erase-local-data") {
-  exit(MainActor.assumeIsolated { Headless.eraseLocalData() })
+  Task { @MainActor in exit(await Headless.eraseLocalData()) }
+  dispatchMain()
 } else if arguments.contains("--keychain-selftest") {
   exit(Headless.keychainSelfTest())
 } else if arguments.count >= 3, arguments[1] == "--export-diagnostics" {

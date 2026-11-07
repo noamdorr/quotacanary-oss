@@ -110,11 +110,12 @@ struct SystemHooks {
     clock: SchedulerClock, preferences: PreferencesStore,
     terminate: @escaping () -> Void = { MainActor.assumeIsolated { NSApp.terminate(nil) } }
   ) -> Updater {
-    Updater(
-      transport: URLSessionUpdateTransport(),
+    let feed = UpdateFeed.feedURL(environment: ProcessInfo.processInfo.environment)
+    return Updater(
+      transport: URLSessionUpdateTransport(feedURL: feed),
       installer: SystemUpdateInstaller(terminate: terminate),
       clock: clock, preferences: preferences, currentVersion: AppVersionInfo.short,
-      feedURL: UpdateFeed.feedURL(environment: ProcessInfo.processInfo.environment)
+      feedURL: feed
     )
   }
 

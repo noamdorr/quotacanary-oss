@@ -102,11 +102,14 @@ public extension Connection {
   func allPoolRows(at now: Date) -> [PoolRow] {
     let reported = lastReading?.balances ?? []
     var pools = provider.pools
-    for item in reported where !pools.contains(where: { $0.creditType == item.pool.creditType }) {
-      pools.append(item.pool)
+    var known = Set(pools.map(\.creditType))
+    var byType: [String: PoolBalance] = [:]
+    for item in reported where byType[item.pool.creditType] == nil {
+      byType[item.pool.creditType] = item
+      if known.insert(item.pool.creditType).inserted { pools.append(item.pool) }
     }
     return pools.map { catalogPool in
-      let reading = reported.first { $0.pool.creditType == catalogPool.creditType }
+      let reading = byType[catalogPool.creditType]
       let settings = settings(for: catalogPool.creditType, cap: reading?.pool.cap ?? catalogPool.cap)
       let status = PoolStatus.of(reading, settings: settings)
       let (mute, back) = Mute.state(mutes[catalogPool.creditType], balance: reading?.balance, status: status, now: now)

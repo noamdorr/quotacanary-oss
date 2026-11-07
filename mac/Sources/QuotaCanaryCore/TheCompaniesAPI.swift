@@ -45,7 +45,7 @@ public enum TheCompaniesAPI: HandWrittenProvider {
   public static func parse(_ response: HTTPResponse) throws -> [PoolBalance] {
     if response.status == 401 { throw ProviderReadError.keyRejected }
     if response.status == 403 || response.status == 404 {
-      throw ProviderReadError.reportedError(Copy.theCompaniesAPINoTeam)
+      throw ProviderReadError.guidance(.theCompaniesAPINoTeam)
     }
     if response.status == 429 { throw ProviderReadError.rateLimited }
     guard (200..<300).contains(response.status) else {

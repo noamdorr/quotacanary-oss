@@ -96,6 +96,22 @@ describe("rocketreach adapter", () => {
     )
   })
 
+  it("returns an error when rate limited", async () => {
+    stubFetch({}, { ok: false, status: 429 })
+    expect(await rocketreachAdapter.readBalance("key")).toEqual({
+      ok: false,
+      error: "RocketReach returned 429.",
+    })
+  })
+
+  it("returns an error, not a zero balance, when credit_usage is missing", async () => {
+    stubFetch({ id: 1, state: "registered" })
+    expect(await rocketreachAdapter.readBalance("key")).toEqual({
+      ok: false,
+      error: "RocketReach returned an unexpected response.",
+    })
+  })
+
   it("returns an error on a non-JSON body", async () => {
     vi.stubGlobal(
       "fetch",

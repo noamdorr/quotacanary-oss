@@ -52,5 +52,7 @@ private final class RefusingPreferences: PreferencesStore {
   var held: CheckedContinuation<Bool, Never>?
   func requestPermission() async -> Bool { await withCheckedContinuation { held = $0 } }
   func status() async -> NotificationPermission { .allowed }
+  func clearNotifications() {}
+  func waitUntilCleared() async -> Bool { true }
   func deliver(title: String, body: String, id: String, target: NotificationTarget?) async throws {}
 }

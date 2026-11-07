@@ -37,7 +37,7 @@ public enum Treg: HandWrittenProvider {
     // A JSON true bridges to 1, so booleans are refused by type, as in ProviderJSON.
     guard let number = me["org_id"] as? NSNumber, CFGetTypeID(number) != CFBooleanGetTypeID(),
           let orgID = Int(exactly: number.doubleValue), orgID > 0 else {
-      throw ProviderReadError.reportedError(Copy.tregNotTiedToATeam)
+      throw ProviderReadError.guidance(.tregNotTiedToATeam)
     }
     return orgID
   }
@@ -73,7 +73,7 @@ public enum Treg: HandWrittenProvider {
     // A token with no pinned team (400), one that may not read this org (403),
     // or an org that is gone (404).
     if [400, 403, 404].contains(response.status) {
-      throw ProviderReadError.reportedError(Copy.tregNotTiedToATeam)
+      throw ProviderReadError.guidance(.tregNotTiedToATeam)
     }
     if response.status == 429 { throw ProviderReadError.rateLimited }
     guard (200..<300).contains(response.status) else {

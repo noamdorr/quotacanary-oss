@@ -53,7 +53,7 @@ public enum CheckFailureReason: String, Equatable, Sendable {
     case .keyLacksScope: self = .keyLacksScope
     case .rateLimited: self = .rateLimited
     case .unreachable: self = .unreachable
-    case .httpStatus, .reportedError: self = .providerError
+    case .httpStatus, .reportedError, .guidance: self = .providerError
     case .notJSON, .missingField: self = .unexpectedResponse
     }
   }
@@ -88,7 +88,8 @@ public extension MonitorError {
     case .rateLimited: return Copy.checkRateLimited(name)
     case .unreachable: return Copy.checkUnreachable(name)
     case let .httpStatus(status): return Copy.checkHTTPStatus(name, status)
-    case let .reportedError(vendor): return vendor ?? Copy.checkReportedError(name)
+    case .reportedError: return Copy.checkReportedError(name)
+    case let .guidance(guidance): return guidance.message
     case .notJSON, .missingField: return Copy.checkUnexpected(name)
     }
   }

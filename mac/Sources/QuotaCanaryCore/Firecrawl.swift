@@ -41,7 +41,7 @@ public enum Firecrawl: HandWrittenProvider {
     }
     let object = json as? [String: Any]
     if let success = object?["success"] as? Bool, !success {
-      throw ProviderReadError.reportedError(Copy.firecrawlRejected)
+      throw ProviderReadError.guidance(.firecrawlRejected)
     }
     let data = object?["data"] as? [String: Any]
     guard let balance = ProviderJSON.finiteOrNil(data?["remainingCredits"]) else {

@@ -53,7 +53,7 @@ public enum Icypeas: HandWrittenProvider {
       throw ProviderReadError.notJSON
     }
     let object = json as? [String: Any]
-    if object?["success"] as? Bool == false { throw ProviderReadError.reportedError(Copy.icypeasEmailNotAccepted) }
+    if object?["success"] as? Bool == false { throw ProviderReadError.guidance(.icypeasEmailNotAccepted) }
     guard let balance = ProviderJSON.finiteOrNil(object?["credits"]) else {
       throw ProviderReadError.missingField("credits")
     }

@@ -20,7 +20,9 @@ public struct HTTPResponse: Equatable, Sendable {
 }
 
 public struct TransportFailure: Error {
-  public init() {}
+  let oversized: Bool
+  public init() { oversized = false }
+  init(oversized: Bool) { self.oversized = oversized }
 }
 
 /// One HTTP request: the only shape that crosses the transport seam (QUO-314).
@@ -69,79 +71,34 @@ public extension ProviderTransport {
   }
 }
 
-/// `@unchecked`: the only mutable state, the session cache, is behind `lock`.
-public final class URLSessionTransport: ProviderTransport, @unchecked Sendable {
-  private let session: URLSession
+/// Provider responses are small account/usage documents. Reject oversized
+/// answers before buffering or parsing them, including custom timeout calls.
+public final class URLSessionTransport: ProviderTransport {
+  static let maximumResponseBytes = 1024 * 1024
   private let defaultTimeout: TimeInterval
-  /// One extra session per distinct non-default timeout. The resource timeout
-  /// is set with the request timeout, or it would cap a longer request at the
-  /// default.
-  private let lock = NSLock()
-  private var sessionsByTimeout: [TimeInterval: URLSession] = [:]
 
-  public init(timeout: TimeInterval = 15) {
-    defaultTimeout = timeout
-    session = Self.makeSession(timeout: timeout)
-  }
-
-  private static func makeSession(timeout: TimeInterval) -> URLSession {
-    let config = URLSessionConfiguration.ephemeral
-    config.timeoutIntervalForRequest = timeout
-    config.timeoutIntervalForResource = timeout
-    config.urlCache = nil
-    return URLSession(configuration: config)
-  }
-
-  private func session(timeout: TimeInterval) -> URLSession {
-    if timeout == defaultTimeout { return session }
-    lock.lock()
-    defer { lock.unlock() }
-    if let existing = sessionsByTimeout[timeout] { return existing }
-    let created = Self.makeSession(timeout: timeout)
-    sessionsByTimeout[timeout] = created
-    return created
-  }
+  public init(timeout: TimeInterval = 15) { defaultTimeout = timeout }
 
   public func send(_ request: HTTPRequest) async throws -> HTTPResponse {
     var urlRequest = URLRequest(url: request.url)
     urlRequest.httpMethod = request.method
     urlRequest.httpBody = request.body
-    return try await send(urlRequest, headers: request.headers, session: request.timeout.map(session(timeout:)))
-  }
-
-  private func send(_ request: URLRequest, headers: [String: String], session: URLSession? = nil) async throws -> HTTPResponse {
-    let session = session ?? self.session
-    var request = request
-    for (name, value) in headers {
-      request.setValue(value, forHTTPHeaderField: name)
+    for (name, value) in request.headers { urlRequest.setValue(value, forHTTPHeaderField: name) }
+    let timeout = request.timeout ?? defaultTimeout
+    let config = URLSessionConfiguration.ephemeral
+    config.timeoutIntervalForRequest = timeout
+    config.timeoutIntervalForResource = timeout
+    config.urlCache = nil
+    let origin = request.url
+    return try await BoundedHTTP.send(urlRequest, configuration: config, maximumBytes: Self.maximumResponseBytes) {
+      ProviderRedirectPolicy.allows(from: origin, to: $1)
     }
-    let redirects = ProviderRedirectPolicy(origin: request.url!)
-    let (data, response) = try await session.data(for: request, delegate: redirects)
-    guard !redirects.rejected else { throw TransportFailure() }
-    guard let http = response as? HTTPURLResponse else { throw TransportFailure() }
-    var responseHeaders: [String: String] = [:]
-    for (name, value) in http.allHeaderFields {
-      if let name = name as? String, let value = value as? String { responseHeaders[name.lowercased()] = value }
-    }
-    return HTTPResponse(status: http.statusCode, body: data, headers: responseHeaders)
   }
 }
 
-/// A delegate belongs to one request, including all of its redirect hops. Never
+/// The same policy applies to every redirect hop in one request. Never
 /// forward headers, URL credentials or bodies outside that request's origin.
-final class ProviderRedirectPolicy: NSObject, URLSessionTaskDelegate, @unchecked Sendable {
-  private let origin: URL
-  private let lock = NSLock()
-  private var didReject = false
-
-  init(origin: URL) { self.origin = origin }
-
-  var rejected: Bool {
-    lock.lock()
-    defer { lock.unlock() }
-    return didReject
-  }
-
+enum ProviderRedirectPolicy {
   static func allows(from origin: URL, to destination: URL) -> Bool {
     guard let scheme = origin.scheme?.lowercased(),
           scheme == "https" || scheme == "http",
@@ -150,21 +107,6 @@ final class ProviderRedirectPolicy: NSObject, URLSessionTaskDelegate, @unchecked
           destination.host?.lowercased() == host else { return false }
     let defaultPort = scheme == "https" ? 443 : 80
     return (origin.port ?? defaultPort) == (destination.port ?? defaultPort)
-  }
-
-  func urlSession(
-    _ session: URLSession, task: URLSessionTask,
-    willPerformHTTPRedirection response: HTTPURLResponse, newRequest request: URLRequest,
-    completionHandler: @escaping (URLRequest?) -> Void
-  ) {
-    guard let url = request.url, Self.allows(from: origin, to: url) else {
-      lock.lock()
-      didReject = true
-      lock.unlock()
-      completionHandler(nil)
-      return
-    }
-    completionHandler(request)
   }
 }
 

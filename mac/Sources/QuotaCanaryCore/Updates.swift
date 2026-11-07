@@ -43,6 +43,7 @@ public enum UpdateFeed {
   public static let automaticInterval: TimeInterval = 24 * 60 * 60
   /// A feed larger than this is not a feed.
   static let maximumFeedBytes = 64 * 1024
+  static let maximumArchiveBytes = 64 * 1024 * 1024
 
   /// Development only: points the app at a local test feed. Honored in every
   /// build (the scripts build dev and release the same way), but only for
@@ -58,11 +59,56 @@ public enum UpdateFeed {
 
   /// https anywhere; plain http only to loopback.
   public static func isAllowedSource(_ url: URL) -> Bool {
+    guard url.user == nil, url.password == nil, url.fragment == nil else { return false }
     switch url.scheme?.lowercased() {
     case "https": return !(url.host ?? "").isEmpty
     case "http": return ["127.0.0.1", "localhost", "::1"].contains(url.host ?? "")
     default: return false
     }
+  }
+
+  /// Production metadata cannot choose an unsigned destination. Development
+  /// feeds are explicitly selected by the operator and stay on that origin.
+  static func archiveURL(_ entry: UpdateEntry, feedURL: URL) -> URL? {
+    guard let candidate = URL(string: entry.url), isAllowedSource(candidate) else { return nil }
+    if feedURL == url {
+      let canonical = "https://quotacanary.com/mac/QuotaCanary-\(entry.version).zip"
+      return entry.url == canonical ? candidate : nil
+    }
+    return ProviderRedirectPolicy.allows(from: feedURL, to: candidate) ? candidate : nil
+  }
+
+  static func allowsArchiveRedirect(from origin: URL, previous: URL, to destination: URL, feedURL: URL) -> Bool {
+    guard isAllowedSource(destination) else { return false }
+    if feedURL != url { return ProviderRedirectPolicy.allows(from: feedURL, to: destination) }
+    guard destination.scheme == "https", destination.port == nil || destination.port == 443 else { return false }
+    let filename = origin.lastPathComponent
+    let version = String(filename.dropFirst("QuotaCanary-".count).dropLast(".zip".count))
+    guard SemanticVersion(version) != nil,
+          origin.absoluteString == "https://quotacanary.com/mac/QuotaCanary-\(version).zip" else { return false }
+    let github = "https://github.com/noamdorr/quotacanary-oss/releases/download/mac-v\(version)/\(filename)"
+    if destination == origin { return previous == origin }
+    if destination.absoluteString == github { return previous == origin }
+    // GitHub's redirect for THIS release may select its opaque asset. An
+    // untrusted feed/site cannot directly choose another repository's asset.
+    guard previous.absoluteString == github, destination.host == "release-assets.githubusercontent.com",
+          let path = URLComponents(url: destination, resolvingAgainstBaseURL: false)?.percentEncodedPath else { return false }
+    let parts = path.components(separatedBy: "/")
+    return parts.count == 4 && parts[0].isEmpty && parts[1] == "github-production-release-asset"
+      && parts[2] == "1276281564" && !parts[3].isEmpty
+      && parts[3].allSatisfy { $0.isASCII && ($0.isLetter || $0.isNumber || $0 == "-") }
+  }
+
+  /// Bound the second read too: a verified file can be replaced before Install.
+  static func archiveBytes(at url: URL) throws -> Data {
+    let file = try FileHandle(forReadingFrom: url)
+    defer { try? file.close() }
+    var data = Data()
+    while let chunk = try file.read(upToCount: 64 * 1024), !chunk.isEmpty {
+      guard chunk.count <= maximumArchiveBytes - data.count else { throw TransportFailure() }
+      data.append(chunk)
+    }
+    return data
   }
 
   /// What `feedSignature` covers. scripts/update-tool.swift builds the same bytes.
@@ -420,7 +466,7 @@ public final class Updater {
     status = .installing(version: ready.version)
     do {
       try installer.checkInstallable()
-      guard let data = try? Data(contentsOf: ready.archive), UpdateFeed.sha256Hex(data) == ready.sha256 else {
+      guard let data = try? UpdateFeed.archiveBytes(at: ready.archive), UpdateFeed.sha256Hex(data) == ready.sha256 else {
         discardReady()
         status = .failed(.checksumMismatch)
         return
@@ -499,7 +545,7 @@ public final class Updater {
       response = try await transport.fetch(request, headers: headers)
     } catch {
       guard !Task.isCancelled else { return }
-      status = .failed(.unreachable)
+      status = .failed((error as? TransportFailure)?.oversized == true ? .feedUnreadable : .unreachable)
       return
     }
     guard !Task.isCancelled else { return }
@@ -512,7 +558,6 @@ public final class Updater {
           let entry = try? JSONDecoder().decode(UpdateEntry.self, from: response.body),
           let version = SemanticVersion(entry.version),
           let minimum = SemanticVersion(entry.minimumSystemVersion),
-          let archiveURL = URL(string: entry.url), UpdateFeed.isAllowedSource(archiveURL),
           entry.sha256.count == 64, entry.sha256.allSatisfy({ $0.isHexDigit && !$0.isUppercase })
     else {
       status = .failed(.feedUnreadable)
@@ -523,6 +568,11 @@ public final class Updater {
     )
     guard verify(entry.feedSignature, over: message) else {
       status = .failed(.badSignature)
+      return
+    }
+
+    guard let archiveURL = UpdateFeed.archiveURL(entry, feedURL: feedURL) else {
+      status = .failed(.feedUnreadable)
       return
     }
 
@@ -558,7 +608,7 @@ public final class Updater {
       try? FileManager.default.removeItem(at: destination)
       return
     }
-    guard let archive = try? Data(contentsOf: destination) else {
+    guard let archive = try? UpdateFeed.archiveBytes(at: destination) else {
       try? FileManager.default.removeItem(at: destination)
       status = .failed(.downloadFailed)
       return
@@ -602,16 +652,24 @@ public final class Updater {
 
 /// Ephemeral session: no cookies, no cache, bounded timeouts.
 public final class URLSessionUpdateTransport: UpdateTransport {
-  private let session: URLSession
+  private let requestTimeout: TimeInterval
+  private let downloadTimeout: TimeInterval
+  private let feedURL: URL
 
-  public init(requestTimeout: TimeInterval = 15, downloadTimeout: TimeInterval = 120) {
+  public init(requestTimeout: TimeInterval = 15, downloadTimeout: TimeInterval = 120, feedURL: URL = UpdateFeed.url) {
+    self.requestTimeout = requestTimeout
+    self.downloadTimeout = downloadTimeout
+    self.feedURL = feedURL
+  }
+
+  private func configuration() -> URLSessionConfiguration {
     let config = URLSessionConfiguration.ephemeral
     config.timeoutIntervalForRequest = requestTimeout
     config.timeoutIntervalForResource = downloadTimeout
     config.urlCache = nil
     config.httpShouldSetCookies = false
     config.httpCookieAcceptPolicy = .never
-    session = URLSession(configuration: config)
+    return config
   }
 
   /// URLSession would add the user's preferred languages as Accept-Language;
@@ -625,16 +683,24 @@ public final class URLSessionUpdateTransport: UpdateTransport {
   }
 
   public func fetch(_ url: URL, headers: [String: String]) async throws -> HTTPResponse {
-    let (data, response) = try await session.data(for: Self.request(url, headers))
-    guard let http = response as? HTTPURLResponse else { throw TransportFailure() }
-    return HTTPResponse(status: http.statusCode, body: data)
+    guard UpdateFeed.isAllowedSource(url), ProviderRedirectPolicy.allows(from: feedURL, to: url) else {
+      throw TransportFailure()
+    }
+    let origin = feedURL
+    return try await BoundedHTTP.send(Self.request(url, headers), configuration: configuration(),
+                                     maximumBytes: UpdateFeed.maximumFeedBytes) {
+      UpdateFeed.isAllowedSource($1) && ProviderRedirectPolicy.allows(from: origin, to: $1)
+    }
   }
 
   public func download(_ url: URL, headers: [String: String], to destination: URL) async throws {
-    let (file, response) = try await session.download(for: Self.request(url, headers))
-    defer { try? FileManager.default.removeItem(at: file) }
-    guard (response as? HTTPURLResponse)?.statusCode == 200 else { throw TransportFailure() }
-    try FileManager.default.moveItem(at: file, to: destination)
+    let feed = feedURL
+    guard UpdateFeed.isAllowedSource(url),
+          UpdateFeed.allowsArchiveRedirect(from: url, previous: url, to: url, feedURL: feed) else { throw TransportFailure() }
+    _ = try await BoundedHTTP.send(Self.request(url, headers), configuration: configuration(),
+                                  maximumBytes: UpdateFeed.maximumArchiveBytes, to: destination, requiredStatus: 200) {
+      UpdateFeed.allowsArchiveRedirect(from: url, previous: $0, to: $1, feedURL: feed)
+    }
   }
 }
 

@@ -52,6 +52,35 @@ describe("scrapingdog adapter", () => {
     })
   })
 
+  it("returns an error when rate limited", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          ({ ok: false, status: 429, json: async () => ({}) }) as Response
+      )
+    )
+    expect(await scrapingdogAdapter.readBalance("key")).toEqual({
+      ok: false,
+      error: "Scrapingdog returned 429.",
+    })
+  })
+
+  it("returns an error when requestLimit is missing", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          ({
+            ok: true,
+            status: 200,
+            json: async () => ({ requestUsed: 12000 }),
+          }) as Response
+      )
+    )
+    expect((await scrapingdogAdapter.readBalance("key")).ok).toBe(false)
+  })
+
   it("returns an error on a non-JSON body", async () => {
     vi.stubGlobal(
       "fetch",

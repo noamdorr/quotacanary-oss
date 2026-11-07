@@ -50,9 +50,17 @@ public enum Apollo: HandWrittenProvider {
     // JSON objects are unordered once parsed: catalog pools first (the panel
     // orders them anyway), then the rest by id so every read is stable.
     let catalogIDs = pools.map(\.creditType)
-    let order = catalogIDs.filter { stats[$0] != nil } + stats.keys.filter { !catalogIDs.contains($0) }.sorted()
-    let balances = order.compactMap { creditType in
-      balance(creditType, stats[creditType] as? [String: Any], inCatalog: catalogIDs.contains(creditType))
+    var balances: [PoolBalance] = []
+    for (creditType, stat) in stats {
+      if let item = balance(creditType, stat as? [String: Any], inCatalog: catalogIDs.contains(creditType)) {
+        guard balances.count < Reading.maximumBalances else { throw ProviderReadError.missingField("credit_usage_stats") }
+        balances.append(item)
+      }
+    }
+    balances.sort { left, right in
+      let a = catalogIDs.firstIndex(of: left.pool.creditType) ?? catalogIDs.endIndex
+      let b = catalogIDs.firstIndex(of: right.pool.creditType) ?? catalogIDs.endIndex
+      return a == b ? left.pool.creditType < right.pool.creditType : a < b
     }
     guard balances.contains(where: { $0.pool.cap != 0 }) else {
       throw ProviderReadError.missingField("credit_usage_stats")

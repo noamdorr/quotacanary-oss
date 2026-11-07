@@ -47,6 +47,19 @@ describe("millionverifier adapter", () => {
     expect(result.ok).toBe(false)
   })
 
+  it("returns an error when rate limited", async () => {
+    mockFetch({}, false, 429)
+    expect(await millionverifierAdapter.readBalance("key")).toEqual({
+      ok: false,
+      error: "MillionVerifier returned 429.",
+    })
+  })
+
+  it("returns an error when credits is missing", async () => {
+    mockFetch({ bulk_credits: 21023, plan: 4 })
+    expect((await millionverifierAdapter.readBalance("key")).ok).toBe(false)
+  })
+
   it("returns an error on a non-JSON body", async () => {
     vi.stubGlobal(
       "fetch",

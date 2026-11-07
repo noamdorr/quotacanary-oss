@@ -63,7 +63,9 @@ enum Headless {
   /// window, for `install.sh --uninstall --erase-data`. Local only, no network.
   /// Prints what it removed; exits 0, or 1 if something could not be removed.
   @MainActor
-  static func eraseLocalData() -> Int32 {
+  static func eraseLocalData() async -> Int32 {
+    guard SystemNotificationCenter.isBundled else { print(Copy.eraseFailed); return 1 }
+    let notifications = SystemNotificationCenter()
     let credentials = KeychainCredentialStore()
     let service = MonitoringService(
       credentials: credentials, store: JSONFileConnectionStore(), history: JSONFileReadingHistoryStore(),
@@ -71,7 +73,9 @@ enum Headless {
     )
     _ = try? service.restore()
     do {
-      print(Copy.eraseReport(try EraseLocalData(service: service, folder: EraseLocalData.defaultFolder()).run()))
+      let summary = try EraseLocalData(service: service, folder: EraseLocalData.defaultFolder(), notifications: notifications).run()
+      guard await notifications.waitUntilCleared() else { throw EraseError.failed }
+      print(Copy.eraseReport(summary))
       return 0
     } catch {
       print(Copy.eraseFailed)

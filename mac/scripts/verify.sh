@@ -33,6 +33,8 @@ swift build
 
 echo "== tests"
 ./scripts/test.sh
+./scripts/test-release.sh
+./scripts/test-update-tool.sh
 
 # Exercise the real Settings and stack hosts, not isolated SwiftUI snapshots.
 # In-memory fixtures only; these checks need a logged-in macOS GUI session.

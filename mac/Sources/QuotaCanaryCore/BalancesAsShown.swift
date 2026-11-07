@@ -197,7 +197,7 @@ public struct BalancesAsShown: Sendable {
     case .provider(_, .unreachable): return Copy.compactUnreachable
     case let .provider(_, .httpStatus(code)): return Copy.compactHTTPStatus(code)
     case .provider(_, .notJSON), .provider(_, .missingField): return Copy.compactInvalidResponse
-    case .provider(_, .reportedError): return Copy.compactProviderError
+    case .provider(_, .reportedError), .provider(_, .guidance): return Copy.compactProviderError
     case .credentialReadFailed, .credentialMissing: return Copy.compactKeyUnavailable
     case .saveFailed: return Copy.compactSaveFailed
     default: return Copy.compactCheckFailed

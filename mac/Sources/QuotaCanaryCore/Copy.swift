@@ -88,6 +88,10 @@ public enum Copy {
   public static let credentialMissing =
     "The saved key is gone from Keychain. Remove this connection and add it again."
   public static let credentialDeleteFailed = "Couldn't remove the key from Keychain."
+  public static let removalHistoryFailed =
+    "The key was removed. Choose Remove connection again to remove the reading history and saved connection."
+  public static let removalRecordFailed =
+    "The key and reading history were removed. Choose Remove connection again to remove the saved connection."
   public static let saveFailed = "Couldn't save to disk. Nothing changed."
   public static let loadFailed = "Couldn't read saved settings."
   /// QUO-447: a connections file read only in part, kept aside before any save.

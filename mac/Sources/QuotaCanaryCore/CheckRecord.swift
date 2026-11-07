@@ -4,19 +4,20 @@ import os
 /// What the last provider call for one connection actually did (QUO-279):
 /// method, host + path, HTTP status, duration and a redacted slice of the
 /// response body. Kept in memory only, shown in the balance inspector for a
-/// failed check and included in the diagnostics export.
+/// failed check. Diagnostics export only its metadata, never its body.
 ///
 /// Redaction happens when the record is built, so nothing downstream can
 /// forget it: the key (also percent-encoded, and each value of a multi-value
 /// credential), every auth-style request header value and its token, and
 /// anything shaped like an email are replaced before the body is cut to
-/// `bodyLimit`. Response JSON is parsed before redaction; unparseable bodies
-/// are omitted. The URL keeps host and path only, never the query. The
-/// service drops the body of a check that read fine (`withoutBody`): an
+/// `bodyLimit`. Oversized or unparseable bodies are omitted. The URL keeps
+/// host and path only, never the query. The service drops the body of a
+/// check that read fine (`withoutBody`): an
 /// account response can carry names and addresses and the export is meant to
 /// be shared.
 public struct CheckRecord: Codable, Equatable, Sendable {
   public static let bodyLimit = 2048
+  private static let maximumRedactionBytes = 8 * 1024
 
   public var method: String
   public var host: String
@@ -78,7 +79,9 @@ public struct CheckRecord: Codable, Equatable, Sendable {
     // The projects listing has no request ID to match against a provider echo.
     // Failed listing bodies are omitted rather than exposing a project ID.
     let unknownDeepgramProject = url.host == "api.deepgram.com" && projectID == nil
-    if let body, !unknownDeepgramProject, let safeBody = sanitizedBody(body, secrets: bodySecrets) {
+    // Both Snov calls can echo a form credential or its exchanged bearer.
+    let snovCredentialResponse = url == Snov.tokenURL || url == Snov.balanceURL
+    if let body, !unknownDeepgramProject, !snovCredentialResponse, let safeBody = sanitizedBody(body, secrets: bodySecrets) {
       text = safeBody
       if text.count > bodyLimit { text = String(text.prefix(bodyLimit)) + "..." }
     }
@@ -140,7 +143,9 @@ public struct CheckRecord: Codable, Equatable, Sendable {
   /// JSON string escapes that cannot match a raw search of the response bytes.
   /// Unknown formats are discarded because their escaping rules are unknown.
   private static func sanitizedBody(_ body: Data, secrets: [String]) -> String? {
-    guard String(data: body, encoding: .utf8) != nil,
+    // Do not truncate untrusted JSON first: cutting through an escape or a
+    // nested value could expose part of a credential.
+    guard body.count <= maximumRedactionBytes, String(data: body, encoding: .utf8) != nil,
           let json = try? JSONSerialization.jsonObject(with: body, options: .fragmentsAllowed) else { return nil }
     let safe = sanitize(json, secrets: secrets)
     guard let data = try? JSONSerialization.data(withJSONObject: safe, options: [.fragmentsAllowed, .sortedKeys]) else {
@@ -194,7 +199,9 @@ public struct CheckRecord: Codable, Equatable, Sendable {
     return result.replacingOccurrences(of: emailPattern, with: "[email]", options: .regularExpression)
   }
 
-  private static let emailPattern = "[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}"
+  // Only try the start of each local part. Retrying every suffix of long
+  // alphanumeric runs made non-email strings quadratic to redact.
+  private static let emailPattern = "(?<![A-Za-z0-9._%+-])[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}"
 }
 
 /// One log line per provider call, for Console.app on this Mac. The body is

@@ -331,13 +331,26 @@ private final class FlakyCredentialStore: CredentialStore {
     #expect(h.credentials.items == ["conn-1": workKey, "conn-2": homeKey])
   }
 
-  @Test func removalWithAFailedDiskSaveReportsIt() async throws {
-    let h = Harness()
-    try await h.service.connect(provider: .hunter, key: workKey)
+  @Test func failedRecordRemovalKeepsOnlyTheRowAndDropsAnInFlightRead() async throws {
+    let gate = ScriptedTransport.Gate(status: 200, body: hunterBody(left: 100))
+    let h = Harness(hunter: [hunterOK(left: 900), .held(gate)])
+    let original = try await h.service.connect(provider: .hunter, key: workKey)
+    let inFlight = Task { await monitorError { try await h.service.refresh(id: "conn-1") } }
+    await waitUntilArrived(gate)
     h.store.failSaves = true
-    #expect(throws: MonitorError.saveFailed) { try h.service.remove(id: "conn-1") }
-    // The key is gone, so the error is shown rather than a clean removal claimed.
+    let error = await monitorError { try h.service.remove(id: "conn-1") }
+    #expect(error?.message == "The key and reading history were removed. Choose Remove connection again to remove the saved connection.")
     #expect(h.credentials.items.isEmpty)
+    #expect(try h.history.load() == ReadingHistory())
+    h.store.failSaves = false
+    gate.open()
+    #expect(await inFlight.value == .removalRecordFailed)
+    #expect(h.service.lastChecks["conn-1"] == nil)
+    #expect(try h.history.load() == ReadingHistory())
+    #expect(try h.store.load() == [original])
+    try h.service.remove(id: "conn-1")
+    #expect(h.service.connections.isEmpty)
+    #expect(try h.store.load().isEmpty)
   }
 
   // MARK: Results that land after a removal
@@ -354,6 +367,7 @@ private final class FlakyCredentialStore: CredentialStore {
     gate.open()
 
     #expect(await inFlight.value == .notConnected)
+    #expect(h.service.lastChecks["conn-1"] == nil)
     #expect(h.service.connections.isEmpty)
     #expect(try h.store.load().isEmpty)
     #expect(h.credentials.items.isEmpty)

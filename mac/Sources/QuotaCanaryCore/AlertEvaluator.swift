@@ -193,7 +193,10 @@ public final class AlertEvaluator {
   }
 
   private func deliver(_ content: AlertNotification, kind: MonitoringAlertKind, id: String, count: Int) async {
-    let outcome = await handOver(content, permission: await center.status())
+    let permission = await center.status()
+    guard service.connections.contains(where: { $0.id == id }) else { return }
+    let outcome = await handOver(content, permission: permission)
+    guard service.connections.contains(where: { $0.id == id }) else { return }
     monitoringAttempts.append(MonitoringAlertAttempt(connectionID: id, kind: kind, outcome: outcome))
     record(.connection(id), outcome)
     guard outcome == .handedToMacOS else { return }

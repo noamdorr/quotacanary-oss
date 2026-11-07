@@ -13,7 +13,7 @@ Tools are enough; Xcode is not required.
 | `update-keys.sh` | Once per project: makes the Ed25519 update signing key pair. |
 | `sign-update.sh <zip> <version> [url]` | Prints the signed feed entry for a release archive. |
 | `dmg.sh` | Builds, signs, notarizes and staples `dist/QuotaCanary-<version>.dmg` (the app plus an Applications shortcut) from the stapled app. The website's download is this file; the update zip stays the updater's payload. |
-| `release.sh [--publish]` | Cuts a release from `VERSION` and the notarized build: zip, disk image, signed feed for the site, and (with `--publish`) both GitHub release assets. |
+| `release.sh` | Builds from a clean committed worktree, notarizes and verifies both packages, then stages the signed feed. `--verify ZIP_SHA DMG_SHA` rechecks those exact bytes. `--publish ZIP_SHA DMG_SHA` publishes them after the matching mirror source is live. |
 
 ## Identity and version
 
@@ -103,42 +103,24 @@ Losing the private key means installed copies can no longer be updated in
 place; back it up somewhere offline. To rotate: ship one last release signed
 with the old key that carries the new public key, then switch.
 
-The current key was generated on the dev Mac on 2026-09-25 and has only
-signed local test archives and the 0.1.0 release feed (2026-10-29, QUO-350).
+The public key used by installed versions must continue to verify the feed and raw ZIP of each new release.
 
 ### Cutting one
 
-On the release Mac, from a clean checkout of `master`, after the public mirror
-has been synced from that commit (`release.sh` checks it):
+Commit the new `mac/VERSION` and all Mac source changes first. On the release Mac:
 
 ```sh
 cd mac
-echo 0.2.0 > VERSION                  # the only place the version lives
-./scripts/verify.sh                   # builds and checks the app
-QUOTACANARY_SIGN_IDENTITY="Developer ID Application: ..." ./scripts/bundle.sh
-./scripts/release.sh                  # notarize, zip, dmg, sign the feed; publishes nothing
-./scripts/release.sh --publish        # uploads zip + dmg as release mac-v0.2.0
+./scripts/verify.sh
+QUOTACANARY_SIGN_IDENTITY="Developer ID Application: ..." ./scripts/release.sh
+./scripts/release.sh --verify <reviewed-zip-sha256> <reviewed-dmg-sha256>
 ```
 
-`release.sh` reuses `dist/QuotaCanary-<version>.zip` and `.dmg` when they exist
-(delete one to rebuild it), refuses a zip or image without a notarization ticket, writes the
-signed entry to `site/public/mac/updates.json`, and with `--publish` creates
-the release `mac-v<version>` on `noamdorr/quotacanary-oss` (not marked Latest,
-so the mirror's source release keeps that), then downloads the assets back and
-checks the zip's SHA-256 against the feed and the image's against `dist/`. Then ship `site/public/mac/updates.json`
-in a pull request to `master`; Railway deploys the site from it.
+Preparation always builds both architectures in a fresh detached worktree. It notarizes the app, packages the same app in a ZIP and disk image, verifies both against the project Developer ID team, compares all bundled files, and checks the sealed `QuotaCanarySourceTree` against `HEAD:mac`. Existing packages in `dist/` are not inputs. The verified pair, signed update feed, DMG checksum and notes are staged under `dist/`; preparation makes no public changes.
 
-Provenance (QUO-404): before notarizing, `release.sh` requires a committed
-`mac/` whose git tree hash equals the `mac/` tree on the mirror's `main`, so the
-tag it creates (`--target` that mirror commit) holds the exact source of the
-build. The notes it writes, `dist/release-notes-<version>.md`, carry the
-SHA-256 of the disk image and zip and the tree hash. To check a download:
-`git rev-parse mac-v<version>:mac` in a mirror clone, and
-`shasum -a 256 QuotaCanary-<version>.dmg`.
+Record both SHA-256 values independently. Once `master` and the public mirror contain the reviewed `mac/` tree, use `./scripts/release.sh --publish <reviewed-zip-sha256> <reviewed-dmg-sha256>` from a checkout containing those exact packages. This checks the pins, signatures and mirror source, uploads the pair, verifies the served bytes and GitHub digests, then writes `site/public/mac/updates.json` and `site/src/data/mac-dmg.json`. Ship these two site files only after the assets exist. Do not rebuild a reviewed pair under the same pins.
 
-Publish first, merge the feed second. A feed that reaches quotacanary.com
-before its asset exists tells every older install there is an update it then
-fails to download.
+If publication stops after creating the release, retry the same command with the same pins. The retry checks the Mac source tree at the published tag, even if mirror main has since advanced. It verifies the published status, both asset digests and the downloaded bytes, then reads the tag again before staging the site files. A changed tag, draft, missing asset or mismatch stops the retry for investigation.
 
 ### Where things are hosted
 
@@ -150,9 +132,10 @@ fails to download.
 | `https://quotacanary.com/download/mac` | `site/server.mjs`: 302 to the `.dmg` of the version the feed names. The website button and launch links use this. |
 
 The zips and images stay out of git (both repos would carry every 14 MB build forever).
-Nothing about the app, the feed or the button names a GitHub URL, so moving the
-archives elsewhere is a change to `macDownloadLocation` in `site/server.mjs`
-and no app release.
+The installed updater accepts the versioned quotacanary.com URL, the exact
+public mirror release redirect and that repository's GitHub asset CDN route.
+Moving the ZIP to another origin requires a client release that allows the new
+route, delivered through the existing route first.
 
 A release cut before QUO-364 (0.1.0) has no image: add one with
 `./scripts/dmg.sh && gh release upload mac-v0.1.0 dist/QuotaCanary-0.1.0.dmg --repo noamdorr/quotacanary-oss`
@@ -204,10 +187,8 @@ nothing about providers, connections, keys or balances.
 ### Hosting requirements
 
 - The feed is served as `application/json` over HTTPS (http is refused except
-  to loopback), under 64 KB. The server ignores the query parameters.
-- The archive reaches the app unchanged byte for byte. Redirects are fine:
-  URLSession follows them, and the archive is checked by SHA-256 and Ed25519,
-  not by host.
+  to loopback), at most 65,536 bytes including its trailing newline. The server ignores the query parameters.
+- The archive reaches the app unchanged byte for byte. Production downloads must match the canonical versioned URL and its GitHub release/CDN route. The client enforces a 64 MiB transfer limit and checks SHA-256 and Ed25519.
 - Nothing is signed on the server: signing happens on the release Mac.
 
 ### Testing against a local feed
@@ -215,7 +196,7 @@ nothing about providers, connections, keys or balances.
 `QUOTACANARY_UPDATE_FEED` points the app at another feed. It is meant for
 development and is honored in every build (the scripts build dev and release
 the same way), but only for `https://` or `http://` to 127.0.0.1/localhost,
-and every signature is still checked against the compiled-in key.
+and the archive and redirects must remain on the explicitly selected development feed origin. Every signature is still checked against the compiled-in key.
 
 ```sh
 python3 -m http.server 8765 --bind 127.0.0.1 -d <folder with updates.json and the zip>

@@ -18,11 +18,14 @@ public struct EraseLocalData {
   private let service: MonitoringService
   private let folder: URL?
   private let preferences: PreferencesStore?
+  private let notifications: NotificationCenterLike?
 
   /// `folder` is the Application Support folder to remove once its files are
   /// gone. nil (the default) for in-memory stores, so a synthetic or preview
   /// run can never touch the real folder.
-  public init(service: MonitoringService, folder: URL? = nil, preferences: PreferencesStore? = nil) {
+  public init(service: MonitoringService, folder: URL? = nil, preferences: PreferencesStore? = nil,
+              notifications: NotificationCenterLike? = nil) {
+    self.notifications = notifications
     self.preferences = preferences
     self.service = service
     self.folder = folder
@@ -47,6 +50,7 @@ public struct EraseLocalData {
     let removed = summary
     do {
       try service.eraseLocal()
+      notifications?.clearNotifications()
       try preferences?.erase()
       onStoresErased()
       if let folder, FileManager.default.fileExists(atPath: folder.path) {

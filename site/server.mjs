@@ -140,7 +140,23 @@ export function requestHandler(req, res) {
     res.setHeader(name, value)
   }
 
-  const url = new URL(req.url ?? "/", "http://localhost")
+  // Only HTTP origin-form targets belong to this origin. WHATWG parsing
+  // treats // and backslashes as authorities; neither may reach a Location.
+  const target = req.url ?? "/"
+  let url
+  try {
+    if (!target.startsWith("/") || target.startsWith("//") || /[\\\u0000-\u0020\u007f]/.test(target)) {
+      throw new Error("invalid request target")
+    }
+    url = new URL(target, "http://localhost")
+    if (url.origin !== "http://localhost" || url.pathname.startsWith("//")) {
+      throw new Error("invalid request path")
+    }
+  } catch {
+    res.writeHead(400, { "Content-Type": "text/plain" })
+    res.end("Bad request")
+    return
+  }
 
   if (url.pathname === "/healthz") {
     res.writeHead(200, { "Content-Type": "text/plain" })

@@ -78,7 +78,7 @@ private func jsonBody(_ body: Data?) throws -> [String: String]? {
 
   @Test func icypeasReadsSuccessFalseAsARejectedEmailNeverAZero() async throws {
     let rejected = await read(.icypeas, key: icypeasSecret, body: #"{"success":false,"validationErrors":[]}"#).0.error
-    #expect(rejected == .reportedError("Icypeas did not accept this account email."))
+    #expect(rejected == .guidance(.icypeasEmailNotAccepted))
     #expect(try await read(.icypeas, key: icypeasSecret, body: #"{"credits":0}"#).0.get().first?.balance == 0)
     #expect(await read(.icypeas, key: icypeasSecret, body: #"{"credits":"lots"}"#).0.error == .missingField("credits"))
     #expect(await read(.icypeas, key: icypeasSecret, body: #"{"status":"paid"}"#).0.error == .missingField("credits"))
@@ -99,7 +99,7 @@ private func jsonBody(_ body: Data?) throws -> [String: String]? {
   @Test func theCompaniesAPIPointsAtTheTeamIDOn403And404() async throws {
     for status in [403, 404] {
       let error = await read(.thecompaniesapi, key: companiesSecret, body: #"{"messages":"teamNotFound"}"#, status: status).0.error
-      #expect(error == .reportedError("The Companies API has no team with this ID for this token."))
+      #expect(error == .guidance(.theCompaniesAPINoTeam))
     }
     #expect(try await read(.thecompaniesapi, key: companiesSecret, body: #"{"credits":0}"#).0.get().first?.balance == 0)
     #expect(await read(.thecompaniesapi, key: companiesSecret, body: #"{"credits":null}"#).0.error == .missingField("credits"))

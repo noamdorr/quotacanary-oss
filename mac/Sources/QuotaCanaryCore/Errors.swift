@@ -10,11 +10,11 @@ public enum ProviderReadError: Error, Equatable, Sendable {
   /// The key is valid but not allowed to read usage (Apollo's 403 for a key
   /// without the credit usage endpoint in its scope).
   case keyLacksScope
-  /// The provider answered with its own error instead of a balance (Tavily's
-  /// `detail.error`, a catalog `errorPath` or `bodyError`). Catalog reads
-  /// carry the vendor's string for the row, as the web does; nil falls back
-  /// to the generic copy. Diagnostics never export it.
+  /// Untrusted provider error text, retained for parsing compatibility only.
+  /// UI formatters use fixed copy; raw text may echo credentials.
   case reportedError(String?)
+  /// Recovery guidance authored in this app, never supplied by a provider.
+  case guidance(ProviderGuidance)
   /// HTTP 429: the provider is throttling this key. Not a bad key; the next
   /// scheduled check retries (QUO-133).
   case rateLimited
@@ -29,6 +29,8 @@ public enum MonitorError: Error, Equatable, Sendable {
   case credentialReadFailed
   case credentialMissing
   case credentialDeleteFailed
+  case removalHistoryFailed
+  case removalRecordFailed
   case saveFailed
   case loadFailed
   case notConnected
@@ -49,13 +51,16 @@ public enum MonitorError: Error, Equatable, Sendable {
       case let .httpStatus(status): return Copy.httpStatus(name, status)
       case .notJSON, .missingField: return Copy.unexpectedResponse(name)
       case .keyLacksScope: return Copy.keyLacksScope(id)
-      case let .reportedError(vendor): return vendor ?? Copy.reportedError(name)
+      case .reportedError: return Copy.reportedError(name)
+      case let .guidance(guidance): return guidance.message
       case .rateLimited: return Copy.rateLimited(name)
       }
     case .credentialWriteFailed: return Copy.credentialWriteFailed
     case .credentialReadFailed: return Copy.credentialReadFailed
     case .credentialMissing: return Copy.credentialMissing
     case .credentialDeleteFailed: return Copy.credentialDeleteFailed
+    case .removalHistoryFailed: return Copy.removalHistoryFailed
+    case .removalRecordFailed: return Copy.removalRecordFailed
     case .saveFailed: return Copy.saveFailed
     case .loadFailed: return Copy.loadFailed
     case .notConnected: return Copy.notConnected
@@ -71,6 +76,27 @@ public enum MonitorError: Error, Equatable, Sendable {
     switch self {
     case .credentialMissing, .provider(_, .keyRejected), .provider(_, .keyLacksScope): return true
     default: return false
+    }
+  }
+}
+
+/// Only fixed, reviewed recovery instructions cross this boundary.
+public enum ProviderGuidance: Equatable, Sendable {
+  case tregNotTiedToATeam
+  case icypeasEmailNotAccepted
+  case enrichCRMCreditsUnreadable
+  case webshareNothingToWatch
+  case firecrawlRejected
+  case theCompaniesAPINoTeam
+
+  public var message: String {
+    switch self {
+    case .tregNotTiedToATeam: return Copy.tregNotTiedToATeam
+    case .icypeasEmailNotAccepted: return Copy.icypeasEmailNotAccepted
+    case .enrichCRMCreditsUnreadable: return Copy.enrichCRMCreditsUnreadable
+    case .webshareNothingToWatch: return Copy.webshareNothingToWatch
+    case .firecrawlRejected: return Copy.firecrawlRejected
+    case .theCompaniesAPINoTeam: return Copy.theCompaniesAPINoTeam
     }
   }
 }

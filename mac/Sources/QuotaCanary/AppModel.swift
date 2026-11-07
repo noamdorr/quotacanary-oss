@@ -77,6 +77,7 @@ final class AppModel {
   }
 
   private let service: MonitoringService
+  private let notificationCenter: NotificationCenterLike
   private let preferences: PreferencesStore
   /// The Application Support folder to remove on erase; nil unless the real
   /// stores are in use (QUO-297).
@@ -93,6 +94,7 @@ final class AppModel {
   init(service: MonitoringService, system: SystemHooks? = nil) {
     self.service = service
     let system = system ?? SystemHooks.makeDefault()
+    notificationCenter = system.notifier
     preferences = system.preferences
     alerts = AlertEvaluator(
       service: service, center: system.notifier
@@ -262,10 +264,13 @@ final class AppModel {
   /// then shows first run. Returns an error message, or nil once it is done.
   func eraseLocalData(
     removeFolder: (URL) throws -> Void = { try FileManager.default.removeItem(at: $0) }
-  ) -> String? {
+  ) async -> String? {
     guard !isBusy else { return Copy.busyTryAgain }
+    isBusy = true
+    defer { isBusy = false }
     do {
-      try EraseLocalData(service: service, folder: eraseFolder, preferences: preferences).run(removeFolder: removeFolder) {
+      try EraseLocalData(service: service, folder: eraseFolder, preferences: preferences,
+                         notifications: notificationCenter).run(removeFolder: removeFolder) {
         updater.resetAfterErase()
         startAtLogin.resetAfterErase()
         showsRunOutInPanel = false
@@ -284,7 +289,7 @@ final class AppModel {
     addingOn = nil
     watchChoiceID = nil
     alerts.schedule()
-    return nil
+    return await notificationCenter.waitUntilCleared() ? nil : Copy.eraseFailed
   }
 
   /// Mutes a balance for a day, a week or until a top-up, or unmutes it (nil)

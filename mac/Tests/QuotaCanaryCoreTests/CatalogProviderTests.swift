@@ -274,13 +274,13 @@ private func read(
     #expect(await read(e, #"{"error":"second","message":"first"}"#).error == .reportedError("first"))
   }
 
-  // MARK: Vendor text on the row (QUO-193 decision 5b: parity with the web)
+  // MARK: Vendor error text stays out of the UI
 
-  @Test func theRowShowsTheVendorStringAndFallsBackToTheGenericCopy() {
+  @Test func theRowShowsFixedCopyForVendorErrors() {
     let id = ProviderID("neverbounce")
     let vendor = MonitorError.provider(id, .reportedError("VENDOR-SENTINEL: key revoked"))
-    #expect(vendor.message == "VENDOR-SENTINEL: key revoked")
-    #expect(vendor.checkFailureMessage == "VENDOR-SENTINEL: key revoked")
+    #expect(vendor.message == Copy.reportedError(id.displayName))
+    #expect(vendor.checkFailureMessage == Copy.checkReportedError(id.displayName))
     let generic = MonitorError.provider(.tavily, .reportedError(nil))
     #expect(generic.message == Copy.reportedError("Tavily"))
     #expect(generic.checkFailureMessage == Copy.checkReportedError("Tavily"))

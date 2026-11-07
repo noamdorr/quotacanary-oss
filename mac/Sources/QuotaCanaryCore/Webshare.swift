@@ -66,7 +66,7 @@ public enum Webshare: HandWrittenProvider {
     if freeCredits > 0 {
       balances.append(PoolBalance(pool: freeCreditsPool, balance: freeCredits))
     }
-    guard !balances.isEmpty else { throw ProviderReadError.reportedError(Copy.webshareNothingToWatch) }
+    guard !balances.isEmpty else { throw ProviderReadError.guidance(.webshareNothingToWatch) }
     return balances
   }
 

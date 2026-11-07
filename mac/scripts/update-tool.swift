@@ -24,6 +24,25 @@ func loadKey(_ path: String) -> Curve25519.Signing.PrivateKey {
   return key
 }
 
+// These match the installed client's UpdateFeed transfer limits.
+let maximumFeedBytes = 64 * 1024
+let maximumArchiveBytes = 64 * 1024 * 1024
+
+func readFile(_ path: String, limit: Int) -> Data {
+  do {
+    let file = try FileHandle(forReadingFrom: URL(fileURLWithPath: path))
+    defer { try? file.close() }
+    var data = Data()
+    while let chunk = try file.read(upToCount: min(limit + 1 - data.count, 64 * 1024)), !chunk.isEmpty {
+      guard chunk.count <= limit - data.count else { fail("\(path) exceeds the \(limit)-byte update limit") }
+      data.append(chunk)
+    }
+    return data
+  } catch {
+    fail("Can't read \(path)")
+  }
+}
+
 let args = Array(CommandLine.arguments.dropFirst())
 switch args.first {
 case "keygen" where args.count == 2:
@@ -35,9 +54,27 @@ case "keygen" where args.count == 2:
   else { fail("Couldn't write \(path)") }
   print(key.publicKey.rawRepresentation.base64EncodedString())
 
+case "verify" where args.count == 5:
+  let version = args[3]
+  let feedData = readFile(args[4], limit: maximumFeedBytes)
+  guard let publicBytes = Data(base64Encoded: args[1]),
+        let key = try? Curve25519.Signing.PublicKey(rawRepresentation: publicBytes),
+        let feed = try? JSONDecoder().decode([String: String].self, from: feedData),
+        feed["version"] == version, feed["minimumSystemVersion"] == "26.0",
+        feed["url"] == "https://quotacanary.com/mac/QuotaCanary-\(version).zip",
+        let sig = Data(base64Encoded: feed["signature"] ?? ""),
+        let metadata = Data(base64Encoded: feed["feedSignature"] ?? "")
+  else { fail("Invalid feed metadata or verification inputs") }
+  let archive = readFile(args[2], limit: maximumArchiveBytes)
+  let hash = SHA256.hash(data: archive).map { String(format: "%02x", $0) }.joined()
+  let message = Data("quotacanary-mac-update\n\(version)\n26.0\n\(hash)".utf8)
+  guard feed["sha256"] == hash, key.isValidSignature(sig, for: archive),
+        key.isValidSignature(metadata, for: message) else { fail("Update feed or archive signature mismatch") }
+  print("Verified feed signature, archive signature and SHA-256: \(hash)")
+
 case "sign" where args.count == 6 || args.count == 7:
   let key = loadKey(args[1])
-  guard let archive = FileManager.default.contents(atPath: args[2]) else { fail("Can't read \(args[2])") }
+  let archive = readFile(args[2], limit: maximumArchiveBytes)
   let version = args[3], minimum = args[4], url = args[5]
   let sha256 = SHA256.hash(data: archive).map { String(format: "%02x", $0) }.joined()
   let message = Data("quotacanary-mac-update\n\(version)\n\(minimum)\n\(sha256)".utf8)
@@ -53,8 +90,10 @@ case "sign" where args.count == 6 || args.count == 7:
     "feedSignature": feedSignature.base64EncodedString(),
   ]
   if args.count == 7, !args[6].isEmpty { entry["notes"] = args[6] }
-  let json = try! JSONSerialization.data(withJSONObject: entry, options: [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes])
-  print(String(decoding: json, as: UTF8.self))
+  var json = try! JSONSerialization.data(withJSONObject: entry, options: [.prettyPrinted, .sortedKeys, .withoutEscapingSlashes])
+  json.append(0x0A)
+  guard json.count <= maximumFeedBytes else { fail("Signed feed exceeds the \(maximumFeedBytes)-byte update limit") }
+  FileHandle.standardOutput.write(json)
 
 default:
   fail("usage: update-tool.swift keygen <key> | sign <key> <archive> <version> <minimum-macos> <url> [notes]")

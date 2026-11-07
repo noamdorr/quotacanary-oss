@@ -58,6 +58,65 @@ describe("emaillistverify adapter", () => {
       "EmailListVerify rejected this key."
     )
   })
+  it("returns an error when rate limited", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          ({
+            ok: false,
+            status: 429,
+            json: async () => ({}),
+          }) as unknown as Response
+      )
+    )
+    expect(await emaillistverifyAdapter.readBalance("key")).toEqual({
+      ok: false,
+      error: "EmailListVerify returned 429.",
+    })
+  })
+  it("drops a pool whose field is missing and keeps the other", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          ({
+            ok: true,
+            status: 200,
+            json: async () => ({ subscription: { available: 100 } }),
+          }) as unknown as Response
+      )
+    )
+    expect(await emaillistverifyAdapter.readBalance("key")).toEqual({
+      ok: true,
+      balances: [
+        {
+          creditType: "subscription",
+          label: "Daily Credits",
+          balance: 100,
+          balanceLimit: null,
+          unit: "credits",
+        },
+      ],
+    })
+  })
+  it("returns an error when neither pool is present", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        async () =>
+          ({
+            ok: true,
+            status: 200,
+            json: async () => ({}),
+          }) as unknown as Response
+      )
+    )
+    expect(await emaillistverifyAdapter.readBalance("key")).toEqual({
+      ok: false,
+      error: "EmailListVerify returned an unexpected response.",
+    })
+  })
   it("returns an error on a non-JSON body", async () => {
     vi.stubGlobal(
       "fetch",

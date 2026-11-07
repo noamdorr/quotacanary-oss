@@ -148,14 +148,14 @@ private let missing: [ProviderID: (body: String, field: String)] = [
   @Test func enrichCRMReadsTheVendorErrorEvenOnANon2xx() async {
     let creditFailure = #"{"code":13,"message":"can't get credit","details":[]}"#
     #expect(await read(.enrichcrm, body: creditFailure, status: 500).0.error
-      == .reportedError("Enrich CRM couldn't read credits for this key."))
+      == .guidance(.enrichCRMCreditsUnreadable))
     #expect(await read(.enrichcrm, body: #"{"code":5,"message":"Quota service down"}"#, status: 503).0.error
       == .reportedError("Quota service down"))
     #expect(await read(.enrichcrm, body: #"{"code":5}"#).0.error == .reportedError("Enrich CRM returned an error."))
     #expect(await read(.enrichcrm, body: #"{"success":false,"credits":3}"#).0.error
       == .reportedError("Enrich CRM returned an error."))
     #expect(await read(.enrichcrm, body: #"{"success":false,"message":"Nope"}"#, status: 401).0.error == .reportedError("Nope"))
-    #expect(MonitorError.provider(.enrichcrm, .reportedError(Copy.enrichCRMCreditsUnreadable)).message
+    #expect(MonitorError.provider(.enrichcrm, .guidance(.enrichCRMCreditsUnreadable)).message
       == "Enrich CRM couldn't read credits for this key.")
   }
 

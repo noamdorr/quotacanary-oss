@@ -111,7 +111,8 @@ private func prospeoService(_ steps: [ScriptedTransport.Step]) -> MonitoringServ
     let entry = try #require((exported["connections"] as? [[String: Any]])?.first)
     let lastCheck = try #require(entry["lastCheck"] as? [String: Any])
     let body = try #require(lastCheck["body"] as? String)
-    let decoded = try #require(JSONSerialization.jsonObject(with: Data(body.utf8)) as? [String: String])
+    #expect(body.isEmpty)
+    let decoded = try #require(JSONSerialization.jsonObject(with: Data(record.body.utf8)) as? [String: String])
     #expect(decoded["error"] != password)
     #expect(decoded["login"] != login)
     #expect(decoded["code"] == "INVALID_LOGIN")
@@ -192,6 +193,20 @@ private func prospeoService(_ steps: [ScriptedTransport.Step]) -> MonitoringServ
     )
     #expect(record.body.count == CheckRecord.bodyLimit + 3)
     #expect(record.body.hasSuffix("..."))
+  }
+
+  @Test func oversizedJSONIsOmittedWithoutChangingTheProviderResponse() async throws {
+    let url = URL(string: "https://x.test/account")!
+    let limit = 8 * 1024
+    for size in [limit, limit + 1] {
+      let body = #""\#(String(repeating: "a", count: size - 2))""#
+      let transport = RecordingTransport(ScriptedTransport([.respond(status: 400, body: body)]), key: "synthetic")
+      let response = try await transport.send(HTTPRequest("GET", url))
+      #expect(response.body == Data(body.utf8))
+      let record = try #require(transport.record)
+      #expect(record.status == 400)
+      #expect(size <= limit ? record.body.hasSuffix("...") : record.body.isEmpty)
+    }
   }
 
   @Test func aTransportFailureIsARecordWithNoStatus() async throws {

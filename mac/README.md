@@ -203,11 +203,10 @@ are on and when the last one succeeded, and per connection the provider,
 whether a key is stored (just a yes/no, not the key), the last reading's
 timestamp and pool balances, how many checks in a row have failed, the last
 error's type, and the last check: its method, host, path, HTTP status,
-duration and time. For a failed check it also includes the vendor's response,
-cut to 2,048 characters, with keys, auth headers and email addresses removed.
-Anything else the vendor wrote, like a team or account name, stays, so read
-the file before you share it. It never includes API keys, connection names,
-Keychain references or request bodies, and it never triggers a provider
+duration and time. The response body field is always empty. The vendor's response
+can be inspected locally after a failed check, but diagnostics never include
+request or response bodies, connection names, Keychain references or API keys.
+Exporting never triggers a provider
 refresh, a telemetry event, or a support submission. You choose the
 destination and decide whether to share the file.
 

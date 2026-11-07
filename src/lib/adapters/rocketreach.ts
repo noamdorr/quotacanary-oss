@@ -48,8 +48,15 @@ export const rocketreachAdapter: ToolAdapter = {
 
     // credit_usage is an array, one entry per credit type. Surface a pool for
     // each type the plan actually allocates; fall back to all entries (or a
-    // single zero pool) so we never return nothing.
-    const usage = Array.isArray(data.credit_usage) ? data.credit_usage : []
+    // single zero pool) so we never return nothing. A body without the array
+    // is not a zero balance, so it errors instead of raising a false alert.
+    if (!Array.isArray(data.credit_usage)) {
+      return {
+        ok: false,
+        error: "RocketReach returned an unexpected response.",
+      }
+    }
+    const usage = data.credit_usage
     const active = usage.filter((c) => toFiniteNumber(c.allocated) > 0)
     const source = active.length > 0 ? active : usage
     const balances: BalanceReading[] = source.map((c) => {

@@ -27,9 +27,11 @@ VERSION="$(tr -d '[:space:]' < VERSION)"
 if git rev-parse --git-dir >/dev/null 2>&1; then
   BUILD="${QUOTACANARY_BUILD_NUMBER:-$(git rev-list --count HEAD)}"
   COMMIT="$(git rev-parse --short=12 HEAD)"
+  TREE="$(git rev-parse HEAD:mac 2>/dev/null || echo unknown)"
 else
   BUILD="${QUOTACANARY_BUILD_NUMBER:-0}"
   COMMIT=unknown
+  TREE=unknown
 fi
 
 APP=dist/QuotaCanary.app
@@ -77,6 +79,8 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   <string>$BUILD</string>
   <key>QuotaCanaryGitCommit</key>
   <string>$COMMIT</string>
+  <key>QuotaCanarySourceTree</key>
+  <string>$TREE</string>
   <key>LSMinimumSystemVersion</key>
   <string>26.0</string>
   <key>LSUIElement</key>

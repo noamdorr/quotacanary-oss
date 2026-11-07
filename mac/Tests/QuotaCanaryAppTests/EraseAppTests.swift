@@ -5,9 +5,27 @@ import QuotaCanaryCore
 import Testing
 
 @MainActor @Suite struct EraseAppTests {
+  @Test(arguments: [true, false])
+  func removeShowsWhatRemainsAndCanRetry(historyFails: Bool) async throws {
+    let h = try Harness()
+    await h.connect()
+    let id = try #require(h.model.connections.first?.id)
+    h.history.failSaves = historyFails
+    h.store.failSaves = !historyFails
+    let expected = historyFails ? Copy.removalHistoryFailed : Copy.removalRecordFailed
+    #expect(h.model.remove(id: id) == expected)
+    #expect(h.model.monitor.record(for: id).message == expected)
+    #expect(h.model.connections.first?.id == id)
+    h.history.failSaves = false
+    h.store.failSaves = false
+    #expect(h.model.remove(id: id) == nil)
+    #expect(h.model.connections.isEmpty)
+    #expect(h.model.monitor.record(for: id).message == nil)
+  }
+
   @Test func eraseReturnsRunningAppToFirstRun() async throws {
     let h = try Harness()
-    #expect(h.model.eraseLocalData() == nil)
+    #expect(await h.model.eraseLocalData() == nil)
     #expect(!h.updater.automaticChecks)
     h.clock.advance(by: 2 * UpdateFeed.automaticInterval)
     await h.updater.settle()
@@ -23,7 +41,7 @@ import Testing
   @Test func queuedCheckIsCancelledBeforeItCanRequestTheFeed() async throws {
     let h = try Harness()
     h.clock.advance(by: UpdateFeed.automaticInterval)
-    #expect(h.model.eraseLocalData() == nil)
+    #expect(await h.model.eraseLocalData() == nil)
     for _ in 0..<20 { await Task.yield() }
     #expect(h.transport.requests.isEmpty)
     #expect(h.updater.status == .idle)
@@ -38,7 +56,7 @@ import Testing
     let oldCheck = Task { await h.updater.checkNow() }
     for _ in 0..<1000 where gate.held == nil { await Task.yield() }
     #expect(gate.held != nil)
-    let error = h.model.eraseLocalData(removeFolder: { folder in
+    let error = await h.model.eraseLocalData(removeFolder: { folder in
       if folderRemovalFails { throw EraseError.failed }
       try FileManager.default.removeItem(at: folder)
     })
@@ -65,7 +83,7 @@ import Testing
     let oldCheck = Task { await h.updater.checkNow() }
     for _ in 0..<1000 where gate.held == nil { await Task.yield() }
     #expect(gate.held != nil)
-    #expect(h.model.eraseLocalData() == nil)
+    #expect(await h.model.eraseLocalData() == nil)
     gate.hold = false
     await h.updater.checkNow()
     let checkedAt = try #require(h.updater.lastCheckAt)
@@ -87,7 +105,7 @@ import Testing
     for _ in 0..<1000 where gate.downloadHeld == nil { await Task.yield() }
     #expect(gate.downloadHeld != nil)
     #expect(h.updater.status == .downloading(version: "0.2.0"))
-    #expect(h.model.eraseLocalData() == nil)
+    #expect(await h.model.eraseLocalData() == nil)
     gate.downloadHeld?.resume()
     await check.value
     #expect(h.updater.status == .idle)
@@ -97,11 +115,41 @@ import Testing
     #expect(try FileManager.default.contentsOfDirectory(atPath: h.downloads.path).isEmpty)
   }
 
+  @Test func eraseClearsDeliveredContentAndRejectsAnOlderPendingDelivery() async throws {
+    let h = try Harness()
+    h.notifier.permission = .allowed
+    try await h.notifier.deliver(title: "Synthetic account", body: "1 credit", id: "old")
+    h.notifier.holdDeliveries = true
+    let late = Task { try await h.notifier.deliver(title: "Synthetic balance", body: "2 credits", id: "late") }
+    for _ in 0..<1000 where h.notifier.heldCount == 0 { await Task.yield() }
+    #expect(h.notifier.heldCount == 1)
+    #expect(await h.model.eraseLocalData() == nil)
+    h.notifier.releaseHeld()
+    await #expect(throws: CancellationError.self) { try await late.value }
+    #expect(h.notifier.delivered.isEmpty)
+    #expect(h.notifier.permission == .allowed)
+    h.notifier.holdDeliveries = false
+    try await h.notifier.deliver(title: "New", body: "New balance", id: "new")
+    #expect(h.notifier.delivered.map(\.id) == ["new"])
+  }
+
+  @Test func eraseReportsAndCanRetryUnclearedNotifications() async throws {
+    let h = try Harness()
+    h.notifier.permission = .allowed
+    try await h.notifier.deliver(title: "Synthetic", body: "1 credit", id: "old")
+    h.notifier.refuseClear = true
+    #expect(await h.model.eraseLocalData() == Copy.eraseFailed)
+    #expect(h.notifier.delivered.count == 1)
+    h.notifier.refuseClear = false
+    #expect(await h.model.eraseLocalData() == nil)
+    #expect(h.notifier.delivered.isEmpty)
+  }
+
   @Test func resetReadsCurrentOSStateWithoutChangingIt() async throws {
     let h = try Harness()
     h.login.status = .enabled
     h.notifier.permission = .denied
-    #expect(h.model.eraseLocalData() == nil)
+    #expect(await h.model.eraseLocalData() == nil)
     await h.connect()
     #expect(!h.model.startAtLogin.promptAnswered)
     #expect(!h.model.notifications.promptAnswered)
@@ -116,7 +164,7 @@ import Testing
 
   @Test func folderCleanupFailureStillRetiresErasedPreferences() async throws {
     let h = try Harness()
-    let error = h.model.eraseLocalData(removeFolder: { _ in throw EraseError.failed })
+    let error = await h.model.eraseLocalData(removeFolder: { _ in throw EraseError.failed })
     #expect(error == Copy.eraseFailed)
     #expect(h.folderExists) // The failed final removal is not hidden.
     #expect(!h.updater.automaticChecks)
@@ -132,7 +180,7 @@ import Testing
     let h = try Harness()
     await h.connect()
     h.credentials.failing = true
-    #expect(h.model.eraseLocalData() == Copy.eraseFailed)
+    #expect(await h.model.eraseLocalData() == Copy.eraseFailed)
     #expect(h.model.connections.count == 1)
     #expect(h.updater.automaticChecks)
     #expect(h.model.startAtLogin.promptAnswered)
@@ -148,6 +196,8 @@ import Testing
   let clock = ManualClock(now: Date())
   let transport = FakeUpdateTransport()
   let credentials = InMemoryCredentialStore()
+  let store = InMemoryConnectionStore()
+  let history = InMemoryReadingHistoryStore()
   let login = FakeLoginItem()
   let notifier = FakeNotificationCenter(permission: .notAsked)
   let updater: Updater
@@ -161,14 +211,14 @@ import Testing
     try prefs.save(Preferences(loginPromptAnswered: true, alertsPromptAnswered: true,
                               automaticUpdateChecks: true, updatePromptAnswered: true, lastUpdateCheckAt: clock.now))
     let key = Curve25519.Signing.PrivateKey()
-    let entry = try UpdateEntry.signed(version: version, url: "https://example.com/update.zip", archive: Data(), key: key)
+    let entry = try UpdateEntry.signed(version: version, url: "https://quotacanary.com/mac/QuotaCanary-\(version).zip", archive: Data(), key: key)
     let body = try JSONEncoder().encode(entry)
     response = HTTPResponse(status: 200, body: body)
     transport.feed = .respond(status: 200, body: body)
     updater = Updater(transport: updateTransport ?? transport, installer: FakeUpdateInstaller(), clock: clock,
                       preferences: prefs, currentVersion: "0.1.0", publicKey: key.publicKey,
                       downloads: downloads)
-    let service = MonitoringService(credentials: credentials, store: InMemoryConnectionStore(),
+    let service = MonitoringService(credentials: credentials, store: store, history: history,
                                     transport: ScriptedTransport([Scenarios.hunterOK]))
     model = AppModel(service: service, system: SystemHooks(clock: clock, lifecycle: ManualLifecycle(),
       reachability: ScriptedReachability(online: true), loginItem: login, preferences: prefs,

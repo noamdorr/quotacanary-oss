@@ -66,7 +66,7 @@ private func read(_ steps: [ScriptedTransport.Step]) async -> Result<[PoolBalanc
 
   @Test func anUnlimitedPlanWithoutCreditsHasNothingToWatch() async {
     let error = await read([.respond(status: 200, body: noCreditsBody), .respond(status: 200, body: unlimitedPlanBody)]).error
-    #expect(error == .reportedError("Webshare has no capped traffic or credits to watch."))
+    #expect(error == .guidance(.webshareNothingToWatch))
     #expect(MonitorError.provider(.webshare, error!).message == "Webshare has no capped traffic or credits to watch.")
   }
 

@@ -150,6 +150,8 @@ public protocol NotificationCenterLike: AnyObject {
   /// Asks macOS (it shows its own prompt at most once). True when allowed.
   func requestPermission() async -> Bool
   func status() async -> NotificationPermission
+  func clearNotifications()
+  func waitUntilCleared() async -> Bool
   func deliver(title: String, body: String, id: String, target: NotificationTarget?) async throws
 }
 
@@ -167,11 +169,13 @@ public final class FakeNotificationCenter: NotificationCenterLike {
   /// What a permission request turns `.notAsked` into.
   public var answer: NotificationPermission
   public var failDeliveries = false
+  public var refuseClear = false
   /// Holds each delivery until `releaseHeld()`, to overlap evaluations.
   public var holdDeliveries = false
   public private(set) var delivered: [AlertNotification] = []
   public private(set) var deliverCalls = 0
   public private(set) var requestCalls = 0
+  private var generation = 0
   private var held: [CheckedContinuation<Void, Never>] = []
 
   public init(permission: NotificationPermission = .notAsked, answer: NotificationPermission = .allowed) {
@@ -188,12 +192,21 @@ public final class FakeNotificationCenter: NotificationCenterLike {
   public func status() async -> NotificationPermission { permission }
 
   public func deliver(title: String, body: String, id: String, target: NotificationTarget?) async throws {
+    let epoch = generation
     deliverCalls += 1
     if holdDeliveries { await withCheckedContinuation { held.append($0) } }
+    guard epoch == generation else { throw CancellationError() }
     guard permission == .allowed else { throw NotificationDeliveryError.notAllowed(permission) }
     if failDeliveries { throw NotificationDeliveryError.failed(code: 1) }
     delivered.append(AlertNotification(id: id, title: title, body: body, target: target))
   }
+
+  public func clearNotifications() {
+    generation += 1
+    if !refuseClear { delivered.removeAll() }
+  }
+
+  public func waitUntilCleared() async -> Bool { delivered.isEmpty }
 
   public var heldCount: Int { held.count }
 
@@ -358,24 +371,30 @@ public final class NotificationSettings {
   /// One synthetic notification through the same path real alerts use. The
   /// result says whether macOS took it, never that it was seen.
   public func sendTest() async {
+    let generation = setupGeneration
     var state = await center.status()
+    guard generation == setupGeneration else { return }
     if state == .notAsked { state = await request() }
+    guard generation == setupGeneration else { return }
     permission = state
+    let result: NotificationTestResult
     switch state {
     case .allowed:
       do {
         try await center.deliver(
           title: Copy.testNotificationTitle, body: Copy.testNotificationBody, id: "quotacanary.test"
         )
-        testResult = NotificationTestResult(message: Copy.testHandedToMacOS, isError: false)
+        result = NotificationTestResult(message: Copy.testHandedToMacOS, isError: false)
       } catch NotificationDeliveryError.notAllowed(.denied) {
-        testResult = NotificationTestResult(message: Copy.testDenied, isError: true)
+        result = NotificationTestResult(message: Copy.testDenied, isError: true)
       } catch {
-        testResult = NotificationTestResult(message: Copy.testFailed, isError: true)
+        result = NotificationTestResult(message: Copy.testFailed, isError: true)
       }
-    case .denied: testResult = NotificationTestResult(message: Copy.testDenied, isError: true)
-    case .notAsked: testResult = NotificationTestResult(message: Copy.testNotAsked, isError: true)
-    case .unavailable: testResult = NotificationTestResult(message: Copy.alertsUnavailable, isError: true)
+    case .denied: result = NotificationTestResult(message: Copy.testDenied, isError: true)
+    case .notAsked: result = NotificationTestResult(message: Copy.testNotAsked, isError: true)
+    case .unavailable: result = NotificationTestResult(message: Copy.alertsUnavailable, isError: true)
     }
+    guard generation == setupGeneration else { return }
+    testResult = result
   }
 }

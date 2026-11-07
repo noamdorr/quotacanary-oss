@@ -13,17 +13,14 @@ import Foundation
 ///   per-pool safe creditType/unit/balance/cap, the number of consecutive failed provider checks
 ///   (QUO-133: an integer, attempted checks only), and the last error's enum CASE NAME only
 ///   (never any provider-supplied or otherwise free-form error text), and (QUO-279) the last
-///   check's `CheckRecord`: method, host + path, HTTP status, duration, and a redacted,
-///   truncated response body of a failed check. The record is redacted when it is built (the
-///   key, auth header values and emails are replaced), the one place provider text reaches the
-///   file.
+///   check's `CheckRecord`: method, host + path, HTTP status and duration. Response bodies are never exported.
 /// - `updates` (QUO-139): whether automatic update checks are on and when the last verified
 ///   update check happened. The caller passes these two values in; nothing else from
 ///   preferences.json is read or reported.
 ///
 /// Deliberately excluded: API keys, credential payloads, connection ids, connection names (a
 /// user-editable field that could hold anything, including a pasted secret), authorization
-/// headers, raw (unredacted) provider requests or responses, and any other account identifier. Nothing here
+/// headers, provider request or response bodies, and any other account identifier. Nothing here
 /// reads preferences, log files, or network traffic itself.
 public enum Diagnostics {
   public struct Report: Codable, Equatable, Sendable {
@@ -124,12 +121,16 @@ public enum Diagnostics {
           pools: (snapshot.lastReading?.balances ?? []).enumerated().map { poolIndex, balance in
             // Deepgram's persisted pool key includes a provider project ID.
             // The report uses a local ordinal without changing that key.
-            let creditType = snapshot.provider == .deepgram ? "project:\(poolIndex + 1)" : balance.pool.creditType
+            let creditType: String
+            if snapshot.provider == .deepgram { creditType = "project:\(poolIndex + 1)" }
+            else if WatchedBalances.declared(snapshot.provider).contains(balance.pool.creditType) {
+              creditType = balance.pool.creditType
+            } else { creditType = "pool:\(poolIndex + 1)" } // Never export a vendor-supplied identifier.
             return PoolInfo(creditType: creditType, unit: balance.pool.unit, balance: balance.balance, cap: balance.pool.cap)
           },
           consecutiveFailures: snapshot.consecutiveFailures,
           lastErrorCase: snapshot.lastError?.diagnosticsCaseName,
-          lastCheck: snapshot.lastCheck
+          lastCheck: snapshot.lastCheck?.withoutBody
         )
       },
       updates: updates
@@ -223,13 +224,15 @@ extension MonitorError {
       case .notJSON: return "provider.notJSON"
       case .missingField: return "provider.missingField"
       case .keyLacksScope: return "provider.keyLacksScope"
-      case .reportedError: return "provider.reportedError"
+      case .reportedError, .guidance: return "provider.reportedError"
       case .rateLimited: return "provider.rateLimited"
       }
     case .credentialWriteFailed: return "credentialWriteFailed"
     case .credentialReadFailed: return "credentialReadFailed"
     case .credentialMissing: return "credentialMissing"
     case .credentialDeleteFailed: return "credentialDeleteFailed"
+    case .removalHistoryFailed: return "removalHistoryFailed"
+    case .removalRecordFailed: return "removalRecordFailed"
     case .saveFailed: return "saveFailed"
     case .loadFailed: return "loadFailed"
     case .notConnected: return "notConnected"

@@ -63,7 +63,7 @@ private func read(_ body: String, status: Int = 200) async -> Result<[PoolBalanc
     // QUO-280: Prospeo answers a bad key with 400 + INVALID_API_KEY; any other 400 shows its own code.
     #expect(await read(#"{"error":true,"error_code":"INVALID_API_KEY"}"#, status: 400).error == .keyRejected)
     #expect(await read(#"{"error":true,"error_code":"INVALID_REQUEST"}"#, status: 400).error == .reportedError("INVALID_REQUEST"))
-    #expect(MonitorError.provider(.prospeo, .reportedError("INVALID_REQUEST")).message == "INVALID_REQUEST")
+    #expect(MonitorError.provider(.prospeo, .reportedError("INVALID_REQUEST")).message == Copy.reportedError("Prospeo"))
     // No Prospeo envelope on the 400: the status itself.
     #expect(await read("{}", status: 400).error == .httpStatus(400))
     #expect(MonitorError.provider(.prospeo, .keyRejected).message == "Prospeo rejected this key.")
