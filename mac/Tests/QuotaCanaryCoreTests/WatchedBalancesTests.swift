@@ -28,6 +28,21 @@ private func connected(_ provider: ProviderID = .apollo, body: String = apolloWi
 }
 
 @Suite struct WatchedBalancesTests {
+  /// QUO-459: Remove names the connection and counts only the balances it shows.
+  @Test @MainActor func removePromptCountsShownBalancesOnly() async throws {
+    let (service, _, _, connection) = try await connected()
+    let shown = connection.poolRows.count
+    #expect(shown > 1 && !connection.hiddenPoolRows.isEmpty)
+    #expect(
+      Copy.removeConfirmPrompt(connection)
+        == "Remove \(connection.name) and delete its key from Keychain? All \(shown) of its balances go with it."
+    )
+    var single = try #require(service.connections.first)
+    single.watchedCreditTypes = [core[0]]
+    #expect(single.poolRows.count == 1)
+    #expect(Copy.removeConfirmPrompt(single) == "Remove \(connection.name) and delete its key from Keychain?")
+  }
+
   @Test @MainActor func connectWatchesTheCatalogPoolsAndHidesTheExtras() async throws {
     let (service, alerts, center, connection) = try await connected()
     #expect(connection.watchedCreditTypes == core)

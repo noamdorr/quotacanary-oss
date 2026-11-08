@@ -76,6 +76,46 @@ import Testing
     #expect(model.keyInput == "half-typed")
   }
 
+  /// QUO-456: an open form names no tool until one is picked, so a second
+  /// connection's "Hunter 2" appears only once Hunter is chosen (QUO-277).
+  @Test func theSuggestedNameWaitsForAPick() async {
+    let model = await connectedModel()
+    model.beginAdding(on: .panel)
+    #expect(model.provider == nil)
+    #expect(model.nameInput.isEmpty)
+    model.provider = .hunter
+    #expect(model.nameInput == "Hunter 2")
+  }
+
+  /// QUO-456: every open starts clean, after Connect as after Cancel.
+  @Test func connectAndCancelBothLeaveNothingPicked() async {
+    let model = await connectedModel()
+    model.beginAdding(on: .panel)
+    model.provider = .hunter
+    model.cancelAdding()
+    #expect(model.provider == nil)
+    model.beginAdding(on: .panel)
+    model.provider = .hunter
+    model.keyInput = ScriptedScenario.key
+    await model.connect()
+    #expect(model.connections.count == 2)
+    #expect(model.provider == nil)
+  }
+
+  /// QUO-456: a picked tool is a touched form. Going to the browser for the
+  /// key closes the popover, and the pick has to be there on the way back.
+  @Test func closingThePanelKeepsAPickedTool() async {
+    let model = await connectedModel()
+    model.beginAdding(on: .panel)
+    model.panelClosed()
+    #expect(!model.isAddingInPanel)
+    model.beginAdding(on: .panel)
+    model.provider = .hunter
+    model.panelClosed()
+    #expect(model.isAddingInPanel)
+    #expect(model.provider == .hunter)
+  }
+
   /// With no connections the panel shows the first-run form without anyone
   /// calling `beginAdding`; + in the window still starts fresh.
   @Test func theWindowSheetDoesNotInheritTheFirstRunForm() async {

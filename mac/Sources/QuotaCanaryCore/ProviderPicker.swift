@@ -4,16 +4,19 @@ import Foundation
 /// the rows; a provider is picked by a click or by Return on the highlighted row.
 public enum ProviderPicker {
   /// The row the arrow keys start from: the current pick when it is listed,
-  /// else the first row; nil when nothing matches.
-  public static func highlight(current: ProviderID, in rows: [ProviderID]) -> ProviderID? {
-    rows.contains(current) ? current : rows.first
+  /// else the first match of a typed search. With no pick and no search no row
+  /// is highlighted (QUO-456), and Down still starts at the top.
+  public static func highlight(current: ProviderID?, search: String, in rows: [ProviderID]) -> ProviderID? {
+    if let current, rows.contains(current) { return current }
+    return search.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : rows.first
   }
 
   /// QUO-442: whether the form may take a key. While a search is typed and the
   /// picked tool is not among its results, the title and key label name a tool
   /// the list does not show, so nothing may be sent until a visible one is picked.
-  public static func keyEntryOpen(current: ProviderID, search: String, among all: [ProviderID]) -> Bool {
-    ProviderSearch.filter(search, among: all).contains(current)
+  public static func keyEntryOpen(current: ProviderID?, search: String, among all: [ProviderID]) -> Bool {
+    guard let current else { return false }
+    return ProviderSearch.filter(search, among: all).contains(current)
   }
 
   /// One row up (negative) or down (positive), stopping at either end.
@@ -31,14 +34,15 @@ public enum ProviderPicker {
 /// What the connect form holds before Connect: the picked provider, the
 /// credential typed for it, and any name the person typed.
 public struct ConnectDraft: Equatable, Sendable {
-  public private(set) var provider: ProviderID
+  /// nil until a tool is picked: the form opens with nothing chosen (QUO-456).
+  public private(set) var provider: ProviderID?
   public var key = ""
   /// Values of a multi-value credential, by field name.
   public var credentialInputs: [String: String] = [:]
   /// nil while the Name field follows the suggestion (QUO-277).
   private var editedName: String?
 
-  public init(provider: ProviderID = .openrouter) {
+  public init(provider: ProviderID? = nil) {
     self.provider = provider
   }
 
@@ -68,8 +72,10 @@ public struct ConnectDraft: Equatable, Sendable {
     !key.isEmpty || credentialInputs.values.contains { !$0.isEmpty } || editedName != nil
   }
 
-  /// After Connect or Cancel: what was typed goes, the pick stays.
+  /// After Connect or Cancel: the pick and what was typed go, so every open
+  /// starts clean (QUO-456).
   public mutating func reset() {
+    provider = nil
     key = ""
     credentialInputs = [:]
     editedName = nil

@@ -16,15 +16,69 @@ import Testing
     )
   }
 
-  @Test func tableRanksBalancesGloballyAndCountsOnlyMatchingRows() {
+  @Test func tableKeepsEachConnectionTogetherWorstFirstAndCountsOnlyMatchingRows() {
     let a = connection("a", balances: [0, 900])
     let b = connection("b", balances: [250, 50])
     let rows = ConnectionPresentation.balances([a, b])
-    #expect(rows.map(\.row.status) == [.empty, .critical, .low, .healthy])
+    #expect(rows.map(\.connection.id) == ["a", "a", "b", "b"])
+    #expect(rows.map(\.row.status) == [.empty, .healthy, .critical, .low])
     #expect(Set(rows.map(\.id)).count == 4)
     #expect(ConnectionPresentation.balances([a, b], filter: .atRisk).count == 3)
     #expect(ConnectionPresentation.balances([a, b], filter: .failing, failingIDs: ["a"]).map(\.connection.id) == ["a", "a"])
     #expect(ConnectionPresentation.balances([a, b], query: ProviderID.hunter.pools[1].label, filter: .atRisk).count == 1)
+  }
+
+  @Test func oneAlertingBalanceMovesItsWholeConnectionAboveHealthierOnes() {
+    let healthy = connection("a", balances: [900, 900])
+    let alerting = connection("b", balances: [900, 50])
+    let rows = ConnectionPresentation.balances([healthy, alerting])
+    #expect(rows.map(\.connection.id) == ["b", "b", "a", "a"])
+    #expect(rows[0].row.status == .critical)
+  }
+
+  @Test func groupPositionMarksTheFirstAndLastRowOfEachConnection() {
+    let rows = ConnectionPresentation.balances([connection("a", balances: [900, 900]), connection("b", balances: [900, 900])])
+    #expect(rows.map(\.isFirstInGroup) == [true, false, true, false])
+    #expect(rows.map(\.isLastInGroup) == [false, true, false, true])
+  }
+
+  @Test func theFirstRowSurvivingAtRiskCarriesTheName() {
+    // Sorted by label, the healthy sibling would come first in the full list.
+    let labels = ProviderID.hunter.pools.map(\.label)
+    let alphabeticalLast = labels[0] > labels[1] ? 0 : 1
+    var balances = [900.0, 900.0]
+    balances[alphabeticalLast] = 250
+    let rows = ConnectionPresentation.balances([connection("a", balances: balances)], filter: .atRisk)
+    #expect(rows.map(\.isFirstInGroup) == [true])
+    #expect(rows.map(\.isLastInGroup) == [true])
+    #expect(rows.first?.row.pool.label == labels[alphabeticalLast])
+  }
+
+  @Test func aBalanceLabelSearchNamesEveryConnectionThatMatches() {
+    let label = ProviderID.hunter.pools[1].label
+    let rows = ConnectionPresentation.balances([connection("a", balances: [900, 900]), connection("b", balances: [900, 900])], query: label)
+    #expect(rows.map(\.connection.id) == ["a", "b"])
+    #expect(rows.allSatisfy { $0.isFirstInGroup && $0.isLastInGroup })
+  }
+
+  @Test func notInPlanSortsLastInTheStackListOnly() {
+    var a = connection("a", balances: [900, 900])
+    let labels = ProviderID.hunter.pools.map(\.label)
+    let alphabeticalFirst = labels[0] < labels[1] ? 0 : 1
+    a.lastReading?.balances[alphabeticalFirst].pool.cap = 0
+    #expect(ConnectionPresentation.balances([a]).map(\.row.status) == [.healthy, .unavailable])
+    // The popover keeps its order: alerting first, then A to Z.
+    #expect(ConnectionPresentation.rankedPools(a.poolRows).map(\.status) == [.unavailable, .healthy])
+  }
+
+  @Test func checksThatOnlyChangeAmountsLeaveTheRowOrderAlone() {
+    var a = connection("a", balances: [900, 800])
+    var b = connection("b", balances: [700, 600])
+    let before = ConnectionPresentation.balances([a, b]).map(\.id)
+    a.lastReading?.balances[0].balance = 400
+    a.lastReading?.balances[1].balance = 5000
+    b.lastReading?.balances[0].balance = 9000
+    #expect(ConnectionPresentation.balances([a, b]).map(\.id) == before)
   }
 
   @Test func identitySurvivesRefreshRenameAndSeverityReordering() {

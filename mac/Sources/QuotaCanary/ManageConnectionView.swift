@@ -38,6 +38,15 @@ enum ManageConnectionWindow {
   }
 }
 
+/// The Connection settings field a row menu or the inspector asks to focus (QUO-459).
+enum ConnectionField { case name, key }
+
+/// One focus request; `token` makes repeating the same field a change.
+struct ConnectionFieldFocus: Equatable {
+  let field: ConnectionField
+  let token: Int
+}
+
 /// Rename, replace the key, or remove one connection.
 struct ManageConnectionView: View {
   var model: AppModel
@@ -53,15 +62,15 @@ struct ManageConnectionView: View {
   @State private var removeError: String?
   private let onClose: () -> Void
   private let embedded: Bool
-  /// Changes each time the inspector's "Replace key…" asks for the key field (QUO-437).
-  private let keyFocusToken: Int?
+  private let fieldFocus: ConnectionFieldFocus?
+  @FocusState private var nameFocused: Bool
   @FocusState private var keyFocused: Bool
 
   struct Message: Error { let text: String }
 
   init(
     model: AppModel, connectionID: String, nameDraft: String? = nil, confirmingRemove: Bool = false,
-    embedded: Bool = false, keyFocusToken: Int? = nil,
+    embedded: Bool = false, fieldFocus: ConnectionFieldFocus? = nil,
     onClose: @escaping () -> Void = {}
   ) {
     self.model = model
@@ -71,7 +80,7 @@ struct ManageConnectionView: View {
     _confirmingRemove = State(initialValue: confirmingRemove)
     self.onClose = onClose
     self.embedded = embedded
-    self.keyFocusToken = keyFocusToken
+    self.fieldFocus = fieldFocus
   }
 
   private var connection: Connection? { model.connections.first { $0.id == connectionID } }
@@ -85,11 +94,20 @@ struct ManageConnectionView: View {
         WatchedBalancesSection(model: model, connection: connection, inline: embedded)
 
         Divider()
-        removeSection
+        removeSection(connection)
       }
     }
     .padding(embedded ? 0 : 20)
     .frame(width: embedded ? nil : 340, alignment: .leading)
+    .task(id: fieldFocus) {
+      guard let fieldFocus else { return }
+      // The disclosure that holds these fields opens in the same update.
+      await Task.yield()
+      switch fieldFocus.field {
+      case .name: nameFocused = true
+      case .key: keyFocused = true
+      }
+    }
   }
 
   // MARK: Name
@@ -103,6 +121,7 @@ struct ManageConnectionView: View {
           .textFieldStyle(.roundedBorder)
           .onSubmit { rename(connection) }
           .onChange(of: nameDraft) { nameResult = nil }
+          .focused($nameFocused)
         Button(Copy.renameButton) { rename(connection) }
           .disabled(!canRename(connection))
       }
@@ -175,12 +194,6 @@ struct ManageConnectionView: View {
         Note(text: Copy.keyUpdated)
       }
     }
-    .task(id: keyFocusToken) {
-      guard keyFocusToken != nil else { return }
-      // The disclosure that holds this field opens in the same update.
-      await Task.yield()
-      keyFocused = true
-    }
   }
 
   /// The key the form would send; empty until every field is filled.
@@ -208,10 +221,10 @@ struct ManageConnectionView: View {
 
   // MARK: Remove
 
-  private var removeSection: some View {
+  private func removeSection(_ connection: Connection) -> some View {
     VStack(alignment: .leading, spacing: 8) {
       if confirmingRemove {
-        Text(Copy.removeConfirmPrompt)
+        Text(Copy.removeConfirmPrompt(connection))
           .font(.callout)
           .fixedSize(horizontal: false, vertical: true)
         HStack {

@@ -9,6 +9,19 @@ migration under **Upgrade notes**. Always run the migration step after updating.
 
 ## [Unreleased]
 
+## [1.2.9] - 2026-11-08
+
+Mac app 0.1.10. The public mirror carries the exact `mac/` source the download
+was built from.
+
+### Changed
+- The window's list shows each connection's name once, with its balances joined under it. A connection with an alerting balance moves up as a whole, and Not in plan balances sit last. The menu bar panel keeps its worst-first order.
+- Right-clicking a balance in the window now offers Rename, Replace key and Remove connection. Remove names the connection and says how many balances go with it.
+
+### Fixed
+- The connect form starts with no tool picked, so Connect stays greyed out until you choose one.
+- The connect form no longer closes by itself a few seconds after opening.
+
 ## [1.2.8] - 2026-11-06
 
 Mac app 0.1.8. The public mirror carries the exact `mac/` source the download

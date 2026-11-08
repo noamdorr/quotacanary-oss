@@ -34,13 +34,13 @@ private func launched(_ stack: StackScenario) async throws -> (MonitoringService
   static let scripted: [String: [String]] = [
     "openRouter": ["OpenRouter credits low"],
     "hunter": ["Hunter verifications critical", "Hunter searches unavailable"],
-    "mixed": ["Hunter verifications critical", "OpenRouter credits low", "Hunter searches unavailable"],
-    "hunterThenOpenRouter": ["Hunter verifications critical", "OpenRouter credits low", "Hunter searches unavailable"],
-    "edge": ["Hunter searches empty", "OpenRouter credits low", "Hunter verifications unknown"],
+    "mixed": ["Hunter verifications critical", "Hunter searches unavailable", "OpenRouter credits low"],
+    "hunterThenOpenRouter": ["Hunter verifications critical", "Hunter searches unavailable", "OpenRouter credits low"],
+    "edge": ["Hunter searches empty", "Hunter verifications unknown", "OpenRouter credits low"],
     "tavily": ["Tavily plan low", "Tavily key healthy", "Tavily paygo unavailable", "Prospeo credits healthy"],
-    "apollo": ["Apollo direct_dial_credit low", "Apollo ai_credit unavailable", "Apollo export_credit healthy", "Apollo lead_credit healthy"],
+    "apollo": ["Apollo direct_dial_credit low", "Apollo export_credit healthy", "Apollo lead_credit healthy", "Apollo ai_credit unavailable"],
     "twoHunter": [
-      "Client work searches critical", "Hunter verifications critical", "Client work verifications low", "Hunter searches unavailable",
+      "Client work searches critical", "Client work verifications low", "Hunter verifications critical", "Hunter searches unavailable",
     ],
     "checklist": ["Hunter verifications critical", "Hunter searches unavailable"],
   ]

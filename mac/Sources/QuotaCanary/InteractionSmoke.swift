@@ -80,6 +80,7 @@ enum InteractionSmoke {
       await selection(stack, model, all)
       await filtersAndSearch(stack, model, search)
       await rename(stack, model)
+      await rowMenuFields(stack, model, all)
       await narrowWindow(stack, model, search)
     }
     await addConnection(stack, model, search, size: size)
@@ -215,12 +216,22 @@ enum InteractionSmoke {
       open()
       await expect("\(name) puts the panel away") { !panel.isVisible }
     }
-    // QUO-445: an untouched connect form goes with the panel, so it opens on the
-    // balances. The stand-in cannot take key in-process; the real panel resigns
-    // key as it closes, so post that.
+    // QUO-457: another app coming forward takes key and the real panel stays
+    // up, so losing key must not drop the form; leaving the screen does. The
+    // stand-in cannot take key in-process and macOS sends it no occlusion
+    // changes, so post both, as the real panel gets them.
+    panel.orderFront(nil)
+    await expect("the panel stand-in is up for the form checks") { panel.isVisible }
     model.beginAdding(on: .panel)
     check(model.isAddingInPanel, "Add connection opens the connect form in the panel")
-    NotificationCenter.default.post(name: NSWindow.didResignKeyNotification, object: panel)
+    for name in [NSWindow.didResignKeyNotification, NSWindow.didChangeOcclusionStateNotification] {
+      NotificationCenter.default.post(name: name, object: panel)
+    }
+    try? await Task.sleep(for: .milliseconds(300))
+    check(model.isAddingInPanel, "losing key with the panel still up keeps the connect form")
+    // QUO-445: an untouched form goes with the panel, so it opens on the balances.
+    panel.orderOut(nil)
+    NotificationCenter.default.post(name: NSWindow.didChangeOcclusionStateNotification, object: panel)
     await expect("closing the panel drops an untouched connect form") { !model.isAddingInPanel }
     if let settings = settingsWindow() {
       key(settings, "w", code: 13, flags: .command)
@@ -296,6 +307,49 @@ enum InteractionSmoke {
     type(renamed, into: field)
   }
 
+  /// QUO-459: Rename… and Replace key… reach the right field with the inspector
+  /// folded, and with it already showing that row, collapsed or not.
+  private static func rowMenuFields(_ stack: NSWindow, _ model: AppModel, _ all: [PresentedBalance]) async {
+    // Near the top: a row in view is what can be right-clicked, and later steps
+    // click rows by position, so this must not scroll the table.
+    guard let target = all.prefix(3).last else { return }
+    func nameFocused() -> Bool {
+      guard let field = editing(stack), !(field is NSSecureTextField) else { return false }
+      return field.stringValue == model.connections.first { $0.id == target.connection.id }?.name
+    }
+    StackWindow.expandConnectionSettings(false)
+    defer {
+      StackWindow.expandConnectionSettings()
+      StackWindow.overrideInspector(nil)
+    }
+    StackWindow.overrideInspector(false)
+    await expect("the folded inspector shows no name field") { inspectorNameField(stack, model) == nil }
+    StackWindow.openConnectionField(.name, on: target.id)
+    await expect("Rename… on a folded inspector selects the row and focuses its name") {
+      StackWindow.selection == target.id && nameFocused()
+    }
+    // Remount the inspector on that row with its Connection settings collapsed.
+    StackWindow.overrideInspector(false)
+    await expect("the inspector folds again") { inspectorNameField(stack, model) == nil }
+    StackWindow.overrideInspector(true)
+    await expect("the inspector returns on that row") { StackWindow.selection == target.id && inspectorWarnField(stack) != nil }
+    check(inspectorNameField(stack, model) == nil, "its Connection settings start collapsed")
+    StackWindow.openConnectionField(.key, on: target.id)
+    await expect("Replace key… on the row already showing focuses its key field") { editing(stack) is NSSecureTextField }
+    StackWindow.openConnectionField(.name, on: target.id)
+    await expect("Rename… with the settings already open moves focus to the name") { nameFocused() }
+    guard all.count > 1 else { return }
+    // Fresh: the rename step above can move rows.
+    let rows = balances(model, .all)
+    let index = rows[0].id == target.id ? 1 : 0
+    clickRow(stack, index)
+    await expect("the inspector moves to another row") { StackWindow.selection == rows[index].id }
+    StackWindow.openConnectionField(.name, on: target.id)
+    await expect("Rename… from an inspector on another row opens that row's name") {
+      StackWindow.selection == target.id && nameFocused()
+    }
+  }
+
   /// QUO-269: at the 760-point minimum the inspector folds away so the table
   /// keeps every column; the toolbar toggle brings it back, and widening the
   /// window again returns to the automatic layout.
@@ -323,14 +377,15 @@ enum InteractionSmoke {
     check(stack.attachedSheet == nil && model.showsConnectForm, "Add tool in the menu leaves the stack without a sheet")
     model.cancelAdding()
     buttons[buttons.count - 2].performClick(nil)
-    await expect("Add connection opens as a sheet with its key field") {
-      model.isAddingInWindow && stack.attachedSheet.map { textFields($0).contains { $0 is NSSecureTextField } } == true
+    await expect("Add connection opens as a sheet with no tool picked and no key field") {
+      model.isAddingInWindow && model.provider == nil
+        && stack.attachedSheet.map { sheet in !textFields(sheet).isEmpty && !textFields(sheet).contains { $0 is NSSecureTextField } } == true
     }
     guard let sheet = stack.attachedSheet else { return }
     await toolList(sheet, model)
     key(sheet, "\u{1b}", code: 53)
-    await expect("Escape dismisses Add connection and keeps no key") {
-      stack.attachedSheet == nil && !model.isAddingInWindow && model.keyInput.isEmpty
+    await expect("Escape dismisses Add connection and keeps no key or pick") {
+      stack.attachedSheet == nil && !model.isAddingInWindow && model.keyInput.isEmpty && model.provider == nil
     }
     check(stack.contentLayoutRect.size == size, "the stack keeps its size after the sheet")
     // QUO-352: Add tool in the menu closes this sheet and keeps the panel's form.
@@ -352,11 +407,20 @@ enum InteractionSmoke {
   /// QUO-241: typing in the tool search narrows the list without picking or
   /// dropping a typed key; Down then Return picks the next tool, which does.
   private static func toolList(_ sheet: NSWindow, _ model: AppModel) async {
-    guard let toolSearch = textFields(sheet).first(where: { !($0 is NSSecureTextField) }),
-      let keyField = textFields(sheet).first(where: { $0 is NSSecureTextField })
-    else { return check(false, "Add connection shows a tool search and a key field") }
+    guard let toolSearch = textFields(sheet).first(where: { !($0 is NSSecureTextField) })
+    else { return check(false, "Add connection shows a tool search") }
     // QUO-270: the first useful action is choosing a tool.
     await expect("Add connection focuses the tool search first") { editing(sheet) === toolSearch }
+    // QUO-456: nothing is picked yet; a search, Down, Return makes the first pick.
+    type("openrouter", into: toolSearch)
+    key(sheet, "\u{F701}", code: 125)
+    key(sheet, "\r", code: 36)
+    await expect("Down then Return on a search picks its match") { model.provider == .openrouter }
+    await expect("the first pick moves focus to its key field") {
+      editing(sheet).map { $0 is NSSecureTextField } == true
+    }
+    guard let keyField = textFields(sheet).first(where: { $0 is NSSecureTextField })
+    else { return check(false, "a picked tool shows its key field") }
     let before = model.provider
     type("typed-key", into: keyField)
     type("no such tool", into: toolSearch)
@@ -364,7 +428,7 @@ enum InteractionSmoke {
       model.providerSearch == "no such tool" && model.provider == before && model.keyInput == "typed-key"
     }
     type("", into: toolSearch)
-    let next = ProviderPicker.move(before, by: 1, in: model.availableProviders)
+    let next = before.flatMap { ProviderPicker.move($0, by: 1, in: model.availableProviders) }
     key(sheet, "\u{F701}", code: 125)
     key(sheet, "\r", code: 36)
     await expect("Down then Return in the tool search picks \(next?.displayName ?? "-") and drops the key") {

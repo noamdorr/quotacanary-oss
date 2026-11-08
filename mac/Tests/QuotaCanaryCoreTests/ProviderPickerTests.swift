@@ -13,7 +13,7 @@ import Testing
     let filtered = ProviderSearch.filter("hun", among: rows)
     #expect(filtered == [.hunter])
     // The highlight moves to a listed row; the pick and the key stay put.
-    #expect(ProviderPicker.highlight(current: draft.provider, in: filtered) == .hunter)
+    #expect(ProviderPicker.highlight(current: draft.provider, search: "hun", in: filtered) == .hunter)
     #expect(draft.provider == .openrouter)
     #expect(draft.key == "typed-key")
   }
@@ -30,7 +30,7 @@ import Testing
   @Test func zeroMatchesHighlightNothingAndKeepThePick() {
     let filtered = ProviderSearch.filter("no such tool", among: rows)
     #expect(filtered.isEmpty)
-    #expect(ProviderPicker.highlight(current: .openrouter, in: filtered) == nil)
+    #expect(ProviderPicker.highlight(current: .openrouter, search: "no such tool", in: filtered) == nil)
     #expect(ProviderPicker.move(nil, by: 1, in: filtered) == nil)
   }
 
@@ -49,13 +49,52 @@ import Testing
   }
 
   @Test func arrowsStartAtThePickAndStopAtTheEnds() {
-    #expect(ProviderPicker.highlight(current: .openrouter, in: rows) == .openrouter)
+    #expect(ProviderPicker.highlight(current: .openrouter, search: "", in: rows) == .openrouter)
     #expect(ProviderPicker.move(.openrouter, by: 1, in: rows) == .tavily)
     #expect(ProviderPicker.move(.tavily, by: 1, in: rows) == .tavily)
     #expect(ProviderPicker.move(.apollo, by: -1, in: rows) == .apollo)
     #expect(ProviderPicker.move(.hunter, by: -1, in: rows) == .apollo)
     // A highlight the search filtered out restarts at the top.
     #expect(ProviderPicker.move(.prospeo, by: 1, in: rows) == .apollo)
+  }
+}
+
+/// QUO-456: the form opens with no tool picked, and goes back to none.
+@Suite struct ConnectDraftNoPickTests {
+  let rows = [ProviderID.apollo, .hunter, .openrouter]
+
+  @Test func aFreshDraftHasNoPick() {
+    #expect(ConnectDraft().provider == nil)
+  }
+
+  @Test func noPickAndNoSearchHighlightsNothingButDownStartsAtTheTop() {
+    #expect(ProviderPicker.highlight(current: nil, search: "", in: rows) == nil)
+    #expect(ProviderPicker.highlight(current: nil, search: "  ", in: rows) == nil)
+    #expect(ProviderPicker.move(nil, by: 1, in: rows) == .apollo)
+  }
+
+  @Test func aTypedSearchKeepsItsFirstMatchAsTheReturnTarget() {
+    #expect(ProviderPicker.highlight(current: nil, search: "hun", in: [.hunter]) == .hunter)
+  }
+
+  @Test func noPickNeverOpensKeyEntry() {
+    #expect(!ProviderPicker.keyEntryOpen(current: nil, search: "", among: rows))
+    #expect(!ProviderPicker.keyEntryOpen(current: nil, search: "hun", among: rows))
+  }
+
+  @Test func resetGoesBackToNoPick() {
+    var draft = ConnectDraft()
+    draft.choose(.hunter)
+    draft.key = "typed"
+    draft.reset()
+    #expect(draft.provider == nil)
+    #expect(draft.key.isEmpty)
+  }
+
+  @Test func theFirstPickReportsAChange() {
+    var draft = ConnectDraft()
+    #expect(draft.choose(.hunter) == true)
+    #expect(draft.choose(.hunter) == false)
   }
 }
 

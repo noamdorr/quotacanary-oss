@@ -12,6 +12,8 @@ public enum Copy {
   public static let catalogUnavailable =
     "The tool catalog in this build couldn't be read, so only the built-in tools are listed."
   public static func connectTitle(_ provider: String) -> String { "Connect \(provider)" }
+  /// The form's title before a tool is picked (QUO-456).
+  public static let connectTitleNothingPicked = "Connect a tool"
   public static func keyLabel(_ provider: String) -> String { "\(provider) API key" }
   /// What a key must be or allow before the check can work (QUO-278).
   /// Where to find the key is left to the person: those paths went stale.
@@ -300,7 +302,14 @@ public enum Copy {
   public static let keyUpdated = "Key updated. Balances refreshed."
   public static let keyReplacedReadingNotSaved =
     "New key saved to Keychain, but its balances couldn't be saved to disk."
-  public static let removeConfirmPrompt = "Remove this connection and delete its key from Keychain?"
+  /// Counts the balances the connection shows, not the ones it has hidden (QUO-459).
+  public static func removeConfirmPrompt(_ connection: Connection) -> String {
+    let prompt = "Remove \(connection.name) and delete its key from Keychain?"
+    let balances = connection.poolRows.count
+    return balances > 1 ? "\(prompt) All \(balances) of its balances go with it." : prompt
+  }
+  public static let renameMenuItem = "Rename…"
+  public static let removeConnectionMenuItem = "Remove connection…"
   public static let removeConfirmButton = "Remove"
   public static let busyTryAgain = "Still checking. Try again in a moment."
   // Freshness and start at login (QUO-132)

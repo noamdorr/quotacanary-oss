@@ -16,8 +16,17 @@ final class StackWindowState {
   let drafts = DraftStore()
   /// Opens each inspector's Connection settings at first; collapsed in the app (QUO-437).
   var connectionSettingsExpanded = false
+  /// A row menu's Rename… or Replace key…; the inspector takes it and clears it (QUO-459).
+  var connectionFieldRequest: ConnectionField?
 
   init(selection: PoolKey? = nil) { self.selection = selection }
+
+  /// Shows that row's Connection settings with the field focused, unfolding the inspector.
+  func openConnectionField(_ field: ConnectionField, on key: PoolKey) {
+    selection = key
+    inspectorOverride = true
+    connectionFieldRequest = field
+  }
 
   func select(_ key: PoolKey) {
     query = ""
@@ -35,8 +44,8 @@ enum StackWindow {
   static func show(model: AppModel, connectionID: String? = nil) {
     if let connectionID,
       let connection = model.connections.first(where: { $0.id == connectionID }),
-      let row = ConnectionPresentation.rankedPools(connection.poolRows).first {
-      state.select(row.key)
+      let row = ConnectionPresentation.balances([connection]).first {
+      state.select(row.id)
     }
     open(model: model)
   }
@@ -46,7 +55,15 @@ enum StackWindow {
 
   /// The interaction smoke finds the selected balance by its name field, which
   /// sits in the collapsed Connection settings (QUO-437); it opens them first.
-  static func expandConnectionSettings() { state.connectionSettingsExpanded = true }
+  static func expandConnectionSettings(_ expanded: Bool = true) { state.connectionSettingsExpanded = expanded }
+
+  /// The row menu's path, for the interaction smoke: a right-click cannot be scripted.
+  static func openConnectionField(_ field: ConnectionField, on key: PoolKey) {
+    state.openConnectionField(field, on: key)
+  }
+
+  /// The toolbar toggle's choice, for the interaction smoke.
+  static func overrideInspector(_ shown: Bool?) { state.inspectorOverride = shown }
 
   /// Selects one balance row by key, by its stable pool identity.
   static func show(model: AppModel, selecting key: PoolKey) {
@@ -122,6 +139,8 @@ struct StackView: View {
   @FocusState private var tableFocused: Bool
   /// Mirrors the width rule for the toolbar toggle; the layout reads the width itself.
   @State private var inspectorByDefault = true
+  /// The row whose Remove connection… is confirming (QUO-459).
+  @State private var removing: StackItem?
 
   var body: some View {
     // Built once per body: each filter's rows feed the picker counts, and the
@@ -161,6 +180,21 @@ struct StackView: View {
     }
     .sheet(isPresented: $model.isAddingInWindow, onDismiss: { model.windowSheetDismissed() }) {
       ConnectStep(model: model).padding(20).frame(width: 380)
+    }
+    .confirmationDialog(
+      removing.map { Copy.removeConfirmPrompt($0.connection) } ?? "",
+      isPresented: Binding(get: { removing != nil }, set: { if !$0 { removing = nil } }),
+      titleVisibility: .visible, presenting: removing
+    ) { item in
+      Button(Copy.removeConfirmButton, role: .destructive) {
+        // The failure is on the connection's record: the inspector's error line shows it.
+        if model.remove(id: item.connection.id) != nil {
+          state.selection = item.id
+          state.inspectorOverride = true
+        }
+      }
+      .disabled(model.isBusy)
+      Button(Copy.cancelButton, role: .cancel) {}
     }
   }
 
@@ -242,6 +276,14 @@ struct StackView: View {
                   .contextMenu {
                     TopUpButton(url: item.topupURL)
                     MuteButton(model: model, row: item.row)
+                    if item.topupURL != nil || MuteButton.item(item.row) != nil { Divider() }
+                    Group {
+                      Button(Copy.renameMenuItem) { state.openConnectionField(.name, on: item.id) }
+                      Button(Copy.replaceKeyButton) { state.openConnectionField(.key, on: item.id) }
+                      Divider()
+                      Button(Copy.removeConnectionMenuItem, role: .destructive) { removing = item }
+                    }
+                    .disabled(model.isBusy)
                   }
                   .id(item.id)
                 }
@@ -303,7 +345,8 @@ struct StackView: View {
     if let item = presented.first(where: { $0.id == state.selection }) {
       switch item {
       case let .local(balance): BalanceInspector(
-        model: model, item: balance, drafts: state.drafts, connectionExpanded: state.connectionSettingsExpanded
+        model: model, item: balance, drafts: state.drafts, connectionExpanded: state.connectionSettingsExpanded,
+        fieldRequest: $state.connectionFieldRequest
       ).id(item.id)
       }
     } else {
@@ -342,11 +385,15 @@ private struct BalanceTableRow: View {
     HStack(spacing: 12) {
       StatusCue(row: item.row, width: StatusCue.columnWidth)
       HStack(spacing: 6) {
-        ProviderLogo(provider: item.connection.provider)
+        // Hidden, not removed, so a continuation row's cues line up under the name.
+        ProviderLogo(provider: item.connection.provider).opacity(item.isFirstInGroup ? 1 : 0)
         VStack(alignment: .leading, spacing: 1) {
-          Text(item.connection.name).lineLimit(1).truncationMode(.middle) // keeps a distinguishing suffix (QUO-269)
-          // Beside the name, so it shows without scrolling to Checked (QUO-262).
-          CheckCue(health: .local(item.connection, failing: failing))
+          // Connection-level, so once per group (QUO-463).
+          if item.isFirstInGroup {
+            Text(item.connection.name).lineLimit(1).truncationMode(.middle) // keeps a distinguishing suffix (QUO-269)
+            // Beside the name, so it shows without scrolling to Checked (QUO-262).
+            CheckCue(health: .local(item.connection, failing: failing))
+          }
           NotMonitoredCue(row: item.row)
           MutedCue(row: item.row, symbol: false)
         }
@@ -382,7 +429,9 @@ private struct BalanceTableRow: View {
     .padding(.horizontal, 16).frame(minHeight: 40)
     .background(selected ? Color(nsColor: .selectedContentBackgroundColor).opacity(0.18) : Color.clear)
     .contentShape(Rectangle())
-    .overlay(alignment: .bottom) { Color(nsColor: .separatorColor).opacity(0.4).frame(height: 0.5) }
+    .overlay(alignment: .bottom) {
+      if item.isLastInGroup { Color(nsColor: .separatorColor).opacity(0.4).frame(height: 0.5) }
+    }
   }
 }
 
@@ -427,14 +476,23 @@ private struct BalanceInspector: View {
   let item: PresentedBalance
   let drafts: DraftStore
   @State private var connectionExpanded: Bool
-  /// Bumped by "Replace key…" to focus the key field.
-  @State private var keyFocusToken: Int?
+  @Binding private var fieldRequest: ConnectionField?
+  @State private var fieldFocus: ConnectionFieldFocus?
 
-  init(model: AppModel, item: PresentedBalance, drafts: DraftStore, connectionExpanded: Bool = false) {
+  init(
+    model: AppModel, item: PresentedBalance, drafts: DraftStore, connectionExpanded: Bool = false,
+    fieldRequest: Binding<ConnectionField?>
+  ) {
     self.model = model
     self.item = item
     self.drafts = drafts
     _connectionExpanded = State(initialValue: connectionExpanded)
+    _fieldRequest = fieldRequest
+  }
+
+  private func focus(_ field: ConnectionField) {
+    connectionExpanded = true
+    fieldFocus = ConnectionFieldFocus(field: field, token: (fieldFocus?.token ?? 0) + 1)
   }
 
   var body: some View {
@@ -450,8 +508,14 @@ private struct BalanceInspector: View {
         }
         .padding(16).frame(maxWidth: .infinity, alignment: .leading)
       }
-      .onChange(of: keyFocusToken) { _, _ in
+      .onChange(of: fieldFocus) { _, _ in
         withAnimation { scroll.scrollTo(Self.connectionSettingsID, anchor: .top) }
+      }
+      // Initial too: a request for another row arrives as this inspector mounts.
+      .onChange(of: fieldRequest, initial: true) { _, field in
+        guard let field else { return }
+        fieldRequest = nil
+        focus(field)
       }
     }
   }
@@ -472,10 +536,7 @@ private struct BalanceInspector: View {
       HealthLine(connection: item.connection, health: record.health)
       ErrorLine(message: record.message)
       if record.error?.offersKeyReplacement == true {
-        Button(Copy.replaceKeyButton) {
-          connectionExpanded = true
-          keyFocusToken = (keyFocusToken ?? 0) + 1
-        }
+        Button(Copy.replaceKeyButton) { focus(.key) }
       }
       LastCheckNote(record: record.message == nil ? nil : record.lastCheck)
       FailureStreakNote(connection: item.connection)
@@ -546,7 +607,7 @@ private struct BalanceInspector: View {
       VStack(alignment: .leading, spacing: 12) {
         Text(Copy.connectionSettingsShared(connection.provider.displayName))
           .font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
-        ManageConnectionView(model: model, connectionID: connection.id, embedded: true, keyFocusToken: keyFocusToken)
+        ManageConnectionView(model: model, connectionID: connection.id, embedded: true, fieldFocus: fieldFocus)
         if let note = ConnectedView.note(connection.provider) {
           Text(note).font(.caption).foregroundStyle(.secondary).fixedSize(horizontal: false, vertical: true)
         }

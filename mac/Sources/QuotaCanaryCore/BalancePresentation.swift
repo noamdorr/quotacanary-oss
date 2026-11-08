@@ -4,24 +4,28 @@ import Foundation
 public struct PresentedBalance: Identifiable, Equatable, Sendable {
   public let connection: Connection
   public let row: PoolRow
+  /// Where the row sits among its connection's rows still shown (QUO-463).
+  public let isFirstInGroup: Bool
+  public let isLastInGroup: Bool
   public var id: PoolKey { row.key }
 }
 
 public extension ConnectionPresentation {
+  /// The stack list: each connection's rows stay together, in `filtered`'s
+  /// order, so a check that only changes amounts never reshuffles them.
   static func balances(
     _ connections: [Connection], query: String = "", filter: ConnectionFilter = .all,
     failingIDs: Set<String> = []
   ) -> [PresentedBalance] {
-    let grouped = filtered(connections, query: query, filter: filter, failingIDs: failingIDs)
-    let rows = grouped.flatMap { item in
-      item.rows.map { PresentedBalance(connection: item.connection, row: $0) }
+    filtered(connections, query: query, filter: filter, failingIDs: failingIDs).flatMap { item in
+      let rows = item.rows.filter { $0.status != .unavailable } + item.rows.filter { $0.status == .unavailable }
+      return rows.enumerated().map { index, row in
+        PresentedBalance(
+          connection: item.connection, row: row,
+          isFirstInGroup: index == 0, isLastInGroup: index == rows.count - 1
+        )
+      }
     }
-    // Rank individual balances globally; retain the shared connection order for ties.
-    return rows.enumerated().sorted { a, b in
-      let left = a.element.row.alerts ? AlertSeverity(status: a.element.row.status) ?? .none : .none
-      let right = b.element.row.alerts ? AlertSeverity(status: b.element.row.status) ?? .none : .none
-      return left == right ? a.offset < b.offset : left > right
-    }.map(\.element)
   }
 }
 

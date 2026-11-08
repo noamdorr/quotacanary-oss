@@ -39,8 +39,8 @@ struct BirdLabel: View {
   }
 }
 
-/// The menu bar panel's own window. A `.window` style MenuBarExtra stays open
-/// until it loses key status, so the full window and Settings put it away before
+/// The menu bar panel's own window. A `.window` style MenuBarExtra stays up
+/// after it loses key status, so the full window and Settings put it away before
 /// they come forward (QUO-390); otherwise it covers the window just opened.
 @MainActor
 enum MenuBarPanel {
@@ -53,7 +53,8 @@ enum MenuBarPanel {
   }
 
   /// Records the window hosting the panel, once SwiftUI has placed it.
-  /// `onClose` runs when it stops being key, which is when it goes away.
+  /// `onClose` runs when it leaves the screen. Losing key is not that: another
+  /// app coming forward takes key and leaves the panel showing (QUO-457).
   struct Reader: NSViewRepresentable {
     var onClose: @MainActor () -> Void = {}
     func makeNSView(context _: Context) -> NSView { ReaderView(onClose: onClose) }
@@ -79,8 +80,10 @@ enum MenuBarPanel {
       guard let window else { return }
       MenuBarPanel.window = window
       observer = NotificationCenter.default.addObserver(
-        forName: NSWindow.didResignKeyNotification, object: window, queue: .main
-      ) { [weak self] _ in MainActor.assumeIsolated { self?.onClose() } }
+        forName: NSWindow.didChangeOcclusionStateNotification, object: window, queue: .main
+      ) { [weak self, weak window] _ in
+        MainActor.assumeIsolated { if window?.isVisible == false { self?.onClose() } }
+      }
     }
   }
 }
@@ -379,47 +382,13 @@ struct ConnectForm: View {
 
   var body: some View {
     VStack(alignment: .leading, spacing: 8) {
-      Text(Copy.connectTitle(model.provider.displayName)).font(.subheadline.weight(.semibold))
+      Text(model.provider.map { Copy.connectTitle($0.displayName) } ?? Copy.connectTitleNothingPicked)
+        .font(.subheadline.weight(.semibold))
       ProviderList(model: model, searchFocused: $searchFocused)
         .disabled(model.isBusy)
       ErrorLine(message: model.catalogDiagnostic)
-      // Every field keeps a visible label once filled (QUO-270).
-      VStack(alignment: .leading, spacing: 3) {
-        Text(Copy.nameField).font(.callout)
-        TextField(Copy.nameField, text: $model.nameInput, prompt: Text(model.suggestedName))
-          .labelsHidden()
-          .textFieldStyle(.roundedBorder)
-          .onSubmit(submit)
-          .disabled(model.isBusy)
-      }
-      ErrorLine(message: model.connectNameError)
-      if model.provider.credentialFields.isEmpty {
-        VStack(alignment: .leading, spacing: 3) {
-          Text(Copy.keyLabel(model.provider.displayName)).font(.callout)
-          SecureField(Copy.keyLabel(model.provider.displayName), text: $model.keyInput, prompt: Text(""))
-            .labelsHidden()
-            .textFieldStyle(.roundedBorder)
-            .focused($keyFocused)
-            .onSubmit(submit)
-            .disabled(model.isBusy || !model.keyEntryOpen)
-        }
-      } else {
-        CredentialInputs(
-          fields: model.provider.credentialFields, values: $model.credentialInputs, firstFocused: $keyFocused,
-          onSubmit: submit
-        )
-        .disabled(model.isBusy || !model.keyEntryOpen)
-      }
-      if let requirement = Copy.keyRequirement(model.provider.rawValue) {
-        Text(requirement)
-          .font(.caption)
-          .foregroundStyle(.secondary)
-          .fixedSize(horizontal: false, vertical: true)
-      }
-      Text(Copy.keyStorageNote(model.provider.displayName))
-        .font(.caption)
-        .foregroundStyle(.secondary)
-        .fixedSize(horizontal: false, vertical: true)
+      // Nothing to name or key until a tool is picked (QUO-456).
+      if let provider = model.provider { pickedToolFields(provider) }
       HStack {
         Button(Copy.connectButton, action: submit)
           .buttonStyle(.borderedProminent)
@@ -440,7 +409,47 @@ struct ConnectForm: View {
       ErrorLine(message: model.errorMessage)
     }
     .onAppear { searchFocused = true }
-    .onChange(of: model.provider) { keyFocused = true }
+    .onChange(of: model.provider) { _, picked in if picked != nil { keyFocused = true } }
+  }
+
+  @ViewBuilder private func pickedToolFields(_ provider: ProviderID) -> some View {
+    // Every field keeps a visible label once filled (QUO-270).
+    VStack(alignment: .leading, spacing: 3) {
+      Text(Copy.nameField).font(.callout)
+      TextField(Copy.nameField, text: $model.nameInput, prompt: Text(model.suggestedName))
+        .labelsHidden()
+        .textFieldStyle(.roundedBorder)
+        .onSubmit(submit)
+        .disabled(model.isBusy)
+    }
+    ErrorLine(message: model.connectNameError)
+    if provider.credentialFields.isEmpty {
+      VStack(alignment: .leading, spacing: 3) {
+        Text(Copy.keyLabel(provider.displayName)).font(.callout)
+        SecureField(Copy.keyLabel(provider.displayName), text: $model.keyInput, prompt: Text(""))
+          .labelsHidden()
+          .textFieldStyle(.roundedBorder)
+          .focused($keyFocused)
+          .onSubmit(submit)
+          .disabled(model.isBusy || !model.keyEntryOpen)
+      }
+    } else {
+      CredentialInputs(
+        fields: provider.credentialFields, values: $model.credentialInputs, firstFocused: $keyFocused,
+        onSubmit: submit
+      )
+      .disabled(model.isBusy || !model.keyEntryOpen)
+    }
+    if let requirement = Copy.keyRequirement(provider.rawValue) {
+      Text(requirement)
+        .font(.caption)
+        .foregroundStyle(.secondary)
+        .fixedSize(horizontal: false, vertical: true)
+    }
+    Text(Copy.keyStorageNote(provider.displayName))
+      .font(.caption)
+      .foregroundStyle(.secondary)
+      .fixedSize(horizontal: false, vertical: true)
   }
 
   private func submit() {
@@ -488,13 +497,13 @@ struct ProviderList: View {
         .frame(height: listHeight)
         .overlay { if rows.isEmpty { noMatches } }
         .onChange(of: highlighted) { _, id in if let id { proxy.scrollTo(id) } }
-        .onAppear { proxy.scrollTo(model.provider, anchor: .center) }
+        .onAppear { if let picked = model.provider { proxy.scrollTo(picked, anchor: .center) } }
       }
       .accessibilityElement(children: .contain)
       .accessibilityLabel(Copy.providerPicker)
     }
     .onChange(of: rows, initial: true) { _, rows in
-      highlighted = ProviderPicker.highlight(current: model.provider, in: rows)
+      highlighted = ProviderPicker.highlight(current: model.provider, search: model.providerSearch, in: rows)
     }
     .onChange(of: model.provider) { _, provider in highlighted = provider }
   }

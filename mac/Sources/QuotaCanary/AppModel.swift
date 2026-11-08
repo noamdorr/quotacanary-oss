@@ -33,9 +33,11 @@ final class AppModel {
     get { draft.credentialInputs }
     set { draft.credentialInputs = newValue }
   }
-  var provider: ProviderID {
+  /// nil until a tool is picked (QUO-456). Only a reset clears a pick, so
+  /// writing nil does nothing.
+  var provider: ProviderID? {
     get { draft.provider }
-    set { if draft.choose(newValue) { errorMessage = nil } }
+    set { if let newValue, draft.choose(newValue) { errorMessage = nil } }
   }
   /// The connect form's tool search: narrows the list, never picks.
   var providerSearch = ""
@@ -176,10 +178,10 @@ final class AppModel {
   }
 
   func connect() async {
-    guard keyEntryOpen else { return }
+    guard keyEntryOpen, let provider else { return }
     await run {
-      let key = self.provider.credential(key: self.keyInput, inputs: self.credentialInputs)
-      let fresh = try await self.service.connect(provider: self.provider, key: key, name: self.nameInput)
+      let key = provider.credential(key: self.keyInput, inputs: self.credentialInputs)
+      let fresh = try await self.service.connect(provider: provider, key: key, name: self.nameInput)
       self.draft.reset()
       self.providerSearch = ""
       // More than one balance: the form stays up as the checklist (QUO-283).
@@ -223,10 +225,11 @@ final class AppModel {
   }
 
   /// The popover closed (QUO-445). An untouched connect form there goes, so
-  /// the balances show next time; typed input, a connect under way or a
-  /// balance checklist stays, one Cancel away from them.
+  /// the balances show next time; a picked tool, typed input, a connect under
+  /// way or a balance checklist stays, one Cancel away from them.
   func panelClosed() {
-    guard addingOn == .panel, watchChoiceID == nil, !isBusy, providerSearch.isEmpty, !draft.hasTypedInput else { return }
+    guard addingOn == .panel, watchChoiceID == nil, !isBusy, provider == nil, providerSearch.isEmpty, !draft.hasTypedInput
+    else { return }
     cancelAdding()
   }
 
@@ -338,11 +341,11 @@ final class AppModel {
   // MARK: Named connections (QUO-129)
 
   /// What a blank Name field in the connect form becomes.
-  var suggestedName: String { ConnectionNames.suggested(for: provider, among: connections) }
+  var suggestedName: String { provider.map { ConnectionNames.suggested(for: $0, among: connections) } ?? "" }
 
   /// Live check for the connect form's Name field; nil when blank or free.
   var connectNameError: String? {
-    guard !ConnectionNames.normalized(nameInput).isEmpty else { return nil }
+    guard let provider, !ConnectionNames.normalized(nameInput).isEmpty else { return nil }
     return ConnectionNames.validate(nameInput, provider: provider, among: connections)?.message
   }
 

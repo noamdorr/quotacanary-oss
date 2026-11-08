@@ -206,8 +206,8 @@ public struct BalancesAsShown: Sendable {
 
   // MARK: Stack window
 
-  /// The stack window's rows matching the search and filter, worst first
-  /// with stable connection order for ties.
+  /// The stack window's rows matching the search and filter, one group per
+  /// connection with the worst connection first (QUO-463).
   public func stackItems(query: String = "", filter: ConnectionFilter = .all) -> [StackItem] {
     let localItems = ConnectionPresentation.balances(local, query: query, filter: filter, failingIDs: failingIDs)
       .map(StackItem.local)
@@ -244,9 +244,11 @@ public enum StackItem: Identifiable, Sendable {
     }
   }
 
-  public var name: String {
+  public var connection: Connection {
     switch self {
-    case let .local(item): return item.connection.name
+    case let .local(item): return item.connection
     }
   }
+
+  public var name: String { connection.name }
 }

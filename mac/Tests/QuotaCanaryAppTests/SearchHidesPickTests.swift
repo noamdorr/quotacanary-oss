@@ -16,6 +16,7 @@ import Testing
 
   @Test func aKeyPastedAfterSearchingForTavilyIsNotSentToOpenRouter() async {
     let (model, openRouter, tavily) = make()
+    model.provider = .openrouter
     model.providerSearch = "tavily"
     model.keyInput = "tvly-SECRET"
     #expect(!model.keyEntryOpen)
@@ -38,6 +39,7 @@ import Testing
 
   @Test func aSearchStillListingThePickLeavesTheFormUsable() {
     let (model, _, _) = make()
+    model.provider = .openrouter
     model.providerSearch = "open"
     #expect(model.keyEntryOpen)
     model.providerSearch = "  "
@@ -46,9 +48,22 @@ import Testing
 
   @Test func searchingAloneKeepsATypedKey() {
     let (model, _, _) = make()
+    model.provider = .openrouter
     model.keyInput = "typed"
     model.providerSearch = "tavily"
     #expect(model.keyInput == "typed")
     #expect(model.provider == .openrouter)
+  }
+
+  /// QUO-456: with nothing picked, Connect has nowhere to send a key.
+  @Test func connectCannotFireWithNothingPicked() async {
+    let (model, openRouter, tavily) = make()
+    model.keyInput = "stray-key"
+    #expect(model.provider == nil)
+    #expect(!model.keyEntryOpen)
+    await model.connect()
+    #expect(openRouter.requests.isEmpty)
+    #expect(tavily.requests.isEmpty)
+    #expect(model.connections.isEmpty)
   }
 }

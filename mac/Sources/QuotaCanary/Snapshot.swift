@@ -256,7 +256,7 @@ enum Snapshot {
       ("connect-form-picker-filtered", panel(firstRun { $0.providerSearch = "serp" })),
       ("connect-form-picker-none", panel(firstRun { $0.providerSearch = "no such tool" })),
       // QUO-442: the pick is hidden by the search, so the key fields and Connect are off.
-      ("connect-form-picker-pick-hidden", panel(firstRun { $0.providerSearch = "tavily" })),
+      ("connect-form-picker-pick-hidden", panel(firstRun { $0.provider = .openrouter; $0.providerSearch = "tavily" })),
       ("pools-tavily", panel(await model(.tavily))),
       ("pools-apollo", panel(apollo)),
       ("settings-apollo", AnyView(SettingsView(model: apollo, showBalances: true))),
