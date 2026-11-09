@@ -9,6 +9,14 @@ migration under **Upgrade notes**. Always run the migration step after updating.
 
 ## [Unreleased]
 
+## [1.2.10] - 2026-11-10
+
+Mac app 0.1.11. The public mirror carries the exact `mac/` source the download
+was built from.
+
+### Changed
+- Muting a balance now quiets the menu bar bird too. The bird takes its color from the balances you have not muted and goes plain when they are all muted. A connection whose checks have stopped still turns it gold.
+
 ## [1.2.9] - 2026-11-08
 
 Mac app 0.1.10. The public mirror carries the exact `mac/` source the download

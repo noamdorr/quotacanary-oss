@@ -2,9 +2,9 @@ import Foundation
 @testable import QuotaCanaryCore
 import Testing
 
-// QUO-351, reworked by QUO-393 and QUO-419: a muted balance stays out of the
-// panel's at-risk count, the At risk filter and notifications, but the menu
-// bar bird still shows it. A mute holds for a day,
+// QUO-351, reworked by QUO-393 and QUO-465: a muted balance stays out of
+// notifications and off the menu bar bird's colour. The At risk tab and the
+// VoiceOver count still list it, labelled (QUO-449). A mute holds for a day,
 // a week, or until the balance goes up; a worse status breaks it at once.
 // Per balance, so a sibling on the same connection keeps alerting.
 
@@ -75,15 +75,17 @@ private final class MuteHarness {
 }
 
 @Suite struct MutedBalanceTests {
-  @Test func mutedBalanceLeavesTheCountAndFilterButNotTheBird() {
+  /// QUO-465, reversing QUO-419: with the only warning muted, the bird goes plain.
+  @Test func mutedBalanceLeavesTheBirdPlainButStaysInTheAtRiskTab() {
     let connection = hunter(verifications: 0, searches: 400, mutes: ["verifications": topUp(0, .empty)])
     #expect(row(connection, "verifications").muted)
     #expect(!row(connection, "verifications").alerts)
     #expect(row(connection, "verifications").warns)
     #expect([connection].poolsAtRisk == 0)
-    #expect([connection].worstAlert == .empty)
+    #expect([connection].worstAlert == .none)
     let shown = BalancesAsShown(local: [connection])
-    #expect(shown.severity == .empty)
+    #expect(shown.severity == .none)
+    #expect(shown.birdSeverity == .none)
     #expect(shown.poolsAtRisk == 1)
     // The At risk tab lists it, labelled as muted, like the bird's count (QUO-449).
     #expect(shown.stackItems(filter: .atRisk).map(\.row.key.creditType) == ["verifications"])
@@ -91,17 +93,24 @@ private final class MuteHarness {
     #expect(shown.panel.attention.isEmpty)
   }
 
-  /// QUO-419: a muted Low balance kept the bird gray once the red one was muted too.
-  @Test func birdTakesTheWorstBalanceMutedOrNot() {
-    let connection = hunter(
-      verifications: 250, searches: 400,
-      mutes: ["verifications": topUp(250, .low), "searches": topUp(400, .none)]
-    )
-    let shown = BalancesAsShown(local: [connection])
-    #expect(shown.severity == .low)
-    #expect(shown.poolsAtRisk == 1)
-    let critical = hunter(verifications: 250, searches: 50, mutes: ["verifications": topUp(250, .low), "searches": topUp(50, .critical)])
-    #expect(BalancesAsShown(local: [critical]).severity == .critical)
+  /// QUO-465: worst wins among the balances that are not muted.
+  @Test func birdTakesTheWorstUnmutedBalance() {
+    let lowBesideMutedEmpty = hunter(verifications: 0, searches: 250, mutes: ["verifications": topUp(0, .empty)])
+    #expect(BalancesAsShown(local: [lowBesideMutedEmpty]).severity == .low)
+    let criticalBesideMutedLow = hunter(verifications: 250, searches: 50, mutes: ["verifications": topUp(250, .low)])
+    #expect(BalancesAsShown(local: [criticalBesideMutedLow]).severity == .critical)
+    let allMuted = hunter(verifications: 250, searches: 50, mutes: ["verifications": topUp(250, .low), "searches": topUp(50, .critical)])
+    #expect(BalancesAsShown(local: [allMuted]).severity == .none)
+  }
+
+  /// A mute that ends puts the colour back on its own. Rows read the wall clock.
+  @Test func aBrokenMuteTintsTheBirdAgain() {
+    let worse = openRouter(balance: 2, mutes: ["credits": topUp(6, .low)])
+    #expect(BalancesAsShown(local: [worse]).severity == .critical)
+    let expired = openRouter(balance: 5, mutes: ["credits": timed(Date() - day, 6, .low)])
+    #expect(BalancesAsShown(local: [expired]).severity == .low)
+    let running = openRouter(balance: 5, mutes: ["credits": timed(Date() + day, 6, .low)])
+    #expect(BalancesAsShown(local: [running]).severity == .none)
   }
 
   @Test func mutedRowStaysInTheList() {
@@ -114,7 +123,7 @@ private final class MuteHarness {
     let connection = hunter(verifications: 0, searches: 50, mutes: ["verifications": topUp(0, .empty)])
     #expect(!row(connection, "searches").muted)
     #expect([connection].poolsAtRisk == 1)
-    #expect([connection].worstAlert == .empty) // the muted empty one still tints the bird
+    #expect([connection].worstAlert == .critical) // the muted empty one does not tint the bird
   }
 
   @Test func aTopUpMuteHoldsWhileTheBalanceDrains() {
@@ -251,6 +260,16 @@ private final class MuteHarness {
     try h.service.setMute(h.key, nil)
     #expect(h.connection.mutes.isEmpty)
     #expect(row(h.connection, "credits").alerts)
+  }
+
+  /// Until top-up, because a timed mute would be over: the harness clock is in the past.
+  @Test func unmutingTintsTheBirdAgain() throws {
+    let h = try MuteHarness([openRouter(balance: 5)])
+    #expect(BalancesAsShown(local: h.service.connections).severity == .low)
+    try h.service.setMute(h.key, .untilTopUp)
+    #expect(BalancesAsShown(local: h.service.connections).severity == .none)
+    try h.service.setMute(h.key, nil)
+    #expect(BalancesAsShown(local: h.service.connections).severity == .low)
   }
 
   @Test func mutingWithoutAReadingSavesNothing() throws {

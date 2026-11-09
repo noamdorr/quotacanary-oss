@@ -60,13 +60,13 @@ public struct BalancesAsShown: Sendable {
 
   // MARK: Menu bar bird and notifications
 
-  /// Worst monitored warning across every balance.
+  /// Worst monitored warning across every balance that is not muted (QUO-465).
   public var severity: AlertSeverity {
     local.worstAlert
   }
 
-  /// Monitored low, critical or empty balances on the bird, muted ones too
-  /// (QUO-419). The At risk tab and the panel list the same ones (QUO-449).
+  /// Monitored low, critical or empty balances, muted ones too: the bird's
+  /// VoiceOver count. The At risk tab and the panel list the same ones (QUO-449).
   public var poolsAtRisk: Int { local.flatMap(\.poolRows).filter(\.warns).count }
 
   /// How many of `poolsAtRisk` are muted, labelled in the bird's count and the At risk tab (QUO-449).
@@ -84,8 +84,8 @@ public struct BalancesAsShown: Sendable {
     }.map(\.id))
   }
 
-  /// The bird's colour: the worst balance, and at least gold while checks
-  /// have stopped. Worst wins, so a red balance stays red (QUO-449).
+  /// The bird's colour: the worst unmuted balance, and at least gold while
+  /// checks have stopped. Worst wins, so a red balance stays red (QUO-449).
   public var birdSeverity: AlertSeverity { Self.birdSeverity(severity, stopped: stoppedIDs.count) }
 
   /// The bird's VoiceOver label: the count (muted labelled), then stopped checks.

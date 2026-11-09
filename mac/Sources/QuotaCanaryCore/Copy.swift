@@ -498,11 +498,12 @@ public extension Copy {
   static func sectionCount(_ heading: String, _ count: Int) -> String { "\(heading) · \(count)" }
   static let connectionsSection = "Connections"
   static let openWindowButton = "Open window"
-  /// `count` is every balance the bird shows, `muted` of them included (QUO-449).
+  /// `count` is every balance VoiceOver counts, `muted` of them included (QUO-449).
+  /// With all of them muted the bird is plain, so the label names no severity (QUO-465).
   static func menuBarCountAccessibility(_ count: Int, muted: Int = 0, severity: AlertSeverity) -> String {
     let worst: String
     switch severity {
-    case .none: return birdAccessibility
+    case .none: return muted > 0 ? "\(birdAccessibility), \(mutedCount(muted))" : birdAccessibility
     case .low: worst = statusLow
     case .critical: worst = statusCritical
     case .empty: worst = statusEmpty
@@ -510,7 +511,6 @@ public extension Copy {
     let alerting = count - muted
     func balances(_ n: Int) -> String { n == 1 ? "balance" : "balances" }
     guard muted > 0 else { return "QuotaCanary, \(count) \(balances(count)) running low, worst: \(worst)" }
-    guard alerting > 0 else { return "QuotaCanary, \(muted) muted \(balances(muted)) running low, worst: \(worst)" }
     return "QuotaCanary, \(alerting) \(balances(alerting)) running low, \(mutedCount(muted)), worst: \(worst)"
   }
 
@@ -681,7 +681,7 @@ public extension Copy {
 // 2026-11-04. Inspector only: Settings and the menus keep their own wording.
 public extension Copy {
   static let muteAlertsButton = "Mute alerts"
-  static let mutedNote = "Menu bar warnings stay on. Alerts resume sooner if risk increases."
+  static let mutedNote = "Alerts resume sooner if risk increases."
   static let lowBalanceWarnings = "Low-balance warnings"
   static let warnWhenLowToggle = "Warn when balance is low"
   static let saveWarningsButton = "Save warnings"

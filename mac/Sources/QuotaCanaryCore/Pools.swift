@@ -55,8 +55,8 @@ public struct PoolRow: Equatable, Identifiable, Sendable {
   public var balance: Double?
   public var settings: PoolSettings
   public var status: PoolStatus
-  /// Muted right now (QUO-393): out of the at-risk count and alerts, but
-  /// still on the bird (QUO-419).
+  /// Muted right now (QUO-393): no notifications and no colour on the bird
+  /// (QUO-465), but still listed as at risk, labelled muted (QUO-449).
   public var muted: Bool { mute != nil }
   /// The mute in force, for its "Muted until" marker.
   public var mute: Mute?
@@ -65,12 +65,13 @@ public struct PoolRow: Equatable, Identifiable, Sendable {
 
   public var id: PoolKey { key }
 
-  /// Whether this pool would raise an alert: monitored, not muted and
-  /// actually running low. Unavailable and unknown pools never count.
+  /// Whether this pool would raise an alert and colour the menu bar bird
+  /// (QUO-465): monitored, not muted and actually running low. Unavailable
+  /// and unknown pools never count.
   public var alerts: Bool { warns && !muted }
 
-  /// Whether the menu bar bird shows this pool (QUO-419): monitored and
-  /// actually running low, muted or not. A mute silences alerts only.
+  /// Whether this pool is at risk, muted or not: monitored and actually
+  /// running low. The At risk tab and the VoiceOver count use it (QUO-449).
   public var warns: Bool { settings.monitored && status.isWarning }
 }
 

@@ -7,12 +7,12 @@ enum Brand {
   static let goldNS = NSColor(red: 1, green: 196 / 255, blue: 0, alpha: 1)
 }
 
-/// The menu bar mark: native monochrome unless a monitored balance is at risk
-/// or checks have stopped (gold, QUO-449). Color only, no count or badge
+/// The menu bar mark: native monochrome unless an unmuted monitored balance is
+/// at risk or checks have stopped (gold, QUO-449). Color only, no count or badge
 /// (QUO-391); VoiceOver still hears both.
 struct BirdLabel: View {
   let active: Bool
-  /// Worst monitored warning (QUO-131): changes the mark's color.
+  /// Worst unmuted monitored warning (QUO-131, QUO-465): changes the mark's color.
   var severity: AlertSeverity = .none
   var poolsAtRisk: Int = 0
   /// How many of `poolsAtRisk` are muted (QUO-449).

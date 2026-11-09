@@ -39,7 +39,7 @@ private func expectSurfacesAgree(_ shown: BalancesAsShown, _ name: String) {
   let listed = listedRows(lines)
   // A bird that is not plain is explained by a listed row or a stopped-checks line.
   if shown.severity != .none {
-    #expect(listed.contains { $0.warns && AlertSeverity(status: $0.status) == shown.severity }, "\(name): bird \(shown.severity), no such row")
+    #expect(listed.contains { $0.alerts && AlertSeverity(status: $0.status) == shown.severity }, "\(name): bird \(shown.severity), no such row")
   }
   #expect(shown.stoppedIDs.isSubset(of: Set(failureIDs(panel.attention))), "\(name): stopped checks without a line")
   // A failure line past the threshold never sits beside a plain bird.
@@ -146,7 +146,8 @@ private func launched(_ stack: StackScenario) async throws -> BalancesAsShown {
     expectSurfacesAgree(shown, "rate-limited empty")
   }
 
-  /// Muted balances count on the bird and in the At risk tab, labelled.
+  /// Muted balances count in VoiceOver and the At risk tab, labelled, and
+  /// leave the bird's colour to the balances that are not muted (QUO-465).
   @Test func mutedBalancesAreCountedAndLabelled() {
     let mutedEmpty = Mute(until: nil, balance: 0, severity: .empty)
     let a = conn("a", .hunter, pools: [("searches", 100), ("verifications", 0)], mutes: ["verifications": mutedEmpty])
@@ -155,9 +156,34 @@ private func launched(_ stack: StackScenario) async throws -> BalancesAsShown {
     #expect(shown.poolsAtRisk == 4)
     #expect(shown.mutedAtRisk == 2)
     #expect(shown.stackItems(filter: .atRisk).count == 4)
-    #expect(shown.birdAccessibility == Copy.menuBarCountAccessibility(4, muted: 2, severity: .empty))
+    #expect(shown.severity == .critical)
+    #expect(shown.birdAccessibility == Copy.menuBarCountAccessibility(4, muted: 2, severity: .critical))
     #expect(Copy.menuBarCountAccessibility(4, muted: 2, severity: .empty).contains("2 balances running low, " + Copy.mutedCount(2)))
     #expect(Copy.stackAtRiskCount(4, muted: 2) == "2, " + Copy.mutedCount(2))
     expectSurfacesAgree(shown, "muted")
+  }
+
+  /// QUO-465: every warning muted, so the label names no severity the plain bird does not show.
+  @Test func allMutedReadsPlainPlusTheMutedCount() {
+    let mutedEmpty = Mute(until: nil, balance: 0, severity: .empty)
+    let a = conn("a", pools: [("credits", 0)], mutes: ["credits": mutedEmpty])
+    let b = conn("b", pools: [("credits", 0)], mutes: ["credits": mutedEmpty])
+    let shown = BalancesAsShown(local: [a, b])
+    #expect(shown.birdSeverity == .none)
+    #expect(shown.poolsAtRisk == 2)
+    #expect(shown.birdAccessibility == Copy.birdAccessibility + ", " + Copy.mutedCount(2))
+    expectSurfacesAgree(shown, "all muted")
+  }
+
+  /// A mute does not hide a connection that has stopped checking (QUO-449 unchanged).
+  @Test func stoppedChecksKeepTheBirdGoldWithEveryBalanceMuted() {
+    let mutedEmpty = Mute(until: nil, balance: 0, severity: .empty)
+    let a = conn("a", pools: [("credits", 0)], mutes: ["credits": mutedEmpty], failures: 600, age: 7 * 86_400)
+    let shown = BalancesAsShown(local: [a], health: ["a": .failed(lastSuccess: a.lastReading!.checkedAt, attempted: true)])
+    #expect(shown.stoppedIDs == ["a"])
+    #expect(shown.severity == .none)
+    #expect(shown.birdSeverity == .low)
+    #expect(shown.birdAccessibility == Copy.birdAccessibility + ", " + Copy.mutedCount(1) + ", " + Copy.birdChecksStopped(1))
+    expectSurfacesAgree(shown, "stopped and muted")
   }
 }

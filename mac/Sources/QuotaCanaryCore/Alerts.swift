@@ -75,9 +75,9 @@ public extension Array where Element == Connection {
   }
 
   /// The worst monitored warning across every connection, for the menu bar.
-  /// Muted pools count: the bird tells the truth (QUO-419).
+  /// Muted pools do not count: a mute quiets the bird too (QUO-465).
   var worstAlert: AlertSeverity {
-    flatMap(\.poolRows).filter(\.warns).compactMap { AlertSeverity(status: $0.status) }.max() ?? .none
+    flatMap(\.poolRows).filter(\.alerts).compactMap { AlertSeverity(status: $0.status) }.max() ?? .none
   }
 }
 
