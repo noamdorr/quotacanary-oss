@@ -1,7 +1,6 @@
 # Template for the public mirror's .github/ISSUE_TEMPLATE/tool-submission.yml.
 # scripts/sync-public.sh preserves the mirror's .github/ untouched, so this file
 # reaches the mirror only by the hand copy in docs/RELEASING.md (QUO-333).
-# Intro copy approved by Noam on 2026-10-29.
 name: Submit a tool
 description: Ask QuotaCanary to watch your tool's credit balance.
 title: "Tool submission: "
