@@ -2,7 +2,7 @@
 -- QUO-451: X leaves the catalog until its usage read is proven free. The check
 -- reads GET api.x.com/2/usage/tweets about every 15 minutes, and X's docs say
 -- successful responses are billed without saying whether this route is. A
--- balance check must not cost money (Noam, 2026-11-05).
+-- balance check must not cost money.
 --
 -- connections.tool_id references tools(id) with no cascade, and a self-host
 -- instance may hold an X connection, so a plain delete could fail or take the

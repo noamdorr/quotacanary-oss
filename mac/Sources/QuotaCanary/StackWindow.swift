@@ -355,7 +355,7 @@ struct StackView: View {
   }
 }
 
-/// Fixed columns mirror the approved table; the connection column takes spare width.
+/// Fixed columns; the connection column takes spare width.
 private struct BalanceTableHeader: View {
   /// Wide enough for labels like "Pay-as-you-go Credits" (QUO-269; was 90).
   static let balanceWidth: CGFloat = 150

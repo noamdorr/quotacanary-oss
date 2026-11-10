@@ -55,8 +55,7 @@ export function alertedThisIncident(
   return Date.parse(lastGoodReadAt) < Date.parse(failureAlertedAt)
 }
 
-// Copy is staged for Noam's pick (QUO-289 PR); this is option A, worded to
-// match the Mac's monitoring notifications.
+// Worded to match the Mac's monitoring notifications (QUO-289).
 export function stoppedCheckingTitle(toolName: string): string {
   return `${toolName} isn't being checked`
 }

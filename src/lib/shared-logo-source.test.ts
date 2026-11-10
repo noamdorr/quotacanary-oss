@@ -6,7 +6,7 @@ const source = (path: string) =>
   readFileSync(resolve(process.cwd(), path), "utf8")
 
 describe("shared app logo", () => {
-  // QUO-171: every lockup leads with the approved Q/canary mark, and the
+  // QUO-171: every lockup leads with the Q/canary mark, and the
   // footer no longer borrows the mood illustration as its logo.
   it.each([
     "src/components/public/PublicNav.tsx",

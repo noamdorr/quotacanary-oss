@@ -286,8 +286,7 @@ export async function postAlertDestination(
   }
 }
 
-// The event name is staged for Noam's pick (QUO-289 PR); docs/page.tsx
-// documents it beside the balance events.
+// docs/page.tsx documents this event name beside the balance events (QUO-289).
 const STOPPED_CHECKING_EVENT = "quota.alert.stopped"
 
 function webhookEventName(event: AlertDestinationEvent): string {

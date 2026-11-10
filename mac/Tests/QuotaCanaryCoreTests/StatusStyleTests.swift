@@ -41,7 +41,7 @@ private func row(monitored: Bool, status: PoolStatus = .low) -> PoolRow {
 
   @Test func healthyAndLowUseDifferentShapes() {
     #expect(StatusStyle.symbol(.healthy) != StatusStyle.symbol(.low))
-    // The approved gold Low dot is kept.
+    // The gold Low dot is kept.
     #expect(StatusStyle.symbol(.low) == "circle.fill")
     #expect(Set(PoolStatus.allCases.map(StatusStyle.symbol)).count == PoolStatus.allCases.count)
   }

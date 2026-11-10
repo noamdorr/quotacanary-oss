@@ -353,7 +353,7 @@ struct PoolSettingsEditor: View {
             .foregroundStyle(.secondary)
         }
       }
-      // `compact` is the window inspector, which has its approved label (QUO-437).
+      // `compact` is the window inspector, which has its own label (QUO-437).
       Toggle(compact ? Copy.warnWhenLowToggle : Copy.monitorToggle, isOn: $draft.monitored)
       Grid(alignment: .leading, horizontalSpacing: 8, verticalSpacing: 6) {
         ThresholdRow(

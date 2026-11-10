@@ -1,5 +1,5 @@
 // QUO-428: hovering the hero's mock Apple logo eats it down to the core, and
-// clicking it drops a fake Apple menu whose copy Noam approved verbatim.
+// clicking it drops a fake Apple menu.
 // Runs against the built dist/ (npm run build first; CI does).
 import assert from "node:assert/strict"
 import { readFileSync } from "node:fs"

@@ -1,6 +1,5 @@
 import { Button } from "@/components/ui/button"
 
-// Placeholder pending Noam's copy pick (QUO-210 stages the options).
 export const MAGIC_LINK_RETRY_LABEL = "Wrong email or no link? Try again"
 
 // One control covers both recoveries: it reopens the form with the address

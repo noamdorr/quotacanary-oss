@@ -1,7 +1,7 @@
 import AppKit
 import SwiftUI
 
-/// The approved Q/canary mark (QUO-171), drawn from the brand package's source
+/// The Q/canary mark (QUO-171), drawn from the brand package's source
 /// geometry so it stays crisp at any size and can be a native template image.
 /// Never change the numbers here by eye.
 enum LogoMark {

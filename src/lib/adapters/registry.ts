@@ -43,7 +43,7 @@ import { youcomAdapter } from "./youcom"
 import { zerobounceAdapter } from "./zerobounce"
 
 // Adapters the declarative catalog cannot express; everything else lives in
-// catalog/tools.json (see wiki/raw/2026-10-11-adapter-catalog-inventory.md).
+// catalog/tools.json.
 const HAND_WRITTEN: Record<string, ToolAdapter> = {
   [openrouterAdapter.toolId]: openrouterAdapter,
   [zerobounceAdapter.toolId]: zerobounceAdapter,

@@ -125,7 +125,6 @@ public enum Copy {
 
   // Settings
   public static let settingsButton = "Settings..."
-  // Placeholder navigation copy, pending visual/copy sign-off (QUO-158).
   public static let settingsGeneral = "General"
   public static let settingsBalances = "Balance warnings"
   public static let settingsSearch = "Search connections or balances"
@@ -134,7 +133,6 @@ public enum Copy {
   public static let settingsEmpty = "Connect a provider first, then set its thresholds here."
   public static let monitorToggle = "Monitor this balance"
   public static let warnBelowField = "Warn below"
-  // Picked by Noam 2026-10-18 (QUO-264).
   public static func criticalHint(_ current: String, afterSave: String?) -> String {
     "Critical at or below \(current)." + (afterSave.map { " Saving sets it to \($0)." } ?? "")
   }
@@ -151,13 +149,13 @@ public enum Copy {
   public static let saveButton = "Save"
   public static let closeButton = "Close"
   public static let saved = "Saved."
-  // Unsaved balance edits (QUO-263). Picked by Noam 2026-10-18.
+  // Unsaved balance edits (QUO-263).
   public static let settingsGeneralNote = "Changes on this tab apply right away."
   public static let settingsBalancesNote = "Nothing on this tab applies until you click Save."
   public static func unsavedChanges(_ count: Int) -> String {
     count > 1 ? "Unsaved changes to \(count) balances" : "Unsaved changes"
   }
-  // Hidden validation errors that disable Save (QUO-272). Picked by Noam 2026-10-18.
+  // Hidden validation errors that disable Save (QUO-272).
   public static func balancesNeedAttention(_ count: Int) -> String {
     count == 1 ? "1 balance needs attention" : "\(count) balances need attention"
   }
@@ -539,7 +537,7 @@ public extension Copy {
   }
 }
 
-// Full-window wording staged for the design review.
+// Full-window wording.
 extension Copy {
   public static let balanceColumn = "Balance"
   public static let remainingColumn = "Remaining"
@@ -563,12 +561,11 @@ extension Copy {
   public static let stackThresholds = "Balance warnings"
 }
 
-// Quiet-menu wording is staged for visual/copy review.
+// Quiet-menu wording.
 public extension Copy {
   static let healthySection = "Healthy"
   static let allHealthySection = "All healthy"
-  // Neutral headings when a balance is unread or low with monitoring off
-  // (QUO-160); approved by Noam 2026-10-10.
+  // Neutral headings when a balance is unread or low with monitoring off (QUO-160).
   static let otherConnectionsSection = "Other connections"
   static let addConnectionMenu = "Add connection..."
   static func additionalBalances(_ count: Int) -> String { "\(count) more balances" }
@@ -631,29 +628,23 @@ public extension Copy {
   static func burningPerDay(_ amount: String) -> String { "Burning ~\(amount)/day" }
 }
 
-// Erase everything from this Mac (QUO-297). Staged for Noam's pick; the first
-// wording is wired. The confirm lists what goes and what stays.
+// Erase everything from this Mac (QUO-297). The confirm lists what goes and
+// what stays.
 public extension Copy {
   static let eraseSection = "Leave no trace"
-  // Alternatives for the section title: "Erase data" / "Uninstall cleanly"
   static let eraseIntro =
     "Removes everything QuotaCanary keeps on this Mac. Do this before you delete the app, or the keys stay in Keychain."
-  // Alternative: "Deleting the app leaves its keys in Keychain. This clears them first."
   static let eraseButton = "Erase QuotaCanary data from this Mac..."
-  // Alternatives: "Erase all data on this Mac..." / "Remove all keys and settings from this Mac..."
   static func eraseGoes(_ summary: EraseSummary) -> String {
     var parts = [summary.keys == 1 ? "1 provider key" : "\(summary.keys) provider keys"]
     parts += ["your reading history", "your settings"]
     return "This deletes " + parts.dropLast().joined(separator: ", ") + " and " + parts[parts.count - 1]
       + " from this Mac, then QuotaCanary starts over like a first launch."
   }
-  // Alternative: "Gone from this Mac: ..., then the app is back to first run."
   static let eraseStays =
     "Nothing is sent anywhere."
   static let eraseConfirmButton = "Erase everything"
-  // Alternative: "Erase and start over"
   static let eraseFailed = "Couldn't erase everything. Some data is still on this Mac. Try again, or see the README."
-  // Alternative: "Erase didn't finish. Nothing was reported as gone that isn't. Try again."
   static func eraseReport(_ summary: EraseSummary) -> String {
     let keys = summary.keys == 1 ? "1 provider key" : "\(summary.keys) provider keys"
     return "Erased \(keys), history and settings from this Mac."
@@ -662,9 +653,8 @@ public extension Copy {
 
 public extension Copy {
   static let topUpButton = "Top up"
-  // QUO-351: approved 2026-10-29.
   static let unmuteButton = "Unmute"
-  // QUO-393: menu set A, marker and "Back from mute" picked 2026-10-31.
+  // QUO-393: the mute menu, its marker and "Back from mute".
   static let muteButton = "Mute"
   static let muteForDay = "For 1 day"
   static let muteForWeek = "For 1 week"
@@ -673,12 +663,12 @@ public extension Copy {
   static func mutedUntil(_ when: String) -> String { "Muted until \(when)" }
   static let mutedUntilTopUp = "Muted until top-up"
   static let backFromMute = "Back from mute"
-  // QUO-398: staged default, pairs with "Stop monitoring…".
+  // QUO-398: pairs with "Stop monitoring…".
   static let resumeMonitoringButton = "Resume monitoring"
 }
 
-// The window inspector's labels (QUO-437), from the mockup Noam approved on
-// 2026-11-04. Inspector only: Settings and the menus keep their own wording.
+// The window inspector's labels (QUO-437). Inspector only: Settings and the
+// menus keep their own wording.
 public extension Copy {
   static let muteAlertsButton = "Mute alerts"
   static let mutedNote = "Alerts resume sooner if risk increases."

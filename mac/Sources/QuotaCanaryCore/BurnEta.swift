@@ -23,8 +23,7 @@ public struct BurnEta: Codable, Equatable, Sendable {
     }
     if daysLeft < 1.5 { return BurnEta(short: Copy.etaTomorrowShort, long: Copy.etaTomorrowLong) }
     // The web names a weekday here. QUO-184 makes it relative ("in ~3 days")
-    // so nobody has to recall today's date; this tracks QUO-184's final
-    // wording pick, which is still pending. No weekday names anywhere.
+    // so nobody has to recall today's date. No weekday names anywhere.
     if daysLeft < 7 {
       let days = Int(daysLeft.rounded())
       return BurnEta(short: Copy.etaDaysShort(days), long: Copy.etaDaysLong(days))

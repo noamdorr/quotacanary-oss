@@ -79,7 +79,6 @@ export async function connectTool(formData: FormData): Promise<ConnectResult> {
   if (sameKey)
     return {
       ok: false,
-      // Copy staged for Noam's pick (QUO-293).
       error: `That key is already connected as ${sameKey.name}.`,
       existingConnectionId: sameKey.connectionId,
     }

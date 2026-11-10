@@ -17,7 +17,7 @@ import {
 } from "../lib/copy"
 import { TOOLS, getTool } from "../lib/tools"
 
-// The eight tools the design pass shows, in its order.
+// The eight tools the page shows, in order.
 const FEATURED_TOOLS = [
   "hunter",
   "openrouter",
@@ -150,7 +150,7 @@ const jsonLd = JSON.stringify({
     <div class="pricing-actions">
       <p>{HOME.pricingFootnote}</p>
       {/* QUO-406: a real download, tagged like DownloadBlock, not a scroll to the hero. */}
-      {/* QUO-433: "Download", like every other download control, picked by Noam on 2026-11-04. */}
+      {/* QUO-433: "Download", like every other download control. */}
       {
         MAC_DOWNLOAD_URL ? (
           <a class="button primary plausible-event-name=Mac+Download+Click" href={MAC_DOWNLOAD_URL}>
@@ -197,10 +197,9 @@ const jsonLd = JSON.stringify({
     <div class="faq-list">
       <details><summary>What can you do that the tool’s own dashboard can’t?<span aria-hidden="true"></span></summary><p>Three things. It translates balances into deadlines (“burns out in ~3 days,” not “120 left”), watches all your connected tools at once instead of making you check ten tabs, and warns you before the credits hit zero. That’s the whole product.</p></details>
       <details><summary>Will it send me notifications I don’t want?<span aria-hidden="true"></span></summary><p>Notifications are optional. They warn when balances are low, critical or empty, and when a tool can’t be checked. The app needs to be running, and your Mac awake and online.</p></details>
-      {/* QUO-374: merges "Does it touch my data, sends, or campaigns?" and "What does the Mac app send you?", picked by Noam on 2026-10-30; wording approved at PR review. */}
-      {/* QUO-403: the URL-parameter sentence, option A picked by Noam on 2026-11-02. */}
+      {/* QUO-374: merges "Does it touch my data, sends, or campaigns?" and "What does the Mac app send you?". */}
+      {/* QUO-403: the URL-parameter sentence. */}
       <details><summary>What leaves my Mac?<span aria-hidden="true"></span></summary><p>Balance requests, each sent directly to the vendor with that vendor’s key. Keys never go to QuotaCanary servers. A few vendors only accept the key in the URL, which their logs or a proxy’s can record even over HTTPS. It only reads the usage endpoint: no contacts, no message bodies, nothing outbound. The app has no analytics and no telemetry. Use a scoped key where your tool offers one; plenty only issue an all-or-nothing key, and I won’t pretend otherwise.</p><p>{UPDATE_DISCLOSURE} <a href="/security">The whole security model</a> is public.</p></details>
-      {/* QUO-382: option A of both entries, approved by Noam on 2026-10-30. Vendor sources are in PR #239. */}
       <details><summary>What does a balance check cost me?<span aria-hidden="true"></span></summary><p>While it’s running, the app asks each tool for its balance about every {MAC_POLL_MINUTES} minutes: one read-only account call. Hunter, Apollo, Prospeo and DataForSEO document that call as free. OpenRouter, Tavily, NeverBounce and Firecrawl don’t say either way, so check your vendor’s docs if it matters. Each tool’s page in <a href="/directory">the directory</a> says which key to use.</p></details>
       <details><summary>How does the run-out estimate work?<span aria-hidden="true"></span></summary><p>After two readings it adds up what you actually burned between checks, divides by the time that passed, and divides your balance by that. A top-up doesn’t erase the burn before it. Under a day it says hours; after that days, weeks, then months. With fewer than two readings, or a balance that hasn’t moved for a full day yet, it says it’s still collecting.</p></details>
       <details><summary>Which tools don’t you track?<span aria-hidden="true"></span></summary><p>QuotaCanary tracks tools that expose quota through a simple read-only API call. Platforms like RapidAPI that only expose usage through dashboards or traffic headers are out today, because chasing those turns a free tool into a science project. Ship a clean quota endpoint and I’ll add you. <a href="/directory">The directory</a> lists what the app checks today; if yours is missing, <a href={TOOL_REQUEST_MAILTO}>ask</a> and I’ll take a look.</p></details>

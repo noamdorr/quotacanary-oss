@@ -19,5 +19,4 @@ SITE_DEV=1 CANONICAL_HOST= npm start   # http://localhost:4321
   ```
 
   `tools:pull` reads `DB_URL` (default: the local stack's Postgres on `127.0.0.1:54322`), so any Postgres with the migrations applied works. It writes only ids the Mac app supports and fails if one has no catalog row. Existing `key_instructions` text is kept; a new tool takes its hint from `mac/Sources/QuotaCanaryCore/Copy.swift` (`keyRequirements`) or stays empty. Needs `psql` on the PATH.
-- Changed copy for P-QUO-42 is an unapproved review specimen; numbered alternatives are in the integration PR. Noam must pick before merge.
 - `src/lib/copy.ts` holds the page copy; `src/styles/impeccable.css` is the design system, `site.css` the additions.

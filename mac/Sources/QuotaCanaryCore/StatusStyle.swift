@@ -38,7 +38,7 @@ public enum StatusAppearance: CaseIterable, Sendable {
 public enum StatusStyle {
   public static let canaryGold = SRGB(hex: 0xFFC400)
 
-  /// Status glyphs: Low keeps the approved gold dot, Healthy gets a check.
+  /// Status glyphs: Low keeps the gold dot, Healthy gets a check.
   public static func symbol(_ status: PoolStatus) -> String {
     switch status {
     case .healthy: return "checkmark.circle.fill"

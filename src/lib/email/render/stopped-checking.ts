@@ -11,7 +11,6 @@ export type StoppedCheckingEmailModel = {
 export function renderStoppedCheckingEmail(
   model: StoppedCheckingEmailModel
 ): RenderedEmail {
-  // Staged for Noam's pick with the rest of the QUO-289 copy (option A).
   const subject = `${model.toolName} isn't being checked anymore`
 
   const html = `<table width="100%" cellpadding="0" cellspacing="0" style="background:#FFFDF5;padding:32px 0;">

@@ -49,7 +49,7 @@
 .desk-copy h1{font-size:clamp(44px,4.6vw,68px);line-height:1.02;letter-spacing:-.04em;font-weight:800;text-wrap:balance}
 .hero-support{margin-top:16px;font-size:17px;line-height:1.65;color:#1a1a1acc;font-weight:500;max-width:45ch}
 .desk-copy .download-facts,.desk-copy .download-notarized,.desk-copy .download-homebrew{color:#1a1a1ae6}
-/* QUO-433: one Download treatment everywhere. Gold, with an ink hairline so it holds on the hero's sand (gold on sand is about 1.1:1, the ink edge about 11.7:1). Gold over ink picked by Noam on 2026-11-04, replacing the 2026-11-02 ink hero. */
+/* QUO-433: one Download treatment everywhere. Gold, with an ink hairline so it holds on the hero's sand (gold on sand is about 1.1:1, the ink edge about 11.7:1). */
 .button.primary,.button.primary:hover,.mobile-menu a.mac-nav{border:1px solid var(--ink)}
 .mobile-menu a.mac-nav{justify-content:center;margin-bottom:6px;padding:12px 16px;border-radius:7px;background:var(--gold);font-weight:550}
 .pricing-actions .button{gap:12px}

@@ -9,6 +9,13 @@ migration under **Upgrade notes**. Always run the migration step after updating.
 
 ## [Unreleased]
 
+## [1.2.12] - 2026-11-10
+
+Comments and one site test only. The Mac app, the web app, the site and the database behave the same. The exact source of the Mac 0.1.11 download stays at tag `mac-v0.1.11`.
+
+### Changed
+- Code comments no longer carry internal decision notes.
+
 ## [1.2.11] - 2026-11-10
 
 No changes to the Mac app, the web app or the database.

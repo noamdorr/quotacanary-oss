@@ -1,7 +1,3 @@
-// P-QUO-42 / QUO-325: HOME copy approved by Noam on 2026-10-23 or retained
-// from prior QUO-191, QUO-212 and QUO-213 picks. MAC security copy is also
-// approved; Privacy and Terms approved on 2026-10-24. Public-document review,
-// publication and merge remain pending.
 import macFeed from "../../public/mac/updates.json"
 import macDmg from "../data/mac-dmg.json"
 
@@ -10,8 +6,7 @@ export const GITHUB_URL = "https://github.com/noamdorr/quotacanary-oss"
 export const SELF_HOST_URL = `${GITHUB_URL}/blob/main/docs/SELF_HOSTING.md`
 export const UPDATE_DISCLOSURE = "If you opt in to update checks, the app sends its app version, macOS version and chip to the signed update feed."
 export const TOOL_REQUEST_MAILTO = "mailto:hey@quotacanary.com?subject=Tool%20request"
-// QUO-333: tool makers submit on the mirror's GitHub issue form. The template is
-// staged in scripts/public-issue-templates/ and hand-copied into the mirror.
+// QUO-333: tool makers submit on the mirror's GitHub issue form.
 export const TOOL_SUBMIT_URL = `${GITHUB_URL}/issues/new?template=tool-submission.yml`
 // QUO-369: the site's /download/mac redirect (server.mjs) points at the newest
 // signed DMG on the mirror's mac-v<version> release. Set to null to fall back
@@ -44,44 +39,39 @@ export const MAC_POLL_MINUTES = 15
 export const TAGLINE = "the bird that sings before the credits die"
 
 export const HOME = {
-  // 6C
   pageTitle: "QuotaCanary - the bird that sings before the credits die",
   pageDescription:
     "A free, open-source Mac menu bar app that watches the credit balances of your API tools and warns you when credits are running low.",
-  // Noam reconfirmed the existing hero on 2026-10-23. Privacy is supporting copy.
+  // Privacy is supporting copy.
   oneLiner: "A menu bar app that warns you before your API credits run out.",
-  // QUO-384: supporting line under the h1, privacy angle. Option C, picked by
-  // Noam on 2026-10-30.
+  // QUO-384: supporting line under the h1, privacy angle.
   heroSupport: "No account, no cloud. Your keys stay on your Mac.",
-  // QUO-191 5A: shown only while MAC_DOWNLOAD_URL is null. Never a link
+  // QUO-191: shown only while MAC_DOWNLOAD_URL is null. Never a link
   // without a real artifact URL.
   downloadButton: "Coming soon",
-  // 2B. The first fact links to the public source (QUO-369).
+  // The first fact links to the public source (QUO-369).
   facts: ["Free and open source", "macOS 26+", "Apple silicon"],
-  // 3B
   navCta: "Download",
-  // QUO-374: shown under the Download button while MAC_DOWNLOAD_URL is set. Picked
-  // by Noam on 2026-10-30 (round 2) instead of a hero fact.
+  // QUO-374: shown under the Download button while MAC_DOWNLOAD_URL is set.
   notarized: "Signed and notarized by Apple.",
   // QUO-402: after the notarized line, "v0.1.1, early release." and a link to
-  // the GitHub release. Picked by Noam on 2026-11-02 (option A).
+  // the GitHub release.
   maturity: "early release.",
   releaseNotes: "Release notes",
-  // QUO-236: under the notarized line. Picked by Noam on 2026-11-10 (option B).
+  // QUO-236: under the notarized line.
   // The full name is deliberate: Homebrew's tap trust refuses the short one.
   homebrewPrompt: "Terminal person?",
   homebrewCommand: "brew install --cask noamdorr/tap/quotacanary",
-  // QUO-406: phones only, beside the DMG button. Picked by Noam on 2026-11-02
-  // (option A). The page link is shared or copied, never the DMG.
+  // QUO-406: phones only, beside the DMG button. The page link is shared or
+  // copied, never the DMG.
   handoff: "Send it to your Mac",
   handoffCopied: "Link copied. Open it on your Mac.",
-  // Alert and key copy approved by Noam on 2026-10-23; alert limits stay in the FAQ.
+  // Alert limits stay in the FAQ.
   features: [
     {
       id: "eta",
       title: "Run-out estimates",
       // QUO-405: the last sentence bridges the estimate to the awake-Mac limit.
-      // Picked by Noam on 2026-11-02 (option A).
       body: "After two readings it works out how fast each balance is going down and roughly when it hits zero: 2 days, 3 weeks. The one that runs out first is at the top of the list. You see it coming days out, so a Mac asleep at 3am doesn’t cost you the campaign.",
       image: "/mac/window.webp",
       width: 1000,
@@ -99,7 +89,7 @@ export const HOME = {
         height: 100,
         alt: "A QuotaCanary notification. Apollo: Lead Credits low: 1,000 of 10,000 left.",
       },
-      // QUO-418: the four notification triggers, from the FAQ answer. Staged option A, Noam's pick pending.
+      // QUO-418: the four notification triggers, from the FAQ answer.
       triggers: { lead: "Warns at", items: ["Low", "Critical", "Empty", "Can’t be checked"] },
     },
     {
@@ -113,8 +103,7 @@ export const HOME = {
       phoneWidth: 380,
       phoneHeight: 122,
       alt: "Connecting Hunter in QuotaCanary, with the note that the key is stored in the Mac's Keychain and sent only to Hunter.",
-      // QUO-380: label option A, approved by Noam on 2026-10-30.
-      // QUO-417: the transport link, staged option A, Noam's pick pending.
+      // QUO-417: the transport link.
       links: [
         { label: "Read the Keychain code", href: KEYCHAIN_CODE_URL },
         { label: "Read the transport code", href: TRANSPORT_CODE_URL },
@@ -126,13 +115,12 @@ export const HOME = {
     "Run the web version yourself. You operate the server, database and polling schedule. Its API and MCP server read that instance, not the connections on your Mac.",
   webCta: "Read the self-host guide",
   videoCta: "See how it works (26s)",
-  // Noam's 2026-10-23 pick: free and open source permanently, no feature list.
+  // Free and open source permanently, no feature list.
   pricingHeadline: "Free. Open source. Staying that way.",
   pricingFootnote: "No credit card. No “talk to sales.” There is no sales.",
   closingHeading: "The bird that sings before the credits die.",
 } as const
 
-// QUO-333: Noam picked variant B on 2026-10-29 (form intro kept as drafted).
 export const DIRECTORY = {
   submitLead: "Run an API with a balance endpoint?",
   submitLink: "Send us the docs",
@@ -140,7 +128,7 @@ export const DIRECTORY = {
 
 export const FOOTER_NOTE = "© 2026 QuotaCanary."
 
-// Security page copy approved by Noam on 2026-10-23; disclosure remains mandatory.
+// Security page copy. The disclosure is mandatory.
 export const MAC = {
   securityHeading: "The Mac app",
   securityParagraph: "Vendor keys live in your Mac’s login Keychain, with iCloud synchronization disabled, and never go to QuotaCanary servers. The app reads balances directly from vendors using their keys.",

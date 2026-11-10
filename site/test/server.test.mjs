@@ -97,7 +97,7 @@ describe("request handling", () => {
     for (const path of ["/", "/security", "/privacy", "/terms", "/directory/hunter"]) {
       const html = await (await get(path, { host: "quotacanary.com" })).text()
       assert.doesNotMatch(html, /app\.quotacanary|hosted-window|>Sign in<|>Sign up/)
-      // Directory pitches use the concise approved copy; limits live in the FAQ.
+      // Directory pitches use the concise copy; limits live in the FAQ.
       if (!path.startsWith("/directory/")) assert.match(html, /awake and online/)
     }
     const home = await (await get("/", { host: "quotacanary.com" })).text()
