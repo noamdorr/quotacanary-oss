@@ -45,3 +45,28 @@ jobs:
           NEXT_PUBLIC_SITE_URL: http://localhost:3000
           NEXT_PUBLIC_APP_URL: http://localhost:3000
           APP_ONLY: "true"
+
+  site:
+    name: marketing site (Astro)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: site
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: site/package-lock.json
+      - run: npm ci
+      - run: npm run check
+      # Prerenders every marketing route from site/src/data/tools.json; no
+      # database, no secrets. PLAUSIBLE_SCRIPT_SRC is unset here on purpose, so
+      # the build ships no analytics script and the test's CSP has no third
+      # party origin.
+      - run: npm run build
+      # Contract tests against the built dist/: security headers, the
+      # www -> apex redirect, the 404, robots and the sitemap.
+      - run: npm test
