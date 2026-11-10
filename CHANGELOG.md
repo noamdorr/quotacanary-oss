@@ -9,6 +9,16 @@ migration under **Upgrade notes**. Always run the migration step after updating.
 
 ## [Unreleased]
 
+## [1.2.11] - 2026-11-10
+
+No changes to the Mac app, the web app or the database.
+
+### Added
+- The README and the site's download section show the Homebrew install: `brew install --cask noamdorr/tap/quotacanary`.
+
+### Changed
+- The homepage hero keeps to one plain line under the download button.
+
 ## [1.2.10] - 2026-11-10
 
 Mac app 0.1.11. The public mirror carries the exact `mac/` source the download

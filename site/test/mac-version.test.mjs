@@ -16,10 +16,10 @@ describe("Mac version beside Download", () => {
     assert.match(version ?? "", /^\d+\.\d+\.\d+$/)
   })
 
-  it("names the version the download serves, under both buttons", () => {
+  it("names the version the download serves, under the closing button", () => {
     assert.equal(macDownloadLocation("/download/mac", version), `/mac/QuotaCanary-${version}.dmg`)
     const lines = html.match(/<p class="download-notarized"[^>]*>[\s\S]*?<\/p>/g) ?? []
-    assert.equal(lines.length, 2)
+    assert.equal(lines.length, 1)
     for (const line of lines) {
       assert.ok(line.includes(`v${version},`), `no v${version} in ${line}`)
       assert.match(line, new RegExp(`href="https://github\\.com/noamdorr/quotacanary-oss/releases/tag/mac-v${version.replaceAll(".", "\\.")}"`))

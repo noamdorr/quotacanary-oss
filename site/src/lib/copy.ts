@@ -67,6 +67,10 @@ export const HOME = {
   // the GitHub release. Picked by Noam on 2026-11-02 (option A).
   maturity: "early release.",
   releaseNotes: "Release notes",
+  // QUO-236: under the notarized line. Picked by Noam on 2026-11-10 (option B).
+  // The full name is deliberate: Homebrew's tap trust refuses the short one.
+  homebrewPrompt: "Terminal person?",
+  homebrewCommand: "brew install --cask noamdorr/tap/quotacanary",
   // QUO-406: phones only, beside the DMG button. Picked by Noam on 2026-11-02
   // (option A). The page link is shared or copied, never the DMG.
   handoff: "Send it to your Mac",

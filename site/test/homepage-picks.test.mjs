@@ -7,12 +7,24 @@ import { describe, it } from "node:test"
 const html = readFileSync(new URL("../dist/index.html", import.meta.url), "utf8")
 
 describe("homepage picks", () => {
-  it("puts the notarized line under both Download buttons", () => {
+  it("keeps the hero download to one plain line (2026-11-10)", () => {
+    const hero = html.match(/<div class="download"[^>]*>[\s\S]*?<\/div>/)?.[0]
+    assert.ok(hero, "no hero download block")
+    assert.match(hero, /<p class="download-facts"[^>]*>\s*Free and open source\s*<\/p>/)
+    assert.doesNotMatch(hero, /download-notarized|download-homebrew|macOS 26\+|Apple silicon/)
+    assert.doesNotMatch(hero, /github\.com/)
+  })
+
+  it("keeps the notarized and Homebrew lines under the closing Download button only", () => {
     const blocks = html.match(
       // QUO-406: the phone hand-off button and its status line may sit between.
       /class="button primary download-button[^"]*"[^>]*>[\s\S]*?<\/a>\s*(?:<button[^>]*handoff-button[\s\S]*?<\/span>\s*)?<p class="download-notarized"[^>]*>\s*Signed and notarized by Apple\. /g
     )
-    assert.equal(blocks?.length, 2, "expected the line under the hero and closing buttons")
+    assert.equal(blocks?.length, 1, "expected the line under the closing button only")
+    const lines = html.match(
+      /<p class="download-notarized"[^>]*>[\s\S]*?<\/p>\s*<p class="download-homebrew"[^>]*>\s*Terminal person\?\s*<code[^>]*>brew install --cask noamdorr\/tap\/quotacanary<\/code>/g
+    )
+    assert.equal(lines?.length, 1, "expected the Homebrew line under the closing button only")
   })
 
   it("says free once and merges the data FAQs", () => {

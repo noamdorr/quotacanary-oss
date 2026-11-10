@@ -10,7 +10,7 @@ If you opt in to update checks, the app sends its app version, macOS version and
 
 ## Use it: QuotaCanary for Mac
 
-**[Download QuotaCanary for Mac](https://quotacanary.com/download/mac)**: a signed, notarized DMG. Or build it yourself with [the Mac build instructions](mac/docs/BUILDING.md).
+**[Download QuotaCanary for Mac](https://quotacanary.com/download/mac)**: a signed, notarized DMG. Or install with Homebrew: `brew install --cask noamdorr/tap/quotacanary`. Or build it yourself with [the Mac build instructions](mac/docs/BUILDING.md).
 
 Requires macOS 26 (Tahoe) or newer. Universal binary; Intel hardware validation is still pending.
 

@@ -2,6 +2,10 @@
 import { GITHUB_URL, HOME, MAC_DOWNLOAD_URL, MAC_RELEASE_URL, MAC_VERSION, SITE_URL } from "../lib/copy"
 import AppleIcon from "./AppleIcon.astro"
 
+// `minimal` is the hero: one plain line under the button (Noam, 2026-11-10).
+// The closing section keeps the release, Homebrew and requirement lines.
+const { minimal = false } = Astro.props
+
 // The Mac download call to action, shared by the hero and the closing
 // section (QUO-212). A link only while MAC_DOWNLOAD_URL names a real artifact;
 // otherwise the disabled span. The first fact links to the public source.
@@ -46,23 +50,32 @@ import AppleIcon from "./AppleIcon.astro"
     )
   }
   {
-    MAC_DOWNLOAD_URL && (
+    MAC_DOWNLOAD_URL && !minimal && (
       <p class="download-notarized">
         {HOME.notarized} v{MAC_VERSION}, {HOME.maturity}{" "}
         <a href={MAC_RELEASE_URL} target="_blank" rel="noopener">{HOME.releaseNotes}</a>
       </p>
+      <p class="download-homebrew">
+        {HOME.homebrewPrompt} <code>{HOME.homebrewCommand}</code>
+      </p>
     )
   }
-  <p class="download-facts">
-    {
-      HOME.facts.map((fact, index) => (
-        <span>
-          {index > 0 && <span aria-hidden="true"> · </span>}
-          {index === 0 ? <a href={GITHUB_URL} target="_blank" rel="noopener">{fact}</a> : fact}
-        </span>
-      ))
-    }
-  </p>
+  {
+    minimal ? (
+      <p class="download-facts">{HOME.facts[0]}</p>
+    ) : (
+      <p class="download-facts">
+        {
+          HOME.facts.map((fact, index) => (
+            <span>
+              {index > 0 && <span aria-hidden="true"> · </span>}
+              {index === 0 ? <a href={GITHUB_URL} target="_blank" rel="noopener">{fact}</a> : fact}
+            </span>
+          ))
+        }
+      </p>
+    )
+  }
 </div>
 
 <script>
