@@ -9,6 +9,18 @@ migration under **Upgrade notes**. Always run the migration step after updating.
 
 ## [Unreleased]
 
+## [1.2.13] - 2026-11-12
+
+Mac app 0.1.12. The public mirror carries the exact `mac/` source the download
+was built from.
+
+### Added
+- Exa, read from its team credits endpoint as a USD balance. It needs an Exa service key, which Exa support turns on per team.
+- The site tells search engines and share previews that QuotaCanary is a Mac app.
+
+### Upgrade notes
+- Self-hosters: run migration `102_exa.sql` to add Exa to the tool catalog.
+
 ## [1.2.12] - 2026-11-10
 
 Comments and one site test only. The Mac app, the web app, the site and the database behave the same. The exact source of the Mac 0.1.11 download stays at tag `mac-v0.1.11`.

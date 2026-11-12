@@ -76,3 +76,4 @@ supabase/.branches/
 .design-sync/node_modules
 mac/.build/
 mac/dist/
+/video-mac/

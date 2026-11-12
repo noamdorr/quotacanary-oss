@@ -39,9 +39,11 @@ export const MAC_POLL_MINUTES = 15
 export const TAGLINE = "the bird that sings before the credits die"
 
 export const HOME = {
-  pageTitle: "QuotaCanary - the bird that sings before the credits die",
+  pageTitle: "QuotaCanary - API credit alerts in your Mac menu bar",
   pageDescription:
-    "A free, open-source Mac menu bar app that watches the credit balances of your API tools and warns you when credits are running low.",
+    "A free, open-source Mac menu bar app that watches your API credit balances and warns before they run out. Your keys stay on your Mac.",
+  ogDescription:
+    "The bird that sings before the credits die. A Mac menu bar app for API credit balances. Local only, with keys in your Mac Keychain.",
   // Privacy is supporting copy.
   oneLiner: "A menu bar app that warns you before your API credits run out.",
   // QUO-384: supporting line under the h1, privacy angle.

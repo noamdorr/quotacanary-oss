@@ -2667,6 +2667,28 @@
           "balance": "data.credits_balance"
         }
       ]
+    },
+    {
+      "id": "exa",
+      "name": "Exa",
+      "topupUrl": "https://dashboard.exa.ai/billing",
+      "request": {
+        "method": "GET",
+        "url": "https://admin-api.exa.ai/team-management/credits"
+      },
+      "auth": {
+        "in": "header",
+        "name": "x-api-key",
+        "format": "{key}"
+      },
+      "pools": [
+        {
+          "creditType": "balance",
+          "label": "Balance",
+          "unit": "usd",
+          "balance": "credits_usd"
+        }
+      ]
     }
   ]
 }

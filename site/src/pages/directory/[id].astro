@@ -13,11 +13,9 @@ export function getStaticPaths() {
 
 const { tool } = Astro.props as { tool: Tool }
 
-// Copy carried over from the Next /directory/[id] page (live on master).
-const title = `${tool.name} credit balance - check it and get warned before it runs dry`
+const title = `${tool.name} credit balance on Mac - QuotaCanary`
 const description =
-  tool.description ??
-  `${toolSubheading(tool.name)}. QuotaCanary watches your ${tool.name} credits and warns you before they run out.`
+  `Watch ${tool.name} credits in the QuotaCanary Mac menu bar app. Get low-credit warnings while your Mac is awake. Keys stay on your Mac.`
 
 // Empty or whitespace-only text (tools added without instructions) falls back to a generic line,
 // kept here rather than in the catalog so its shape stays shared with the Mac app (QUO-378);

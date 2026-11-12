@@ -3,7 +3,7 @@ import "../styles/impeccable.css"
 import "../styles/site.css"
 import Header from "../components/Header.astro"
 import Footer from "../components/Footer.astro"
-import { SITE_URL, TAGLINE } from "../lib/copy"
+import { SITE_URL } from "../lib/copy"
 
 interface Props {
   title: string
@@ -18,7 +18,7 @@ interface Props {
 
 const { title, description, path, ogTitle, ogDescription, jsonLd } = Astro.props
 const canonical = `${SITE_URL}${path === "/" ? "/" : path}`
-const ogImageAlt = `QuotaCanary - ${TAGLINE}`
+const ogImageAlt = "QuotaCanary, a Mac-only menu bar app, showing API credit balances with low-balance warnings. Keys stay on your Mac."
 
 // Analytics is opt-in and set only on the hosted deployment: a self-host or
 // a CI build leaves PLAUSIBLE_SCRIPT_SRC unset and ships no third-party
@@ -53,6 +53,7 @@ const plausibleSrc = import.meta.env.PROD ? import.meta.env.PLAUSIBLE_SCRIPT_SRC
     <meta name="twitter:title" content={ogTitle ?? title} />
     <meta name="twitter:description" content={ogDescription ?? description} />
     <meta name="twitter:image" content={`${SITE_URL}/og.jpg`} />
+    <meta name="twitter:image:alt" content={ogImageAlt} />
     {jsonLd && <script is:inline type="application/ld+json" set:html={jsonLd} />}
     {
       plausibleSrc && (

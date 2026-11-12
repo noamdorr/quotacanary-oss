@@ -1647,6 +1647,17 @@ values
     'api',
     100,
     true
+  ),
+  (
+    'exa',
+    'Exa',
+    '/logos/exa.png',
+    'https://exa.ai/docs/reference/team-management/get-team-credits',
+    'This needs an Exa service key, not a search key. Ask support@exa.ai to turn on the Team Management API for your team, then create one under API keys, Service keys.',
+    'data',
+    'api',
+    5,
+    true
   )
 on conflict (id) do update set
   name                    = excluded.name,
@@ -2058,6 +2069,7 @@ update public.tools set description = 'Text-to-speech and voice cloning API, bil
 update public.tools set description = 'Company and technographics intelligence API, billed from credits.' where id = 'sumble';
 update public.tools set description = 'One token for thousands of SEO, enrichment, social and scraping API tools, billed from a prepaid USD balance.' where id = 'treg';
 update public.tools set description = 'Review intelligence for software sales teams, billed from credits spent on unlocks and reports.' where id = 'reechee';
+update public.tools set description = 'Web search and content API for AI apps, billed from prepaid USD credits.' where id = 'exa';
 
 -- ---------------------------------------------------------------------------
 -- Tool homepages (directory "Website" button + JSON-LD url). Only seeded where
@@ -2167,6 +2179,7 @@ update public.tools set website_url = 'https://fish.audio' where id = 'fishaudio
 update public.tools set website_url = 'https://sumble.com' where id = 'sumble';
 update public.tools set website_url = 'https://treg.to' where id = 'treg';
 update public.tools set website_url = 'https://reechee.io' where id = 'reechee';
+update public.tools set website_url = 'https://exa.ai' where id = 'exa';
 
 -- ---------------------------------------------------------------------------
 -- Top-up URLs for fresh installs. Migrations 034/035 backfilled these on the
@@ -2299,6 +2312,7 @@ update public.tools set topup_url = 'https://fish.audio' where id = 'fishaudio';
 update public.tools set topup_url = 'https://sumble.com/pricing' where id = 'sumble';
 update public.tools set topup_url = 'https://treg.to/app' where id = 'treg';
 update public.tools set topup_url = 'https://app.reechee.io/settings' where id = 'reechee';
+update public.tools set topup_url = 'https://dashboard.exa.ai/billing' where id = 'exa';
 
 -- ---------------------------------------------------------------------------
 -- Pools for the multi-pool tools declared in migration 037 (same
@@ -2900,6 +2914,14 @@ update public.tools
     {"credit_type":"credits","label":"Credits","unit":"credits"}
   ]'::jsonb
   where id = 'reechee';
+
+-- Exa, a USD balance read with a service key. default_low_threshold comes
+-- from the rule in the closing block of this file.
+update public.tools
+  set pools = '[
+    {"credit_type":"balance","label":"Balance","unit":"usd"}
+  ]'::jsonb
+  where id = 'exa';
 
 -- ---------------------------------------------------------------------------
 -- Migration 009 parity (same migrations-run-before-seed problem): the three

@@ -764,6 +764,24 @@
     ]
   },
   {
+    "id": "exa",
+    "name": "Exa",
+    "logo_url": "/logos/exa.webp",
+    "category": "data",
+    "description": "Web search and content API for AI apps, billed from prepaid USD credits.",
+    "website_url": "https://exa.ai",
+    "api_docs_url": "https://exa.ai/docs/reference/team-management/get-team-credits",
+    "key_instructions": "This needs an Exa service key, not a search key. Ask support@exa.ai to turn on the Team Management API for your team, then create one under API keys, Service keys.",
+    "topup_url": "https://dashboard.exa.ai/billing",
+    "pools": [
+      {
+        "unit": "usd",
+        "label": "Balance",
+        "credit_type": "balance"
+      }
+    ]
+  },
+  {
     "id": "fal",
     "name": "fal.ai",
     "logo_url": "/logos/fal.webp",

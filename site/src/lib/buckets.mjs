@@ -48,10 +48,10 @@ export const BUCKETS = [
     id: "search_seo",
     label: "Search and SEO",
     tools: [
-      "ahrefs", "cloro", "dataforseo", "keywordseverywhere", "linkup", "majestic", "mangools",
-      "moz", "orbisearch", "scaleserp", "search1api", "searchapi", "semrush", "seranking",
-      "serpapi", "serper", "serpstat", "serpwow", "similarweb", "tavily", "valueserp", "valyu",
-      "youcom", "zenserp",
+      "ahrefs", "cloro", "dataforseo", "exa", "keywordseverywhere", "linkup", "majestic",
+      "mangools", "moz", "orbisearch", "scaleserp", "search1api", "searchapi", "semrush",
+      "seranking", "serpapi", "serper", "serpstat", "serpwow", "similarweb", "tavily", "valueserp",
+      "valyu", "youcom", "zenserp",
     ],
   },
   {
